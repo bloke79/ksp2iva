@@ -1,0 +1,351 @@
+// Custom pod interiors shipped with the mod.
+//
+// Each interior is a prefab built from the Blender model by the "IVA > Set Up Interiors" editor
+// button and packed into the mod as an addressable asset. At run time the mod loads it by address,
+// places it inside the real pod (sized to the pod's measured shape), and puts the camera at one of
+// its seat eye points. The game camera then draws the interior and the real world through its
+// windows together.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using KSP.Game;
+using KSP.Modules;
+using KSP.Sim.impl;
+using ReduxLib.Logging;
+using UnityEngine;
+
+namespace IVA
+{
+    // An interior the mod ships with.
+    public class InteriorDesign
+    {
+        public string Name;
+        public string Address;
+        public int Seats;
+        public float BaseRadius;   // outer pod radius at the base it was designed for (metres)
+        public float Height;       // outer pod height it was designed for (metres)
+    }
+
+    public static class InteriorCatalogue
+    {
+        public static readonly List<InteriorDesign> All = new List<InteriorDesign>
+        {
+            new InteriorDesign { Name = "Mk1-3", Address = "IVA/Interior_Mk1-3", Seats = 3, BaseRadius = 1.25f, Height = 1.95f },
+        };
+
+        public static InteriorDesign ForPod(int seats, bool anyPod)
+        {
+            InteriorDesign exact = All.FirstOrDefault(d => d.Seats == seats);
+            if (exact != null) return exact;
+            return anyPod ? All.FirstOrDefault() : null;
+        }
+    }
+
+    public class PodInfo
+    {
+        public PartBehavior Pod;
+        public int Seats;
+        public string Name;
+    }
+
+    public static class PodLocator
+    {
+        public const string KerbalCameraName = "kerbalCam";
+        public const string KerbalBodyBoneName = "bone_kerbal_master_parent";
+
+        public static VesselBehavior ActiveVessel(GameInstance game)
+        {
+            try
+            {
+                var vc = game != null ? game.ViewController : null;
+                if (vc == null) return null;
+                VesselComponent v = vc.GetActiveSimVessel(true);
+                return v != null ? vc.GetBehaviorIfLoaded(v) : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        // Picks the crew pod on the active vessel: the name filter if set, else 3-seat pods, else the biggest.
+        public static PodInfo FindPod(GameInstance game, string nameFilter, ILogger log)
+        {
+            VesselBehavior vessel = ActiveVessel(game);
+            if (vessel == null) { log.LogInfo("IVA: no loaded active vessel."); return null; }
+
+            PodInfo best = null;
+            int bestScore = int.MinValue;
+            var found = new List<string>();
+            foreach (PartBehavior pb in vessel.parts)
+            {
+                if (pb == null) continue;
+                var crewed = pb.GetComponentInChildren<Module_CrewedInterior>(true);
+                if (crewed == null || crewed.IsProbe) continue;
+
+                int seats = crewed.crew != null ? crewed.crew.Length : 0;
+                string name = PartName(pb);
+                found.Add($"{name} (seats {seats})");
+
+                int score;
+                if (!string.IsNullOrEmpty(nameFilter))
+                {
+                    if (name.IndexOf(nameFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    score = 10000;
+                }
+                else score = (seats == 3 ? 1000 : 0) + seats;
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = new PodInfo { Pod = pb, Seats = seats, Name = name };
+                }
+            }
+
+            log.LogInfo(found.Count == 0 ? "IVA: no crewed pods on the active vessel."
+                                         : "IVA: crewed parts on vessel: " + string.Join("; ", found));
+            if (best == null && !string.IsNullOrEmpty(nameFilter))
+                log.LogWarning($"IVA: no crewed part matches the pod name filter '{nameFilter}'.");
+            return best;
+        }
+
+        public static string PartName(PartBehavior pb)
+        {
+            try { return !string.IsNullOrEmpty(pb.Name) ? pb.Name : pb.name; }
+            catch (Exception) { return pb.name; }
+        }
+
+        public static string HierarchyPath(Transform t, Transform root)
+        {
+            var parts = new List<string>();
+            while (t != null && t != root)
+            {
+                parts.Add(t.name + "#" + t.GetSiblingIndex());
+                t = t.parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
+        public static Transform FindChildRecursive(Transform parent, string name)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                if (child.name == name) return child;
+                Transform found = FindChildRecursive(child, name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+    }
+
+    // Placement settings read from config each time IVA starts.
+    public class PlacementSettings
+    {
+        public bool FitToPod = true;
+        public Vector3 Offset;           // metres, in pod space
+        public float Yaw;                // degrees round the pod axis
+        public float ExtraScale = 1f;    // multiplies the fitted scale
+    }
+
+    // The pod's measured size in its own local space.
+    public struct PodMeasure
+    {
+        public bool Valid;
+        public Vector3 AxisCentre;  // x/z centre of the pod, at y = 0
+        public float YMin, YMax;
+        public float BaseRadius;
+        public string Source;
+    }
+
+    // One IVA visit inside a custom interior. Created on entry, ended on exit.
+    public class CustomInteriorSession
+    {
+        public PartBehavior Pod { get; private set; }
+        public InteriorDesign Design { get; private set; }
+        public readonly List<Transform> Seats = new List<Transform>();
+        public PodMeasure Measure { get; private set; }
+
+        private GameObject _instance;
+        private Vector3 _fitScale = Vector3.one;
+        private readonly List<Renderer> _hiddenExterior = new List<Renderer>();
+        private CustomInteriorSession() { }
+
+        public bool IsValid => Pod != null && _instance != null && Seats.Count > 0 && Seats[0] != null;
+
+        public static CustomInteriorSession Create(PodInfo pod, InteriorDesign design, GameObject prefab,
+            PlacementSettings place, ILogger log)
+        {
+            var s = new CustomInteriorSession { Pod = pod.Pod, Design = design };
+            s.Measure = MeasurePod(pod.Pod);   // before adding anything to the pod
+
+            // Instantiate inactive, set it up, then show it.
+            var holder = new GameObject("IVA_Interior_" + design.Name);
+            holder.SetActive(false);
+            holder.transform.SetParent(pod.Pod.transform, false);
+            GameObject inst = UnityEngine.Object.Instantiate(prefab, holder.transform, false);
+            inst.name = design.Name;
+
+            // Draw on the same layer as the pod so the flight camera renders it with the pod.
+            int layer = pod.Pod.gameObject.layer;
+            var podRenderer = pod.Pod.GetComponentsInChildren<Renderer>(false).FirstOrDefault(r => r.GetComponentInParent<PartBehavior>() == pod.Pod);
+            if (podRenderer != null) layer = podRenderer.gameObject.layer;
+            SetLayerRecursive(holder.transform, layer);
+
+            // No physics: strip any colliders that came with the model.
+            foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.DestroyImmediate(c);
+
+            foreach (Transform t in inst.GetComponentsInChildren<Transform>(true)
+                         .Where(t => t.name.StartsWith("IVA_Seat", StringComparison.Ordinal))
+                         .OrderBy(t => t.name, StringComparer.Ordinal))
+                s.Seats.Add(t);
+
+            CorrectOrientation(inst, s.Seats, log);
+
+            s._instance = holder;
+            s.ComputeFit(place);
+            s.ApplyPlacement(place);
+
+            holder.SetActive(true);
+
+            log.LogInfo($"IVA: placed the {design.Name} interior in {pod.Name}. Pod measured from {s.Measure.Source}: " +
+                        $"base radius {s.Measure.BaseRadius:F2} m, height {s.Measure.YMax - s.Measure.YMin:F2} m " +
+                        $"(from {s.Measure.YMin:F2} to {s.Measure.YMax:F2}). Fit scale ({s._fitScale.x:F2}, {s._fitScale.y:F2}). " +
+                        $"{s.Seats.Count} seat(s).");
+            LogPodWindows(pod.Pod, s.Measure, log);
+            return s;
+        }
+
+        // The seat eye points sit about a metre above the cabin floor. If the model was imported tipped
+        // over (a common Blender-to-Unity axis mix-up), they'll be off to one side instead; rotate the
+        // model so they're up again.
+        private static void CorrectOrientation(GameObject inst, List<Transform> seats, ILogger log)
+        {
+            if (seats.Count == 0) return;
+            Vector3 mean = Vector3.zero;
+            foreach (Transform t in seats) mean += inst.transform.InverseTransformPoint(t.position);
+            mean /= seats.Count;
+            Vector3 up = Vector3.up;
+            float ax = Mathf.Abs(mean.x), ay = Mathf.Abs(mean.y), az = Mathf.Abs(mean.z);
+            if (ay >= ax && ay >= az) up = mean.y >= 0 ? Vector3.up : Vector3.down;
+            else if (az >= ax) up = mean.z >= 0 ? Vector3.forward : Vector3.back;
+            else up = mean.x >= 0 ? Vector3.right : Vector3.left;
+            if (up == Vector3.up) return;
+            inst.transform.localRotation = Quaternion.FromToRotation(up, Vector3.up);
+            log.LogWarning($"IVA: the interior model came in tipped over (seats along {up}); rotated it upright.");
+        }
+
+        private static void SetLayerRecursive(Transform t, int layer)
+        {
+            t.gameObject.layer = layer;
+            for (int i = 0; i < t.childCount; i++) SetLayerRecursive(t.GetChild(i), layer);
+        }
+
+        // Measures the pod from its own colliders (or meshes if it has none), in the pod's local space.
+        public static PodMeasure MeasurePod(PartBehavior pod)
+        {
+            var m = new PodMeasure();
+            Transform pt = pod.transform;
+            var bounds = new List<Bounds>();
+            foreach (Collider c in pod.GetComponentsInChildren<Collider>(false))
+                if (c != null && c.enabled && !c.isTrigger && c.GetComponentInParent<PartBehavior>() == pod) bounds.Add(c.bounds);
+            m.Source = "colliders";
+            if (bounds.Count == 0)
+            {
+                foreach (Renderer r in pod.GetComponentsInChildren<Renderer>(false))
+                    if (r != null && r.GetComponentInParent<PartBehavior>() == pod && !r.name.StartsWith("IVA_", StringComparison.Ordinal)) bounds.Add(r.bounds);
+                m.Source = "meshes";
+            }
+            if (bounds.Count == 0) { m.Source = "nothing"; return m; }
+
+            bool any = false;
+            Vector3 min = Vector3.zero, max = Vector3.zero;
+            foreach (Bounds b in bounds)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                    Vector3 p = pt.InverseTransformPoint(corner);
+                    if (!any) { min = p; max = p; any = true; }
+                    else { min = Vector3.Min(min, p); max = Vector3.Max(max, p); }
+                }
+            }
+            m.Valid = true;
+            m.AxisCentre = new Vector3((min.x + max.x) * 0.5f, 0f, (min.z + max.z) * 0.5f);
+            m.YMin = min.y;
+            m.YMax = max.y;
+            m.BaseRadius = Mathf.Max(max.x - min.x, max.z - min.z) * 0.5f;
+            return m;
+        }
+
+        private void ComputeFit(PlacementSettings place)
+        {
+            _fitScale = Vector3.one;
+            if (!place.FitToPod || !Measure.Valid) return;
+            float sxz = Mathf.Clamp(Measure.BaseRadius / Design.BaseRadius, 0.6f, 1.6f);
+            float sy = Mathf.Clamp((Measure.YMax - Measure.YMin) / Design.Height, 0.6f, 1.6f);
+            // Keep the proportions unless the pod is clearly a different shape.
+            if (Mathf.Abs(sy / sxz - 1f) < 0.08f) sy = sxz;
+            _fitScale = new Vector3(sxz, sy, sxz);
+        }
+
+        // Called every frame so the alignment keys take effect immediately.
+        public void ApplyPlacement(PlacementSettings place)
+        {
+            if (_instance == null) return;
+            Transform t = _instance.transform;
+            Vector3 basePos = Measure.Valid && place.FitToPod ? Measure.AxisCentre + new Vector3(0f, Measure.YMin, 0f) : Vector3.zero;
+            t.localPosition = basePos + place.Offset;
+            t.localRotation = Quaternion.Euler(0f, place.Yaw, 0f);
+            t.localScale = _fitScale * Mathf.Clamp(place.ExtraScale, 0.5f, 2f);
+        }
+
+        // Logs where the pod's own window meshes are, to help line the interior up.
+        private static void LogPodWindows(PartBehavior pod, PodMeasure m, ILogger log)
+        {
+            var found = new List<string>();
+            foreach (Renderer r in pod.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || r.GetComponentInParent<PartBehavior>() != pod) continue;
+                string label = r.gameObject.name.ToLowerInvariant();
+                try { label += " " + string.Join(" ", r.sharedMaterials.Where(x => x != null).Select(x => x.name.ToLowerInvariant())); }
+                catch (Exception) { }
+                if (!(label.Contains("window") || label.Contains("glass"))) continue;
+                Vector3 c = pod.transform.InverseTransformPoint(r.bounds.center) - m.AxisCentre;
+                float angle = Mathf.Atan2(c.x, c.z) * Mathf.Rad2Deg;
+                found.Add($"{r.gameObject.name} at {angle:F0} deg, height {c.y:F2}");
+            }
+            if (found.Count > 0) log.LogInfo("IVA: the pod's own window meshes: " + string.Join("; ", found) +
+                                              ". The interior's front windows face 0 deg; set Alignment > Yaw to the pod's forward window angle if they differ.");
+        }
+
+        public void HidePodExterior()
+        {
+            foreach (Renderer r in Pod.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled || r.GetComponentInParent<PartBehavior>() != Pod) continue;
+                if (_instance != null && r.transform.IsChildOf(_instance.transform)) continue;
+                r.enabled = false;
+                _hiddenExterior.Add(r);
+            }
+        }
+
+        // Positions the flight camera at a seat.
+        public void ApplyCamera(Camera cam, int seat, Quaternion look, Vector3 eyeOffset, float fov, float nearClip)
+        {
+            if (seat < 0 || seat >= Seats.Count || Seats[seat] == null) return;
+            Transform s = Seats[seat];
+            cam.transform.SetPositionAndRotation(s.TransformPoint(eyeOffset), s.rotation * look);
+            cam.fieldOfView = fov;
+            cam.nearClipPlane = nearClip;
+        }
+
+        public void End()
+        {
+            foreach (Renderer r in _hiddenExterior) if (r != null) r.enabled = true;
+            _hiddenExterior.Clear();
+            if (_instance != null) UnityEngine.Object.Destroy(_instance);
+            _instance = null;
+            Seats.Clear();
+        }
+    }
+}

@@ -1,0 +1,20 @@
+# Blender intermediates (build into the workspace scratch/)
+*.blend
+*.blend1
+
+# Unity (in case a Unity project ever ends up in here)
+Library/
+Temp/
+Logs/
+UserSettings/
+obj/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,263 @@
+// Unity editor menu: IVA > Set Up Interiors
+//
+// For every folder under Assets/IVA/Interiors that has a materials.json (written by the Blender
+// export script), this:
+//   1. marks normal-map textures as normal maps,
+//   2. builds Standard-shader materials from the sheet (colour, metal, smoothness, textures, glow),
+//   3. sets sensible import options on the model (no cameras, lights, animation or colliders),
+//   4. makes a prefab with the materials applied and a cabin light,
+//   5. registers the prefab in the IVA mod's addressable group under the address the mod loads.
+//
+// Safe to run again at any time; it updates what's already there.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace IVA.EditorTools
+{
+    public static class IVAInteriorSetup
+    {
+        private const string InteriorsRoot = "Assets/IVA/Interiors";
+        private const string ModGroupName = "addressables_IVA_all";
+
+        [Serializable]
+        private class MatInfo
+        {
+            public string name;
+            public float[] color;
+            public float metallic;
+            public float roughness;
+            public float[] emission;
+            public float emissionStrength;
+            public string texture;
+            public string normal;
+            public float normalStrength = 1f;
+            public float[] tiling;
+            public bool emissionFromTexture;
+        }
+
+        [Serializable]
+        private class Sheet
+        {
+            public string interior;
+            public string address;
+            public MatInfo[] materials;
+        }
+
+        [MenuItem("IVA/Set Up Interiors")]
+        public static void SetUpAll()
+        {
+            if (!AssetDatabase.IsValidFolder(InteriorsRoot))
+            {
+                EditorUtility.DisplayDialog("IVA", $"Couldn't find {InteriorsRoot}. Copy the Interiors folder from the IVA package into Assets/IVA first.", "OK");
+                return;
+            }
+
+            var sheets = Directory.GetFiles(InteriorsRoot, "materials.json", SearchOption.AllDirectories)
+                .Select(p => p.Replace('\\', '/')).ToList();
+            if (sheets.Count == 0)
+            {
+                EditorUtility.DisplayDialog("IVA", "No interiors found (no materials.json under Assets/IVA/Interiors).", "OK");
+                return;
+            }
+
+            var done = new List<string>();
+            var problems = new List<string>();
+            foreach (string sheetPath in sheets)
+            {
+                try
+                {
+                    string result = SetUpOne(sheetPath);
+                    done.Add(result);
+                }
+                catch (Exception e)
+                {
+                    problems.Add($"{sheetPath}: {e.Message}");
+                    Debug.LogException(e);
+                }
+            }
+
+            AssetDatabase.SaveAssets();
+            string msg = "Set up:\n" + string.Join("\n", done);
+            if (problems.Count > 0) msg += "\n\nProblems:\n" + string.Join("\n", problems);
+            msg += "\n\nNow run Assets/IVA/Pipelines/Build for Player.";
+            Debug.Log("[IVA] " + msg);
+            EditorUtility.DisplayDialog("IVA", msg, "OK");
+        }
+
+        private static string SetUpOne(string sheetPath)
+        {
+            string dir = Path.GetDirectoryName(sheetPath).Replace('\\', '/');
+            var sheet = JsonUtility.FromJson<Sheet>(File.ReadAllText(sheetPath));
+            if (sheet == null || string.IsNullOrEmpty(sheet.interior))
+                throw new Exception("materials.json is missing the interior name.");
+
+            // 1. Textures
+            string texDir = dir + "/Textures";
+            foreach (MatInfo m in sheet.materials)
+            {
+                if (!string.IsNullOrEmpty(m.normal)) SetTextureType(texDir + "/" + m.normal, normalMap: true);
+                if (!string.IsNullOrEmpty(m.texture)) SetTextureType(texDir + "/" + m.texture, normalMap: false);
+            }
+
+            // 2. Materials
+            string matDir = dir + "/Materials";
+            if (!AssetDatabase.IsValidFolder(matDir)) AssetDatabase.CreateFolder(dir, "Materials");
+            var materials = new Dictionary<string, Material>();
+            Shader standard = Shader.Find("Standard");
+            if (standard == null) throw new Exception("The Standard shader isn't available in this project.");
+            foreach (MatInfo m in sheet.materials)
+            {
+                string path = $"{matDir}/{m.name}.mat";
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (mat == null)
+                {
+                    mat = new Material(standard) { name = m.name };
+                    AssetDatabase.CreateAsset(mat, path);
+                }
+                mat.shader = standard;
+                Configure(mat, m, texDir);
+                EditorUtility.SetDirty(mat);
+                materials[m.name] = mat;
+            }
+
+            // 3. Model import settings
+            string modelPath = $"{dir}/{sheet.interior}.fbx";
+            var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
+            if (importer == null) throw new Exception($"Couldn't find the model {modelPath}.");
+            importer.globalScale = 1f;
+            importer.useFileScale = true;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.importAnimation = false;
+            importer.animationType = ModelImporterAnimationType.None;
+            importer.addCollider = false;
+            importer.isReadable = false;
+            importer.materialImportMode = ModelImporterMaterialImportMode.None;
+            importer.importNormals = ModelImporterNormals.Import;
+            importer.SaveAndReimport();
+
+            // 4. Prefab
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+            var inst = (GameObject)UnityEngine.Object.Instantiate(model);
+            inst.name = sheet.interior;
+            int missing = 0;
+            foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                // Meshes are named Mesh_<Material>, materials IVA_<Material>.
+                string key = "IVA_" + StripSuffix(r.gameObject.name).Replace("Mesh_", "");
+                Material mat;
+                if (materials.TryGetValue(key, out mat)) r.sharedMaterial = mat;
+                else missing++;
+                r.shadowCastingMode = ShadowCastingMode.On;
+                r.receiveShadows = true;
+            }
+
+            var lightGo = new GameObject("IVA_CabinLight");
+            lightGo.transform.SetParent(inst.transform, false);
+            lightGo.transform.localPosition = new Vector3(0f, 1.55f, 0f);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 2.6f;
+            light.intensity = 1.0f;
+            light.color = new Color(1f, 0.93f, 0.82f);
+            light.shadows = LightShadows.None;
+
+            string prefabPath = $"{dir}/{sheet.interior}.prefab";
+            PrefabUtility.SaveAsPrefabAsset(inst, prefabPath);
+            UnityEngine.Object.DestroyImmediate(inst);
+
+            // 5. Addressable entry in the mod's own group (the only groups the mod build packs)
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            if (settings == null) throw new Exception("Addressables aren't set up in this project. Create the IVA mod with Modding > Create New Mod first.");
+            AddressableAssetGroup group = settings.FindGroup(ModGroupName);
+            if (group == null) throw new Exception($"Couldn't find the addressable group '{ModGroupName}'. Was the mod created with the ID 'IVA'?");
+            string guid = AssetDatabase.AssetPathToGUID(prefabPath);
+            AddressableAssetEntry entry = settings.CreateOrMoveEntry(guid, group, false, false);
+            entry.address = sheet.address;
+            settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, entry, true);
+
+            string note = missing > 0 ? $" ({missing} meshes without a matching material)" : "";
+            return $"{sheet.interior}: {materials.Count} materials, prefab and address '{sheet.address}'{note}";
+        }
+
+        private static string StripSuffix(string name)
+        {
+            // Unity may add " (1)" style suffixes; Blender may add ".001".
+            int i = name.IndexOf(" (", StringComparison.Ordinal);
+            if (i > 0) name = name.Substring(0, i);
+            i = name.IndexOf('.');
+            if (i > 0) name = name.Substring(0, i);
+            return name;
+        }
+
+        private static void SetTextureType(string path, bool normalMap)
+        {
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti == null)
+            {
+                Debug.LogWarning($"[IVA] Texture not found: {path}");
+                return;
+            }
+            TextureImporterType wanted = normalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+            if (ti.textureType == wanted && ti.mipmapEnabled) return;
+            ti.textureType = wanted;
+            ti.mipmapEnabled = true;
+            ti.wrapMode = TextureWrapMode.Repeat;
+            ti.anisoLevel = 4;
+            ti.SaveAndReimport();
+        }
+
+        private static Color FromLinear(float[] c, float a = 1f)
+        {
+            if (c == null || c.Length < 3) return Color.white;
+            return new Color(c[0], c[1], c[2], a).gamma; // Blender stores linear colours; Unity materials take sRGB
+        }
+
+        private static void Configure(Material mat, MatInfo m, string texDir)
+        {
+            mat.SetColor("_Color", string.IsNullOrEmpty(m.texture) ? FromLinear(m.color) : Color.white);
+            mat.SetFloat("_Metallic", Mathf.Clamp01(m.metallic));
+            mat.SetFloat("_Glossiness", Mathf.Clamp01(1f - m.roughness));
+
+            Vector2 tiling = m.tiling != null && m.tiling.Length >= 2 ? new Vector2(m.tiling[0], m.tiling[1]) : Vector2.one;
+            Texture2D main = string.IsNullOrEmpty(m.texture) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(texDir + "/" + m.texture);
+            mat.SetTexture("_MainTex", main);
+            mat.SetTextureScale("_MainTex", tiling);
+
+            Texture2D normal = string.IsNullOrEmpty(m.normal) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(texDir + "/" + m.normal);
+            mat.SetTexture("_BumpMap", normal);
+            mat.SetFloat("_BumpScale", m.normalStrength);
+            if (normal != null) mat.EnableKeyword("_NORMALMAP"); else mat.DisableKeyword("_NORMALMAP");
+
+            if (m.emissionStrength > 0f)
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                float k = Mathf.Max(0.2f, m.emissionStrength);
+                if (m.emissionFromTexture && main != null)
+                {
+                    mat.SetTexture("_EmissionMap", main);
+                    mat.SetColor("_EmissionColor", Color.white * k);
+                }
+                else
+                {
+                    mat.SetTexture("_EmissionMap", null);
+                    mat.SetColor("_EmissionColor", FromLinear(m.emission) * k);
+                }
+            }
+            else
+            {
+                mat.DisableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", Color.black);
+            }
+        }
+    }
+}
