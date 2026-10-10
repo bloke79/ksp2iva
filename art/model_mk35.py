@@ -42,6 +42,7 @@ M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["net"] = L.material("IVA_Net", (0.30, 0.32, 0.20), rough=0.9)
 P.materials()
 S.materials()
+M["deckplate"] = L.material("IVA_DeckPlate", tex="deckplate_color.png", normal="deckplate_normal.png", rough=0.6, metal=0.35, normal_strength=0.8)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
 POSE = SPEC["pose"]
@@ -305,9 +306,9 @@ def platform(name, z, holes, ceiling=False):
             vs = [tiles.verts.new((x, y, z)) for x, y in ((x0, y0), (x0 + step, y0), (x0 + step, y0 + step), (x0, y0 + step))]
             face = tiles.faces.new(vs)
             for l in face.loops:
-                l[uv].uv = (l.vert.co.x * 1.5, l.vert.co.y * 1.5)
+                l[uv].uv = (l.vert.co.x * 1.0, l.vert.co.y * 1.0)
     bmesh.ops.remove_doubles(tiles, verts=tiles.verts, dist=1e-5)
-    L.solidify(L.mesh_obj(name, tiles, [M["floor"]]), 0.03)
+    L.solidify(L.mesh_obj(name, tiles, [M.get("deckplate", M["floor"])]), 0.03)
     L.tube(name + "Rim", [C.polar(2 * math.pi * j / 96, rr - 0.015, z - 0.015) for j in range(97)], 0.02, M["couchframe"])
     for k2 in range(0 if ceiling else 8):
         phi = 2 * math.pi * (k2 + 0.5) / 8
@@ -588,6 +589,7 @@ def build_structure():
     bays = [2 * math.pi * k2 / 16 for k2 in range(16)]
     S.wall_racks("Hab", clear, bays, D + 0.5, 0.36, 0.62, seed=5)
     S.wall_racks("Flight", clear, bays, 1.5, 0.34, 0.44, seed=6, chance=0.7)
+    S.wall_racks("HabUpper", clear, [2 * math.pi * (k2 + 0.5) / 32 for k2 in range(32)], D + 1.28, 0.24, 0.28, seed=8, chance=0.9)
     clear = S.Clearance(zones=[hidden])
     S.cable_run("RunHabTop", C.Z_CEIL - 0.17, clear, seed=3)
     S.cable_run("RunHabMid", D + 0.95, clear, seed=4, n=3)
@@ -598,8 +600,8 @@ def build_structure():
     S.ring_frame("HabSkirt", D + 0.05, clear, h=0.07, d=0.04)
     S.ring_frame("HabCornice", C.Z_CEIL - 0.05, clear, h=0.08, d=0.05)
     clear = S.Clearance(zones=[hidden])
-    S.wall_ribs("Flight", 16, FLOOR + 0.1, D - 0.12, clear)
-    S.wall_ribs("Hab", 16, D + 0.1, C.Z_CEIL - 0.1, clear)
+    S.wall_ribs("Flight", 16, FLOOR + 0.1, D - 0.12, clear, min_len=0.55)
+    S.wall_ribs("Hab", 16, D + 0.1, C.Z_CEIL - 0.1, clear, min_len=0.55)
     clear = S.Clearance(zones=[hidden])
     S.wall_plates("Flight", clear, bays, (0.35, 0.7, 1.3, 1.72), chance=0.55, seed=11)
     S.wall_plates("Hab", clear, bays, (D + 0.32, D + 0.8, D + 1.35), chance=0.5, seed=12)
@@ -607,6 +609,9 @@ def build_structure():
 
 # ------------------------------------------------------------------ build
 C.build_shell(dome=True, ring_light=True)
+bpy_floor = L.COLL.objects.get("Floor")
+if bpy_floor is not None:   # solid deck plates on the flight-deck floor too
+    bpy_floor.data.materials[0] = M["deckplate"]
 for w in C.WINDOWS:
     C.build_window(w, depth=0.05, bolts=32)
     C.view_markers(w, standoff=0.35)

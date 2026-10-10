@@ -154,11 +154,15 @@ def build_window(w, depth=0.035, bolts=24, frame_mat=None):
 def build_shell(dome=True, ring_light=True, bulkhead="chute"):
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
-    rings = max(24, int((Z_CEIL - Z_FLOOR) / 0.02))
-    zs = [Z_FLOOR - 0.01 + (Z_CEIL + 0.02 - Z_FLOOR) * i / rings for i in range(rings + 1)]
+    # rings: 2 cm where window openings are cut (and at the floor and ceiling edges), 8 cm elsewhere
+    zs, z, z_end = [Z_FLOOR - 0.01], Z_FLOOR - 0.01, Z_CEIL + 0.01
+    while z < z_end - 1e-6:
+        fine = z < Z_FLOOR + 0.1 or z > Z_CEIL - 0.1 or any(abs(z - w["z"]) < w["hh"] + 0.12 for w in WINDOWS)
+        z = min(z_end, z + (0.02 if fine else 0.08))
+        zs.append(z)
     grid = [[bm.verts.new(polar(2 * math.pi * j / SEG, r_in(z), z)) for j in range(SEG)] for z in zs]
     circ = 2 * math.pi * r_in((Z_FLOOR + Z_CEIL) / 2)
-    for i in range(rings):
+    for i in range(len(zs) - 1):
         for j in range(SEG):
             pc, zc = 2 * math.pi * (j + 0.5) / SEG, (zs[i] + zs[i + 1]) / 2
             if window_sdf(pc, zc, r_in(zc), grow=0.018) < 0:

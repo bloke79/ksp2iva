@@ -466,6 +466,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_DeckPlate",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.3499999940395355,
+      "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "deckplate_color.png",
+      "normal": "deckplate_normal.png",
+      "normalStrength": 0.800000011920929,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Digits",
       "color": [
         0.800000011920929,
@@ -562,6 +586,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Food",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "food.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_FoodGreen",
       "color": [
         0.25999999046325684,
@@ -577,6 +625,30 @@
       ],
       "emissionStrength": 0.0,
       "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_FoodLabels",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "food_labels.png",
       "normal": null,
       "normalStrength": 1.0,
       "tiling": [

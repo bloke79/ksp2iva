@@ -179,7 +179,7 @@ def box(name, size, mat, loc=(0, 0, 0), rot=Matrix.Identity(3), bevel=0.0, segs=
     obj = mesh_obj(name, bm, [mat])
     obj.matrix_world = Matrix.Translation(Vector(loc)) @ rot.to_4x4()
     if bevel > 0:
-        add_bevel(obj, bevel, segs)
+        add_bevel(obj, bevel, 1 if bevel < 0.005 else segs)   # tiny bevels: one segment is indistinguishable and far cheaper
     return smooth(obj)
 
 

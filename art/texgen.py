@@ -517,6 +517,148 @@ def wallpanel(size=1024, cells=2):
     save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "wallpanel_normal.png")
 
 
+def _blob(d, x, y, r, col, rng, hi=0.35, n=9, jit=0.25):
+    """Irregular rounded lump with a soft highlight (food chunks, peas, fruit)."""
+    pts = []
+    for k in range(n):
+        a = 2 * math.pi * k / n
+        rr = r * (1 + jit * (rng.random() - 0.5) * 2)
+        pts.append((x + rr * math.cos(a), y + rr * math.sin(a)))
+    d.polygon(pts, fill=tuple(int(c * 255) for c in col))
+    hcol = tuple(int(min(1, c + hi * (1 - c)) * 255) for c in col)
+    d.ellipse([x - r * 0.45, y - r * 0.55, x - r * 0.05, y - r * 0.2], fill=hcol)
+
+
+def food(size=1024):
+    """Food atlas, 2 x 2 tiles: beef stew, mash with peas, rice with vegetables, fruit cup. Drawn procedurally
+    (no photos), slightly stylised to sit with the KSP2 look."""
+    import random as _r
+    t = size // 2
+    img = Image.new("RGB", (size, size))
+    rr = _r.Random(7)
+
+    def tile_base(ox, oy, col, var, seed):
+        n = 0.6 * _tile_noise(t, 6, seed) + 0.4 * _tile_noise(t, 24, seed + 1)
+        a = np.array(col)[None, None, :] * (1 - var / 2 + var * n[..., None])
+        img.paste(Image.fromarray((a.clip(0, 1) * 255).astype(np.uint8)), (ox, oy))
+
+    # stew: rich red-brown gravy, beef chunks, carrot cubes, potato, peas
+    tile_base(0, 0, (0.42, 0.16, 0.07), 0.35, 61)
+    d = ImageDraw.Draw(img)
+    for _ in range(26):
+        _blob(d, rr.uniform(20, t - 20), rr.uniform(20, t - 20), rr.uniform(22, 38), (0.30, 0.13, 0.07), rr, hi=0.25)
+    for _ in range(22):
+        x, y, s_ = rr.uniform(15, t - 15), rr.uniform(15, t - 15), rr.uniform(12, 18)
+        d.rectangle([x - s_, y - s_, x + s_, y + s_], fill=(214, 110, 28))
+        d.rectangle([x - s_ * 0.6, y - s_ * 0.7, x - s_ * 0.1, y - s_ * 0.3], fill=(240, 160, 80))
+    for _ in range(14):
+        _blob(d, rr.uniform(20, t - 20), rr.uniform(20, t - 20), rr.uniform(18, 26), (0.85, 0.74, 0.48), rr, hi=0.3)
+    for _ in range(30):
+        _blob(d, rr.uniform(10, t - 10), rr.uniform(10, t - 10), 9, (0.32, 0.58, 0.16), rr, hi=0.45, jit=0.08)
+    # mash with peas and a gravy pool
+    tile_base(t, 0, (0.93, 0.86, 0.66), 0.18, 63)
+    d = ImageDraw.Draw(img)
+    for _ in range(40):
+        x, y = t + rr.uniform(10, t - 10), rr.uniform(10, t - 10)
+        d.arc([x - 30, y - 12, x + 30, y + 12], 200, 340, fill=(250, 244, 220), width=3)
+    d.ellipse([t + 260, 60, t + 470, 250], fill=(120, 62, 28))
+    d.ellipse([t + 300, 90, t + 380, 140], fill=(160, 92, 50))
+    for _ in range(70):
+        _blob(d, t + rr.uniform(20, 240), rr.uniform(240, t - 20), 13, (0.30, 0.60, 0.15), rr, hi=0.5, jit=0.06)
+    # rice with peppers and greens
+    tile_base(0, t, (0.94, 0.92, 0.84), 0.1, 65)
+    d = ImageDraw.Draw(img)
+    for _ in range(900):
+        x, y, a = rr.uniform(0, t), t + rr.uniform(0, t), rr.uniform(0, math.pi)
+        dx, dy = 9 * math.cos(a), 9 * math.sin(a)
+        d.line([(x - dx, y - dy), (x + dx, y + dy)], fill=(255, 253, 244) if rr.random() < 0.6 else (214, 206, 186), width=6)
+    for _ in range(26):
+        x, y = rr.uniform(15, t - 15), t + rr.uniform(15, t - 15)
+        d.rectangle([x - 10, y - 7, x + 10, y + 7], fill=(200, 40, 30) if rr.random() < 0.5 else (60, 140, 40))
+    # fruit cup: syrup, peach slices, pineapple, cherries
+    tile_base(t, t, (0.98, 0.72, 0.30), 0.2, 67)
+    d = ImageDraw.Draw(img)
+    for _ in range(16):
+        x, y, r = t + rr.uniform(40, t - 40), t + rr.uniform(40, t - 40), rr.uniform(40, 60)
+        a0 = rr.uniform(0, 360)
+        d.pieslice([x - r, y - r, x + r, y + r], a0, a0 + 70, fill=(250, 150, 50))
+        d.arc([x - r, y - r, x + r, y + r], a0, a0 + 70, fill=(255, 205, 120), width=6)
+    for _ in range(14):
+        x, y = t + rr.uniform(20, t - 20), t + rr.uniform(20, t - 20)
+        d.rectangle([x - 16, y - 16, x + 16, y + 16], fill=(250, 226, 110))
+    for _ in range(9):
+        _blob(d, t + rr.uniform(20, t - 20), t + rr.uniform(20, t - 20), 20, (0.72, 0.05, 0.10), rr, hi=0.55, jit=0.04)
+    save(img.filter(ImageFilter.GaussianBlur(1.2)), "food.png")
+
+
+def food_labels(w=1024, h=512):
+    """Pouch and drink-bag labels, 2 x 2 tiles: STEW, MASH, SNACKS, COFFEE. Colour band, name, a simple icon, barcode."""
+    img = Image.new("RGB", (w, h), (238, 236, 228))
+    d = ImageDraw.Draw(img)
+    tw, th = w // 2, h // 2
+    f = font(FONT_BOLD, 54)
+    fs = font(FONT_COND, 26)
+    items = [("STEW", (176, 52, 30)), ("MASH", (214, 160, 40)), ("SNACKS", (46, 120, 60)), ("COFFEE", (92, 58, 36))]
+    notes = ["REHYDRATE / HEAT 20 MIN", "REHYDRATE / HEAT 20 MIN", "READY TO EAT", "ADD HOT WATER"]
+    for i, (name, col) in enumerate(items):
+        ox, oy = (i % 2) * tw, (i // 2) * th
+        d.rectangle([ox + 6, oy + 6, ox + tw - 6, oy + th - 6], outline=(150, 150, 140), width=4)
+        d.rectangle([ox + 6, oy + 6, ox + tw - 6, oy + 70], fill=col)
+        d.text((ox + 24, oy + 18), "KERBAL FOOD SYS.", font=fs, fill=(250, 248, 240))
+        d.text((ox + 24, oy + 92), name, font=f, fill=(30, 30, 30))
+        d.text((ox + 24, oy + 162), notes[i], font=fs, fill=(80, 80, 76))
+        cx, cy = ox + tw - 90, oy + 130
+        d.ellipse([cx - 50, cy - 50, cx + 50, cy + 50], fill=col)
+        d.ellipse([cx - 30, cy - 14, cx + 30, cy + 26], fill=(250, 248, 240))
+        d.rectangle([cx - 34, cy - 18, cx + 34, cy - 6], fill=(250, 248, 240))
+        for k in range(26):
+            bw = 2 + (k * 7919) % 3 * 2
+            d.rectangle([ox + 24 + k * 9, oy + th - 52, ox + 24 + k * 9 + bw, oy + th - 20], fill=(20, 20, 20))
+    save(img, "food_labels.png")
+
+
+def deckplate(size=1024, cells=2):
+    """Solid deck plates (the stock floor look): grey plates with a tread pattern, bolted seams, and slotted grille
+    inserts in alternate plates."""
+    grime = 0.6 * _tile_noise(size, 5, 52) + 0.4 * _tile_noise(size, 18, 53)
+    yy, xx = np.mgrid[0:size, 0:size]
+    tread = ((np.sin((xx + yy) * 0.35) > 0.85) | (np.sin((xx - yy) * 0.35) > 0.85)).astype(np.float32)
+    base = np.array([0.34, 0.35, 0.36])
+    col = base[None, None, :] * (0.85 + 0.2 * grime[..., None]) * (1 - 0.12 * tread[..., None])
+    h = 0.3 * tread
+    step = size // cells
+    for i in range(cells + 1):
+        for a in (xx, yy):
+            seam = np.abs(a - i * step) < 4
+            col[seam] *= 0.35
+            h[seam] -= 1.0
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    hd = Image.fromarray(((h * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8))
+    dh = ImageDraw.Draw(hd)
+    for i in range(cells):
+        for j in range(cells):
+            x0, y0 = i * step, j * step
+            for ox, oy in ((22, 22), (step - 22, 22), (22, step - 22), (step - 22, step - 22)):
+                d.ellipse([x0 + ox - 8, y0 + oy - 8, x0 + ox + 8, y0 + oy + 8], fill=(70, 72, 74))
+                dh.ellipse([x0 + ox - 8, y0 + oy - 8, x0 + ox + 8, y0 + oy + 8], fill=210)
+            if (i + j) % 2 == 0:   # grille insert
+                gx0, gy0, gx1, gy1 = x0 + step * 0.22, y0 + step * 0.3, x0 + step * 0.78, y0 + step * 0.7
+                d.rectangle([gx0 - 6, gy0 - 6, gx1 + 6, gy1 + 6], fill=(46, 48, 50))
+                dh.rectangle([gx0 - 6, gy0 - 6, gx1 + 6, gy1 + 6], fill=150)
+                n = 9
+                for k in range(n):
+                    y = gy0 + (gy1 - gy0) * (k + 0.5) / n
+                    d.rectangle([gx0 + 8, y - 6, gx1 - 8, y + 6], fill=(12, 12, 13))
+                    dh.rectangle([gx0 + 8, y - 6, gx1 - 8, y + 6], fill=40)
+    save(img.filter(ImageFilter.GaussianBlur(0.6)), "deckplate_color.png")
+    ha = np.asarray(hd.filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32) / 255
+    gy, gx = np.gradient(ha * 4.0)
+    n = np.dstack([-gx, -gy, np.ones_like(ha)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "deckplate_normal.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -527,7 +669,7 @@ ALL = {
     "gauge_alt_face": lambda: gauge("gauge_alt_face.png", "ALT km", None),
     "gauge_press_face": lambda: gauge("gauge_press_face.png", "ATM kPa x10", None),
     "gauge_temp_face": lambda: gauge("gauge_temp_face.png", "TEMP K x100", None),
-    "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel,
+    "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel, "food": food, "food_labels": food_labels, "deckplate": deckplate,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,

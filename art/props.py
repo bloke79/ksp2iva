@@ -26,6 +26,8 @@ def materials():
     M["plush"] = L.material("IVA_Plush", (0.40, 0.70, 0.25), rough=0.95)
     M["towel"] = L.material("IVA_Towel", (0.62, 0.59, 0.50), rough=0.98, normal="canvas_normal.png", uv_scale=(9.0, 9.0), normal_strength=1.0)
     M["bungee"] = L.material("IVA_Bungee", (0.85, 0.35, 0.08), rough=0.8)
+    M["food_tex"] = L.material("IVA_Food", tex="food.png", rough=0.45)
+    M["food_label"] = L.material("IVA_FoodLabels", tex="food_labels.png", rough=0.6)
     M["glass_dark"] = L.material("IVA_DarkGlass", (0.03, 0.04, 0.05), rough=0.06)
     M["jetpack"] = L.material("IVA_Jetpack", (0.82, 0.82, 0.80), rough=0.45, metal=0.2)
 
@@ -329,17 +331,35 @@ def table(name, centre, r=0.28, h=0.42, floor_z=0.0):
     for k in range(4):
         a = k * math.pi / 2 + math.pi / 4
         L.cylinder(f"{name}BaseBolt{k}", 0.009, 0.008, M["buckle"], (c.x + 0.09 * math.cos(a), c.y + 0.09 * math.sin(a), floor_z + 0.034), segs=6)
-    # one meal tray: strapped down, three soft pouches and a drink bag
+    # meal tray: strapped down, four food containers (stew, mash and peas, rice, fruit), a labelled snack pouch,
+    # a coffee bag with a straw, cutlery on a velcro strip
+    tiles = {"stew": (0, 0.5, 0.5, 1), "mash": (0.5, 0.5, 1, 1), "rice": (0, 0, 0.5, 0.5), "fruit": (0.5, 0, 1, 0.5)}
+    labels = {"stew": (0, 0.5, 0.5, 1), "mash": (0.5, 0.5, 1, 1), "snacks": (0, 0, 0.5, 0.5), "coffee": (0.5, 0, 1, 0.5)}
     rot = Matrix.Rotation(0.5, 3, "Z")
-    q = Vector((c.x, c.y, top + 0.026))
-    L.box(name + "Tray", (0.26, 0.17, 0.012), dark, q, rot, bevel=0.004, segs=1)
+    q = Vector((c.x, c.y, top + 0.024))
+    L.box(name + "Tray", (0.32, 0.22, 0.012), dark, q, rot, bevel=0.004, segs=1)
     for sx in (-1, 1):
-        L.box(f"{name}TrayStrap{sx}", (0.02, 0.19, 0.016), M["strap"], q + rot @ Vector((sx * 0.1, 0, 0.002)), rot, bevel=0.003)
-    for k, (x, y, mat) in enumerate(((-0.05, 0.035, M["food_red"]), (0.03, 0.035, M["food_yellow"]), (-0.01, -0.04, M["food_green"]))):
-        L.box(f"{name}Pouch{k}", (0.065, 0.055, 0.018), mat, q + rot @ Vector((x, y, 0.014)), rot, bevel=0.009)
-    L.box(name + "DrinkBag", (0.05, 0.075, 0.015), M["canvas"], q + rot @ Vector((0.085, -0.04, 0.013)), rot, bevel=0.007)
-    L.tube(name + "Straw", [q + rot @ Vector((0.085, -0.075, 0.02)), q + rot @ Vector((0.085, -0.1, 0.035))], 0.003, M["red"])
-
+        L.box(f"{name}TrayStrap{sx}", (0.018, 0.24, 0.014), M["strap"], q + rot @ Vector((sx * 0.15, 0, 0.002)), rot, bevel=0.003)
+    for k, (key, x, y) in enumerate((("stew", -0.095, 0.048), ("mash", -0.005, 0.048), ("rice", -0.095, -0.045), ("fruit", -0.005, -0.045))):
+        cw, ch, cd = 0.082, 0.078, 0.022
+        cq = q + rot @ Vector((x, y, 0.006 + cd / 2))
+        L.box(f"{name}Cup{k}", (cw, ch, cd), frame, cq, rot, bevel=0.006, segs=1)
+        for e, (ex, ey, ew, eh) in enumerate(((0, ch / 2 - 0.003, cw, 0.006), (0, -ch / 2 + 0.003, cw, 0.006), (cw / 2 - 0.003, 0, 0.006, ch), (-cw / 2 + 0.003, 0, 0.006, ch))):
+            L.box(f"{name}Cup{k}Rim{e}", (ew, eh, 0.006), frame, cq + rot @ Vector((ex, ey, cd / 2 + 0.002)), rot)
+        L.plane(f"{name}Food{k}", cw - 0.012, ch - 0.012, M["food_tex"], cq + rot @ Vector((0, 0, cd / 2 + 0.001)), rot, uv_rect=tiles[key])
+    # snack pouch and coffee bag with printed labels
+    for k, (key, x, y, w_, h_, mat) in enumerate((("snacks", 0.1, 0.048, 0.07, 0.08, M["foil"]), ("coffee", 0.1, -0.045, 0.07, 0.085, M["canvas"]))):
+        pq = q + rot @ Vector((x, y, 0.016))
+        L.box(f"{name}Pouch{k}", (w_, h_, 0.02), mat, pq, rot, bevel=0.008)
+        L.plane(f"{name}Label{k}", w_ * 0.86, h_ * 0.5, M["food_label"], pq + rot @ Vector((0, -h_ * 0.08, 0.0105)), rot @ Matrix.Rotation(math.pi / 2, 3, "Z"), uv_rect=labels[key])
+    L.tube(name + "Straw", [q + rot @ Vector((0.1, -0.088, 0.025)), q + rot @ Vector((0.1, -0.115, 0.045))], 0.003, M["red"])
+    # cutlery on a velcro strip along the tray edge
+    L.box(name + "Velcro", (0.2, 0.014, 0.003), M["strap"], q + rot @ Vector((-0.05, -0.098, 0.0075)), rot)
+    L.box(name + "SpoonHandle", (0.09, 0.008, 0.004), M["buckle"], q + rot @ Vector((-0.09, -0.098, 0.011)), rot, bevel=0.002)
+    L.cylinder(name + "SpoonBowl", 0.012, 0.005, M["buckle"], q + rot @ Vector((-0.03, -0.098, 0.011)), rot, segs=16, bevel=0.002)
+    L.box(name + "ForkHandle", (0.09, 0.008, 0.004), M["buckle"], q + rot @ Vector((-0.06, -0.083, 0.011)), rot, bevel=0.002)
+    for t_ in (-1, 0, 1):
+        L.box(f"{name}ForkTine{t_}", (0.025, 0.0025, 0.003), M["buckle"], q + rot @ Vector((0.0, -0.083 + t_ * 0.004, 0.011)), rot)
 
 def sleep_station(name, p, b, w=0.5, h=0.8, d=0.32):
     """Crew quarters: framed booth, sleeping bag on the back wall, half-drawn curtain, reading lamp, locker, photo."""

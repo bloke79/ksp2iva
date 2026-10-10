@@ -3,16 +3,17 @@
 _Last updated 2026-10-11. Ordered by priority within each section. Detailed designs live in `PLAN.md`; current state in `STATUS.md`._
 
 ## 1. Finish the 3v (Mk3-5, 5 seats): close to done
-- [ ] **In-game check of the latest build** (`735b770`): upstairs fixes (glovebox, freezer, bike, table, cables into
+- [ ] **In-game check of the latest build**: upstairs fixes (glovebox, freezer, bike, table, cables into
       junction boxes, floor clutter removed), overall brightness, frame rate.
 - [ ] **Basics still unconfirmed in game:** N switches seats, seat view the right way up, B reaches the docking windows,
       crew sit in the couches.
-- [ ] **Short rib pieces** left between wall units (e.g. under the freezer): raise the minimum length or skip ribs where
+- [x] **Short rib pieces** left between wall units (e.g. under the freezer): raise the minimum length or skip ribs where
       a unit sits.
-- [ ] **Triangle budget** (~750k): the hull shell is ~128k (2 cm rings, over-tessellated) and the console ~137k.
+- [x] **Triangle budget** (~750k → ~500k: adaptive shell rings, single-segment tiny bevels): the hull shell is ~128k (2 cm rings, over-tessellated) and the console ~137k.
       Coarsen the shell away from windows; check console module density.
-- [ ] **Remaining thin spots:** upper wall bands of the living deck, and its middle band between the furniture rows.
-- [ ] **Floors:** consider solid deck plates with grille inserts (stock look) instead of open grating everywhere.
+- [x] **Remaining thin spots:** (upper rack row added; recheck in game) upper wall bands of the living deck, and its middle band between the furniture rows.
+- [x] **Floors:** (solid deck plates with grille inserts) consider solid deck plates with grille inserts (stock look) instead of open grating everywhere.
+- [x] **Meal tray with food art** (procedural food and label textures)
 - [ ] **Brightness tuning** if needed after Matt's check: AO floor (`IVA_AO_FLOOR` = 0.4), `_AODirect` (0.45), deck lights.
 
 ## 2. Features
