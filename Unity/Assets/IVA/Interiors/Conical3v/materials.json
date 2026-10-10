@@ -442,6 +442,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_DarkGlass",
+      "color": [
+        0.029999999329447746,
+        0.03999999910593033,
+        0.05000000074505806
+      ],
+      "metallic": 0.0,
+      "roughness": 0.05999999865889549,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Digits",
       "color": [
         0.800000011920929,

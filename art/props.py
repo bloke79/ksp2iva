@@ -26,6 +26,7 @@ def materials():
     M["plush"] = L.material("IVA_Plush", (0.40, 0.70, 0.25), rough=0.95)
     M["towel"] = L.material("IVA_Towel", (0.62, 0.59, 0.50), rough=0.98, normal="canvas_normal.png", uv_scale=(9.0, 9.0), normal_strength=1.0)
     M["bungee"] = L.material("IVA_Bungee", (0.85, 0.35, 0.08), rough=0.8)
+    M["glass_dark"] = L.material("IVA_DarkGlass", (0.03, 0.04, 0.05), rough=0.06)
     M["jetpack"] = L.material("IVA_Jetpack", (0.82, 0.82, 0.80), rough=0.45, metal=0.2)
 
 
@@ -315,24 +316,29 @@ def utensil_rack(name, p, b, w=0.24):
 
 
 def table(name, centre, r=0.28, h=0.42, floor_z=0.0):
-    """Round dining table on a pedestal, food trays strapped down, foot loops on the floor round it."""
+    """Wardroom table in the stock style: chamfered grey top with a dark inset and rim, chamfered column on a bolted
+    base, one meal tray strapped down with soft pouches and a drink bag (all matte, so nothing glares under the light)."""
+    frame = M.get("frame", M["module"])
+    dark = M.get("frame_dark", M["module"])
     c = Vector(centre)
-    L.cylinder(name + "Top", r, 0.025, M["module"], (c.x, c.y, floor_z + h), segs=40, bevel=0.006)
-    L.torus(name + "Edge", r, 0.008, M["rib"], (c.x, c.y, floor_z + h + 0.005), Matrix.Identity(3), seg=40, mseg=6)
-    L.cylinder(name + "Post", 0.035, h, M["couchframe"], (c.x, c.y, floor_z + h / 2), segs=16)
-    L.cylinder(name + "Foot", 0.12, 0.02, M["couchframe"], (c.x, c.y, floor_z + 0.01), segs=24, bevel=0.004)
-    mats = (M["food_red"], M["food_green"], M["food_yellow"])
-    for k in range(3):
-        a = k * 2 * math.pi / 3 + 0.4
-        q = Vector((c.x + math.cos(a) * r * 0.55, c.y + math.sin(a) * r * 0.55, floor_z + h + 0.016))
-        rot = Matrix.Rotation(a, 3, "Z")
-        L.box(f"{name}Tray{k}", (0.16, 0.11, 0.012), M["toggle"], q, rot, bevel=0.003)
-        for j in range(2):
-            L.box(f"{name}Pack{k}{j}", (0.05, 0.06, 0.012), mats[(k + j) % 3], q + rot @ Vector((-0.035 + 0.07 * j, 0, 0.012)), rot, bevel=0.004)
+    top = floor_z + h
+    L.cylinder(name + "Top", r, 0.035, frame, (c.x, c.y, top), segs=8, bevel=0.012)
+    L.cylinder(name + "Inset", r * 0.82, 0.006, dark, (c.x, c.y, top + 0.019), segs=8)
+    L.box(name + "Column", (0.09, 0.09, h - 0.04), frame, (c.x, c.y, floor_z + (h - 0.04) / 2 + 0.02), bevel=0.02, segs=1)
+    L.box(name + "Base", (0.26, 0.26, 0.03), dark, (c.x, c.y, floor_z + 0.015), bevel=0.01, segs=1)
     for k in range(4):
         a = k * math.pi / 2 + math.pi / 4
-        q = Vector((c.x + math.cos(a) * (r + 0.18), c.y + math.sin(a) * (r + 0.18), floor_z + 0.02))
-        L.torus(f"{name}FootLoop{k}", 0.05, 0.008, M["strap"], q, Matrix.Rotation(a, 3, "Z") @ Matrix.Rotation(math.pi / 2, 3, "X"), seg=20, mseg=6)
+        L.cylinder(f"{name}BaseBolt{k}", 0.009, 0.008, M["buckle"], (c.x + 0.09 * math.cos(a), c.y + 0.09 * math.sin(a), floor_z + 0.034), segs=6)
+    # one meal tray: strapped down, three soft pouches and a drink bag
+    rot = Matrix.Rotation(0.5, 3, "Z")
+    q = Vector((c.x, c.y, top + 0.026))
+    L.box(name + "Tray", (0.26, 0.17, 0.012), dark, q, rot, bevel=0.004, segs=1)
+    for sx in (-1, 1):
+        L.box(f"{name}TrayStrap{sx}", (0.02, 0.19, 0.016), M["strap"], q + rot @ Vector((sx * 0.1, 0, 0.002)), rot, bevel=0.003)
+    for k, (x, y, mat) in enumerate(((-0.05, 0.035, M["food_red"]), (0.03, 0.035, M["food_yellow"]), (-0.01, -0.04, M["food_green"]))):
+        L.box(f"{name}Pouch{k}", (0.065, 0.055, 0.018), mat, q + rot @ Vector((x, y, 0.014)), rot, bevel=0.009)
+    L.box(name + "DrinkBag", (0.05, 0.075, 0.015), M["canvas"], q + rot @ Vector((0.085, -0.04, 0.013)), rot, bevel=0.007)
+    L.tube(name + "Straw", [q + rot @ Vector((0.085, -0.075, 0.02)), q + rot @ Vector((0.085, -0.1, 0.035))], 0.003, M["red"])
 
 
 def sleep_station(name, p, b, w=0.5, h=0.8, d=0.32):
@@ -365,41 +371,75 @@ def toilet(name, p, b):
 def sink(name, p, b):
     """Hygiene station: basin with a water nozzle, mirror, soap."""
     L.box(name + "Panel", (0.34, 0.4, 0.012), M["module"], _a(p, b, 0, 0, 0.006), _r(b), bevel=0.003)
-    L.box(name + "Mirror", (0.22, 0.16, 0.004), M["toggle"], _a(p, b, 0, 0.1, 0.014), _r(b), bevel=0.002)
+    L.box(name + "Mirror", (0.22, 0.16, 0.004), M["glass_dark"], _a(p, b, 0, 0.1, 0.014), _r(b), bevel=0.002)
     L.cylinder(name + "Basin", 0.08, 0.06, M["toggle"], _a(p, b, 0, -0.1, 0.08), L.basis(b.col[0], b.col[2], -b.col[1]), segs=28, radius2=0.06)
     L.tube(name + "Tap", [_a(p, b, 0, -0.03, 0.012), _a(p, b, 0, -0.03, 0.08), _a(p, b, 0, -0.06, 0.09)], 0.006, M["buckle"])
     L.box(name + "Soap", (0.04, 0.06, 0.025), M["food_green"], _a(p, b, 0.13, -0.08, 0.025), _r(b), bevel=0.006)
 
 
+
 def bike(name, centre, yaw=0.0, floor_z=0.0):
-    """Cycle ergometer bolted to the deck: frame, flywheel, cranks, seat, bars, display."""
+    """Zero-g cycle ergometer bolted to the deck (no seat, like the real ones): chamfered base frame with bolted feet,
+    enclosed flywheel housing, cranks with strapped pedals, a post with a display and grab bar."""
+    frame = M.get("frame", M["module"])
+    dark = M.get("frame_dark", M["module"])
     c = Vector((centre[0], centre[1], 0.0))
     R = Matrix.Rotation(yaw, 3, "Z")
 
     def w(x, y, z):
         return c + R @ Vector((x, y, z)) + Vector((0, 0, floor_z))
-    L.box(name + "Base", (0.18, 0.6, 0.03), M["couchframe"], w(0, 0, 0.015), R, bevel=0.004)
-    L.tube(name + "Frame", [w(0, -0.22, 0.03), w(0, -0.12, 0.3), w(0, 0.18, 0.4), w(0, 0.2, 0.03)], 0.018, M["rib"])
-    L.tube(name + "SeatPost", [w(0, 0.1, 0.35), w(0, 0.14, 0.55)], 0.014, M["rib"])
-    L.box(name + "Seat", (0.1, 0.16, 0.04), M["handle"], w(0, 0.15, 0.57), R, bevel=0.015)
-    L.tube(name + "Stem", [w(0, -0.15, 0.3), w(0, -0.2, 0.6)], 0.014, M["rib"])
-    L.cylinder(name + "Bars", 0.012, 0.32, M["handle"], w(0, -0.2, 0.6), R @ Matrix.Rotation(math.pi / 2, 3, "Y"), segs=12)
-    L.cylinder(name + "Flywheel", 0.14, 0.04, M["module"], w(0, -0.08, 0.2), R @ Matrix.Rotation(math.pi / 2, 3, "Y"), segs=32, bevel=0.006)
-    L.cylinder(name + "Display", 0.03, 0.02, M["crt_data"], w(0, -0.2, 0.64), R @ Matrix.Rotation(-0.6, 3, "X"), segs=16)
     for sx in (-1, 1):
-        L.tube(f"{name}Crank{sx}", [w(sx * 0.03, 0.05, 0.2), w(sx * 0.05, 0.05 + sx * 0.08, 0.2 - sx * 0.04)], 0.008, M["toggle"])
-        L.box(f"{name}Pedal{sx}", (0.08, 0.05, 0.015), M["handle"], w(sx * 0.08, 0.05 + sx * 0.08, 0.2 - sx * 0.04), R, bevel=0.003)
+        L.box(f"{name}Rail{sx}", (0.05, 0.62, 0.04), dark, w(sx * 0.13, 0, 0.02), R, bevel=0.01, segs=1)
+        for sy in (-1, 1):
+            L.box(f"{name}Foot{sx}{sy}", (0.09, 0.08, 0.02), dark, w(sx * 0.13, sy * 0.27, 0.01), R, bevel=0.006, segs=1)
+            L.cylinder(f"{name}Bolt{sx}{sy}", 0.008, 0.008, M["buckle"], w(sx * 0.13 + 0.025, sy * 0.27, 0.024), segs=6)
+    for sy in (-0.22, 0.22):
+        L.box(f"{name}Cross{sy}", (0.3, 0.05, 0.04), dark, w(0, sy, 0.03), R, bevel=0.01, segs=1)
+    # flywheel housing: a chamfered drum box with a side cover and vent
+    L.box(name + "Housing", (0.16, 0.36, 0.3), frame, w(0, 0.0, 0.2), R, bevel=0.04, segs=1)
+    for sx in (-1, 1):
+        L.cylinder(f"{name}Cover{sx}", 0.1, 0.012, dark, w(sx * 0.085, 0.0, 0.2), R @ Matrix.Rotation(math.pi / 2, 3, "Y"), segs=28, bevel=0.003)
+        L.cylinder(f"{name}Hub{sx}", 0.025, 0.03, M["buckle"], w(sx * 0.1, 0.0, 0.2), R @ Matrix.Rotation(math.pi / 2, 3, "Y"), segs=16)
+        # crank arm and strapped pedal, opposite each other
+        a = 0.9 if sx > 0 else 0.9 + math.pi
+        tip = (sx * 0.125, 0.11 * math.cos(a), 0.2 + 0.11 * math.sin(a))
+        L.box(f"{name}Crank{sx}", (0.018, 0.12, 0.026), M["buckle"], w(sx * 0.115, 0.055 * math.cos(a), 0.2 + 0.055 * math.sin(a)), R @ Matrix.Rotation(-a + math.pi / 2, 3, "X"), bevel=0.005, segs=1)
+        L.box(f"{name}Pedal{sx}", (0.09, 0.05, 0.018), dark, w(tip[0] + sx * 0.04, tip[1], tip[2]), R, bevel=0.005, segs=1)
+        L.box(f"{name}Strap{sx}", (0.07, 0.03, 0.025), M["strap"], w(tip[0] + sx * 0.04, tip[1], tip[2] + 0.02), R, bevel=0.008)
+    # post with display and grab bar
+    L.box(name + "Post", (0.06, 0.06, 0.42), frame, w(0, -0.2, 0.52), R @ Matrix.Rotation(-0.15, 3, "X"), bevel=0.012, segs=1)
+    L.box(name + "Console", (0.18, 0.1, 0.05), dark, w(0, -0.24, 0.76), R @ Matrix.Rotation(-0.7, 3, "X"), bevel=0.01, segs=1)
+    L.box(name + "Display", (0.12, 0.06, 0.004), M["crt_data"], w(0, -0.222, 0.785), R @ Matrix.Rotation(-0.7, 3, "X"))
+    L.tube(name + "Bar", [w(-0.18, -0.2, 0.7), w(-0.18, -0.24, 0.74), w(0.18, -0.24, 0.74), w(0.18, -0.2, 0.7)], 0.012, M["handle"])
 
 
 def glovebox(name, p, b, w=0.5, h=0.38, d=0.32):
-    """Science glovebox: work volume with a window and two glove ports, lights."""
-    L.box(name, (w, h, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.006)
-    L.box(name + "Window", (w * 0.85, h * 0.6, 0.006), M["crt_orbit"], _a(p, b, 0, h * 0.12, d + 0.003), _r(b))
+    """Science glovebox in the stock style: chamfered grey cabinet, dark glass window onto a lit work tray, two ringed
+    glove ports with short gloves, a control strip along the top and a base shelf."""
+    frame = M.get("frame", M["module"])
+    dark = M.get("frame_dark", M["module"])
+    L.box(name, (w, h, d), frame, _a(p, b, 0, 0, d / 2), _r(b), bevel=0.02, segs=1)
+    # recessed window: dark frame, dark glass, a lit tray and sample jars just behind it
+    L.box(name + "WindowFrame", (w * 0.84, h * 0.5, 0.016), dark, _a(p, b, 0, h * 0.14, d + 0.004), _r(b), bevel=0.006, segs=1)
+    L.box(name + "Glass", (w * 0.76, h * 0.42, 0.004), M["glass_dark"], _a(p, b, 0, h * 0.14, d + 0.013), _r(b))
+    L.box(name + "TrayLight", (w * 0.6, 0.008, 0.004), M["light"], _a(p, b, 0, h * 0.14 + h * 0.19, d + 0.012), _r(b))
+    for k, x in enumerate((-0.1, -0.03, 0.05)):
+        L.cylinder(f"{name}Jar{k}", 0.018, 0.04, M["goo"] if k == 1 else M["foil"], _a(p, b, x * w / 0.5, h * 0.02, d + 0.008),
+                   L.basis(b.col[0], b.col[2], -b.col[1]), segs=14)
+    # glove ports: chamfered collar rings with short gloves
     for sx in (-1, 1):
-        q = _a(p, b, sx * w * 0.22, -h * 0.25, d)
-        L.torus(f"{name}Port{sx}", 0.05, 0.012, M["buckle"], q, _r(b), seg=28, mseg=8)
-        L.cylinder(f"{name}Glove{sx}", 0.04, 0.1, M["handle"], q + b.col[2] * 0.04, _r(b), segs=20, bevel=0.015)
-    G.lamps(name + "Lamps", _a(p, b, 0, h / 2 - 0.02, d), b, 0.14, 0.025, 4)
+        q = _a(p, b, sx * w * 0.22, -h * 0.26, d)
+        L.cylinder(f"{name}Port{sx}", 0.048, 0.03, dark, q + b.col[2] * 0.01, _r(b), segs=20, bevel=0.008)
+        L.torus(f"{name}PortRing{sx}", 0.046, 0.007, M["buckle"], q + b.col[2] * 0.026, _r(b), seg=24, mseg=6)
+        L.cylinder(f"{name}Glove{sx}", 0.032, 0.05, M["canvas"], q + b.col[2] * 0.05, _r(b), segs=14, bevel=0.012)
+    # control strip along the top, base shelf, side handles
+    L.box(name + "Strip", (w * 0.9, 0.04, 0.03), dark, _a(p, b, 0, h / 2 - 0.035, d + 0.006), _r(b), bevel=0.006, segs=1)
+    G.lamps(name + "Lamps", _a(p, b, -w * 0.2, h / 2 - 0.035, d + 0.021), b, 0.12, 0.022, 4)
+    G.toggles(name + "Switches", _a(p, b, w * 0.2, h / 2 - 0.035, d + 0.021), b, 0.12, 0.03, 3)
+    L.box(name + "Shelf", (w + 0.04, 0.025, d + 0.06), dark, _a(p, b, 0, -h / 2 - 0.0125, d / 2 + 0.03), _r(b), bevel=0.006, segs=1)
+    for sx in (-1, 1):
+        L.tube(f"{name}Handle{sx}", [_a(p, b, sx * (w / 2), h * 0.25, d * 0.6), _a(p, b, sx * (w / 2 + 0.035), h * 0.25, d * 0.6),
+                                      _a(p, b, sx * (w / 2 + 0.035), -h * 0.25, d * 0.6), _a(p, b, sx * (w / 2), -h * 0.25, d * 0.6)], 0.008, M["handle"])
 
 
 def microscope(name, p, b):
@@ -414,12 +454,18 @@ def microscope(name, p, b):
 
 
 def freezer(name, p, b, w=0.36, h=0.42, d=0.3):
-    """Sample freezer: insulated door with a frosty window and a temperature readout."""
-    L.box(name, (w, h, d), M["btn_soft"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.01)
-    L.box(name + "Door", (w * 0.86, h * 0.8, 0.012), M["toggle"], _a(p, b, 0, -0.02, d + 0.006), _r(b), bevel=0.004)
-    L.box(name + "Frost", (w * 0.5, h * 0.25, 0.003), M["towel"], _a(p, b, 0, 0.06, d + 0.013), _r(b))
-    L.box(name + "Readout", (0.08, 0.03, 0.004), M["crt_data"], _a(p, b, 0, h / 2 - 0.035, d + 0.002), _r(b))
-    L.box(name + "Latch", (0.1, 0.02, 0.02), M["handle"], _a(p, b, 0, -h * 0.3, d + 0.016), _r(b), bevel=0.004)
+    """Sample freezer in the stock style: chamfered grey body, dark insulated door with a gasket, readout strip,
+    a lever latch and a vent."""
+    frame = M.get("frame", M["module"])
+    dark = M.get("frame_dark", M["module"])
+    L.box(name, (w, h, d), frame, _a(p, b, 0, 0, d / 2), _r(b), bevel=0.02, segs=1)
+    L.box(name + "Gasket", (w * 0.84, h * 0.7, 0.01), M["handle"], _a(p, b, 0, -0.03, d + 0.004), _r(b), bevel=0.004, segs=1)
+    L.box(name + "Door", (w * 0.8, h * 0.66, 0.02), dark, _a(p, b, 0, -0.03, d + 0.014), _r(b), bevel=0.008, segs=1)
+    L.box(name + "ReadoutStrip", (w * 0.84, 0.05, 0.012), dark, _a(p, b, 0, h / 2 - 0.045, d + 0.006), _r(b), bevel=0.004, segs=1)
+    L.box(name + "Readout", (0.07, 0.025, 0.003), M["crt_data"], _a(p, b, -w * 0.2, h / 2 - 0.045, d + 0.0135), _r(b))
+    G.lamps(name + "Lamps", _a(p, b, w * 0.18, h / 2 - 0.045, d + 0.012), b, 0.08, 0.02, 3)
+    L.box(name + "Latch", (0.03, 0.12, 0.025), M["handle"], _a(p, b, w * 0.3, -0.03, d + 0.036), _r(b), bevel=0.006, segs=1)
+    L.box(name + "Vent", (w * 0.5, 0.03, 0.006), M["handle"], _a(p, b, 0, -h / 2 + 0.03, d + 0.003), _r(b))
 
 
 def sample_table(name, centre, floor_z):

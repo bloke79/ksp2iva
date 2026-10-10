@@ -349,7 +349,7 @@ def build_hab_deck():
     P.toilet("Toilet", *at(100, D + 0.2, 0.0))
     P.sink("Sink", *at(126, D + 0.5, 0.0))
     P.towels("Towels", *at(70, D + 0.55))
-    P.bike("Bike", (0.82, 0.22), yaw=0.0, floor_z=D)
+    P.bike("Bike", (0.62, 0.6), yaw=math.radians(-35), floor_z=D)
     # back wall either side of the ladder: tanks, tool board, cargo
     P.tool_board("ToolBoard", *at(140, D + 0.52), 0.32, 0.3)
     P.cargo_bag("BackBag", *at(-142, D + 1.0, 0.0), 0.28, 0.2, 0.12)
@@ -381,12 +381,16 @@ def build_lab_deck():
     P.headset("Headset", *at(-9, D + 1.32))
     # lab tier: glovebox, microscope shelf with a laptop, freezer, goo rack, sample drawers, whiteboard, racks
     P.glovebox("Glovebox", *at(62, D + 1.12, 0.0), 0.42, 0.3, 0.26)
+    S.mount("GloveboxMount", *at(62, D + 1.12, 0.0), 0.42, 0.3)
     P.cabinet("MicroscopeBench", *at(-62, D + 0.98, 0.0), 0.36, 0.26, 0.26, doors=2, top=M["module"])
+    S.mount("MicroscopeBenchMount", *at(-62, D + 0.98, 0.0), 0.36, 0.26)
     P.microscope("Microscope", *at(-58, D + 1.18, 0.06))
     P.laptop("LabLaptop", *at(-84, D + 1.25), arm=0.2, screen="mfd_systems")
     P.freezer("SampleFreezer", *at(96, D + 1.08, 0.0), 0.3, 0.3, 0.24)
+    S.mount("SampleFreezerMount", *at(96, D + 1.08, 0.0), 0.3, 0.3)
     P.science_rack("GooRack", *at(-106, D + 1.15), 0.28, 0.44)
     P.drawer_stack("SampleDrawers", *at(128, D + 1.05, 0.0), 0.26, 0.32, 4)
+    S.mount("SampleDrawersMount", *at(128, D + 1.05, 0.0), 0.26, 0.32)
     P.whiteboard("LabBoard", *at(-150, D + 1.25), 0.28, 0.22)
     G.wall("LabRacks", [("mfd", 158, D + 1.22, 0.2, 0.2, {"screen": "mfd_engine"}), ("breakers", -168, D + 1.25, 0.2, 0.1, {"cols": 7, "rows": 2}),
                         ("annunciators", 158, D + 0.98, 0.2, 0.08, {"cols": 6, "rows": 2, "start": 4})], inset=0.04)
@@ -519,7 +523,9 @@ def build_ceiling_below_deck(clear):
     for side in (-1, 1):
         for k2, deg in enumerate((86, 108)):
             phi = C.rad(side * deg)
-            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.02, bz - 0.04, inset=0.06, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"])
+            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.1, bz - 0.12, inset=0.04, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"], ends=(False, False))
+            S.junction(f"RiserBoxLo{side}{k2}", phi, SIDE_Z1 + 0.08)
+            S.junction(f"RiserBoxHi{side}{k2}", phi, bz - 0.12)
 
 
 def build_dome(clear):
@@ -554,24 +560,16 @@ def build_dome(clear):
         n += 1
     D = DECK_Z
     drops = [(70, 64, D + 1.29), (104, 98, D + 1.25), (166, 160, D + 1.34), (-12, -3, D + 1.24), (-114, -108, D + 1.39), (-70, -63, D + 1.14)]
-    for k2, (a0, a1, z1) in enumerate(drops):
-        S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, z1, inset=0.055, n=5, phi1=C.rad(a1)), n=3,
-                 colours=[S.CABLES[(k2 + i) % 4] for i in range(3)])
+    for k2, (a0, a1, z1) in enumerate(drops):   # each drop plugs into a junction box above its unit
+        zj = z1 + 0.1
+        S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, zj, inset=0.04, n=5, phi1=C.rad(a1)), n=3,
+                 colours=[S.CABLES[(k2 + i) % 4] for i in range(3)], ends=(True, False))
+        S.junction(f"DropBox{k2}", C.rad(a1), zj)
 
 
 def build_floors():
-    D = DECK_Z
-    for k2, x in enumerate((-0.62, 0.62)):
-        S.floor_hatch(f"FlightHatch{k2}", (x, 0.6), FLOOR, 0.36, 0.28)
+    """Floor dressing: kept to the flight-deck aisle (loose-looking hatches and foot bars on the grating read as clutter)."""
     S.foot_restraint("FootAisle", (-0.18, 0.5), (0.18, 0.5), FLOOR)
-    S.foot_restraint("FootDesk", (0.55, 0.62), (0.9, 0.62), FLOOR)
-    S.floor_hatch("HabHatch0", (-0.55, -0.15), D, 0.36, 0.28, yaw=0.4)
-    S.floor_hatch("HabHatch1", (0.45, -0.85), D, 0.3, 0.24, yaw=-0.5)
-    S.foot_restraint("FootGalley", (-0.28, -0.98), (0.28, -0.98), D)
-    for k2, deg in enumerate((62, 96, -62)):
-        a = C.polar(C.rad(deg - 7), 0.86, D)
-        b2 = C.polar(C.rad(deg + 7), 0.86, D)
-        S.foot_restraint(f"FootLab{k2}", a, b2, D)
 
 
 def hidden(p):

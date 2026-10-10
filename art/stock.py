@@ -341,7 +341,9 @@ def cable_run(name, z, clear, phi0=0.0, phi1=2 * math.pi, inset=0.06, n=4, min_l
         pts = [C.polar(p, C.r_in(z) - inset, z + 0.012 * math.sin(p * 9)) for p in seg[::3] + [seg[-1]]]
         cols = list(CABLES[:4])
         rnd.shuffle(cols)
-        bundle(f"{name}{k}", pts, n=n, colours=cols)
+        bundle(f"{name}{k}", pts, n=n, colours=cols, ends=(False, False))
+        for e, phi in enumerate((seg[0], seg[-1])):
+            junction(f"{name}{k}Box{e}", phi, z)
         k += 1
 
 
@@ -381,3 +383,22 @@ def wall_racks(name, clear, bays, z, w, h, inset=0.0, seed=5, chance=0.85):
         rack(f"Rack_{name}{k}", p, b, w, h, seed=seed * 31 + k)
         k += 1
     return k
+
+
+def junction(name, phi, z, w=0.11, h=0.12, d=0.075):
+    """Wall junction box that cable bundles plug into (so no bundle ends in mid-air)."""
+    p, b = C.frame_at(phi, z, 0.0)
+    cbox(name, (w, h, d), M["frame"], p + b.col[2] * d / 2, b, ch=0.01)
+    cbox(name + "Lid", (w * 0.8, h * 0.8, 0.008), M["frame_dark"], p + b.col[2] * (d + 0.003), b, ch=0.002)
+    for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
+        L.cylinder(f"{name}Bolt{i}", 0.005, 0.005, M["buckle"], p + b.col[0] * sx * w * 0.32 + b.col[1] * sy * h * 0.32 + b.col[2] * (d + 0.008), b, segs=6)
+
+
+def mount(name, p, b, w, h, rail_ext=0.08):
+    """Seat-track mounting rails on the wall above and below a wall unit, with a back plate, so it reads as fixed in place."""
+    cbox(name + "Back", (w + 0.04, h + 0.04, 0.016), M["frame_dark"], p + b.col[2] * 0.008, b, ch=0.004)
+    for k, sy in enumerate((-1, 1)):
+        q = p + b.col[1] * sy * (h / 2 + 0.035)
+        cbox(f"{name}Rail{k}", (w + 2 * rail_ext, 0.035, 0.03), M["frame"], q + b.col[2] * 0.015, b, ch=0.006)
+        for i in range(-2, 3):
+            L.cylinder(f"{name}Rail{k}Bolt{i}", 0.005, 0.005, M["buckle"], q + b.col[0] * i * (w + 2 * rail_ext) * 0.22 + b.col[2] * 0.032, b, segs=6)
