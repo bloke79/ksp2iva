@@ -599,11 +599,36 @@ namespace IVA
             }
         }
 
+        // The game's "Close Vessel" camera: in camera modes that want a near clip under 0.2 m it moves every vessel part
+        // onto the characters layer for one frame and draws them after clearing depth, i.e. on top of everything the
+        // main camera drew - straight through our interior. In IVA the main camera already draws parts and kerbals with
+        // proper depth, so keep that camera and its layer swap off (the game turns them back on as it needs after IVA).
+        private const string CloseVesselCameraName = "[PhysicsSpace] FlightCamera Close Vessel";
+        private bool _closeVesselLogged;
+
+        private void SuppressCloseVesselCamera()
+        {
+            if (_flightCam == null) return;
+            Transform t = _flightCam.transform.Find(CloseVesselCameraName);
+            if (t == null) return;
+            Camera c = t.GetComponent<Camera>();
+            bool was = c != null && c.enabled;
+            if (c != null) c.enabled = false;
+            foreach (MonoBehaviour mb in t.GetComponents<MonoBehaviour>())
+                if (mb != null && mb.enabled && mb.GetType().Name == "CloseVesselLayerScope") mb.enabled = false;   // OnDisable restores the layers
+            if (was && !_closeVesselLogged)
+            {
+                _closeVesselLogged = true;
+                SWLogger.LogInfo("IVA: switched off the game's close-vessel camera (it draws parts over the interior in some camera modes).");
+            }
+        }
+
         private void SyncCompanions(float fov, float near)
         {
+            SuppressCloseVesselCamera();
             foreach (Companion c in _companions)
             {
-                if (c.Cam == null) continue;
+                if (c.Cam == null || c.Cam.name == CloseVesselCameraName) continue;
                 c.Cam.fieldOfView = fov;
                 c.Cam.nearClipPlane = near;
                 if (!c.Child) c.Cam.transform.SetPositionAndRotation(_flightCam.transform.position, _flightCam.transform.rotation);
@@ -612,6 +637,7 @@ namespace IVA
 
         private void RestoreCompanions()
         {
+            _closeVesselLogged = false;
             foreach (Companion c in _companions)
             {
                 if (c.Cam == null) continue;
