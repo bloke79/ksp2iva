@@ -182,6 +182,10 @@ namespace IVA
         public int SeatCount => Eyes.Count > 0 ? Eyes.Count : Seats.Count;
         public bool UsesGameEyes => Eyes.Count > 0;
         public PodMeasure Measure { get; private set; }
+        // Window views (IVA_View_<name> camera point, IVA_ViewAt_<name> aim point), in the order the model lists them.
+        public readonly List<KeyValuePair<Transform, Transform>> Views = new List<KeyValuePair<Transform, Transform>>();
+        public readonly List<string> ViewNames = new List<string>();
+        public Transform PodTransform => Pod != null ? Pod.transform : null;
 
         private GameObject _instance;
         private Vector3 _fitScale = Vector3.one;
@@ -218,6 +222,16 @@ namespace IVA
                          .OrderBy(t => t.name, StringComparer.Ordinal))
                 s.Seats.Add(t);
 
+            var all = inst.GetComponentsInChildren<Transform>(true);
+            foreach (Transform v in all.Where(t => t.name.StartsWith("IVA_View_", StringComparison.Ordinal)).OrderBy(t => t.name, StringComparer.Ordinal))
+            {
+                string n = v.name.Substring("IVA_View_".Length);
+                Transform at = all.FirstOrDefault(t => t.name == "IVA_ViewAt_" + n);
+                if (at == null) continue;
+                s.Views.Add(new KeyValuePair<Transform, Transform>(v, at));
+                s.ViewNames.Add(n);
+            }
+
             CorrectOrientation(inst, s.Seats, log);
             s.FindGameEyes(log);
             s.HideStockCabin(log);
@@ -231,7 +245,7 @@ namespace IVA
             log.LogInfo($"IVA: placed the {design.Name} interior in {pod.Name}. Pod measured from {s.Measure.Source}: " +
                         $"base radius {s.Measure.BaseRadius:F2} m, height {s.Measure.YMax - s.Measure.YMin:F2} m " +
                         $"(from {s.Measure.YMin:F2} to {s.Measure.YMax:F2}). Fit scale ({s._fitScale.x:F2}, {s._fitScale.y:F2}). " +
-                        $"{s.Seats.Count} seat(s).");
+                        $"{s.Seats.Count} seat(s), {s.Views.Count} window view(s){(s.Views.Count > 0 ? " (" + string.Join(", ", s.ViewNames) + ")" : "")}.");
             LogPodWindows(pod.Pod, s.Measure, log);
             return s;
         }
@@ -489,22 +503,45 @@ namespace IVA
                             string.Join(", ", _hiddenBody.Select(r => r.name)) + ". All: " + string.Join(", ", all.Select(r => r.name)));
         }
 
-        public void ApplyCamera(Camera cam, int seat, Quaternion look, Vector3 eyeOffset, float fov, float nearClip)
+        // Camera pose in pod space: a seat's eye (view < 0) or a window view, before the player's look rotation.
+        public bool TryGetPose(int seat, int view, Vector3 eyeOffset, out Vector3 pos, out Quaternion rot)
         {
-            if (UsesGameEyes)
+            pos = Vector3.zero;
+            rot = Quaternion.identity;
+            Transform pod = PodTransform;
+            if (pod == null) return false;
+            Quaternion toPod = Quaternion.Inverse(pod.rotation);
+            if (view >= 0 && view < Views.Count && Views[view].Key != null && Views[view].Value != null)
             {
-                if (seat < 0 || seat >= Eyes.Count || Eyes[seat] == null) return;
-                Transform e = Eyes[seat];
-                cam.transform.SetPositionAndRotation(e.TransformPoint(eyeOffset), e.rotation * look);
-                cam.fieldOfView = fov;
-                cam.nearClipPlane = nearClip;
-                return;
+                Vector3 p = pod.InverseTransformPoint(Views[view].Key.position);
+                Vector3 dir = pod.InverseTransformPoint(Views[view].Value.position) - p;
+                if (dir.sqrMagnitude < 1e-6f) return false;
+                pos = p;
+                // level with the pod's nose as "up", unless the window looks almost straight along it
+                Vector3 up = Mathf.Abs(Vector3.Dot(dir.normalized, Vector3.up)) > 0.95f ? Vector3.back : Vector3.up;
+                rot = Quaternion.LookRotation(dir, up);
+                return true;
             }
-            if (seat < 0 || seat >= Seats.Count || Seats[seat] == null) return;
-            Transform s = Seats[seat];
-            cam.transform.SetPositionAndRotation(s.TransformPoint(eyeOffset), s.rotation * look);
-            cam.fieldOfView = fov;
-            cam.nearClipPlane = nearClip;
+            Transform e = UsesGameEyes ? (seat >= 0 && seat < Eyes.Count ? Eyes[seat] : null)
+                                       : (seat >= 0 && seat < Seats.Count ? Seats[seat] : null);
+            if (e == null) return false;
+            pos = pod.InverseTransformPoint(e.TransformPoint(eyeOffset));
+            rot = toPod * e.rotation;
+            return true;
+        }
+
+        // Index of the window view nearest a pod-space point (or -1).
+        public int NearestView(Vector3 podPoint)
+        {
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < Views.Count; i++)
+            {
+                if (Views[i].Key == null) continue;
+                float d = (PodTransform.InverseTransformPoint(Views[i].Key.position) - podPoint).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
         }
 
         // The game draws its own cabin model round the seated kerbals in flight (it's what you see through the windows from
@@ -540,6 +577,8 @@ namespace IVA
             ShowSeat(-1, false);
             Eyes.Clear();
             EyeKerbals.Clear();
+            Views.Clear();
+            ViewNames.Clear();
             foreach (Renderer r in _hiddenExterior) if (r != null) r.enabled = true;
             _hiddenExterior.Clear();
             if (_instance != null) UnityEngine.Object.Destroy(_instance);

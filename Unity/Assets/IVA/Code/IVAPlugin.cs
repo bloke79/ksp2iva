@@ -32,6 +32,9 @@ namespace IVA
         // ---- Config ----
         private ConfigValue<KeyboardShortcut> _toggleKey;
         private ConfigValue<KeyboardShortcut> _nextSeatKey;
+        private ConfigValue<KeyboardShortcut> _windowKey;
+        private ConfigValue<float> _windowFov;
+        private ConfigValue<float> _glideTime;
         private ConfigValue<float> _mouseSensitivity;
         private ConfigValue<bool> _invertY;
         private ConfigValue<bool> _holdRightMouseToLook;
@@ -89,6 +92,14 @@ namespace IVA
         private float _pitch;
         private float _fov;
 
+        // Window views: -1 = at the seat. Moves between poses glide from the pose captured at the switch (pod space).
+        private int _viewIndex = -1;
+        private float _blend = 1f;
+        private Vector3 _fromPos;
+        private Quaternion _fromRot = Quaternion.identity;
+        private float _fromFov;
+        private float _seatFov;
+
         private bool InIva => _mode != Mode.None;
 
         public override void OnInitialized()
@@ -96,7 +107,7 @@ namespace IVA
             BindConfig();
             Camera.onPreCull += OnCameraPreCull;
             _ready = true;
-            SWLogger.LogInfo($"IVA loaded. Toggle: {_toggleKey.Value}, next seat: {_nextSeatKey.Value}. " +
+            SWLogger.LogInfo($"IVA loaded. Toggle: {_toggleKey.Value}, next seat: {_nextSeatKey.Value}, window view: {_windowKey.Value}. " +
                              $"Interiors: {string.Join(", ", InteriorCatalogue.All.Select(d => d.Name))}.");
         }
 
@@ -106,6 +117,10 @@ namespace IVA
 
             _toggleKey = Bind(cfg, "Keys", "Toggle IVA", new KeyboardShortcut(KeyCode.C), "Enter or leave IVA view while in flight.");
             _nextSeatKey = Bind(cfg, "Keys", "Next seat", new KeyboardShortcut(KeyCode.V), "Move to the next seat while in IVA.");
+            _windowKey = Bind(cfg, "Keys", "Window view", new KeyboardShortcut(KeyCode.B),
+                "Lean up to the nearest window; press again for the next window, and after the last one, back to your seat.");
+            _windowFov = Bind(cfg, "Zoom", "Window view field of view", 60f, "Field of view at a window.", new RangeConstraint<float>(20f, 120f));
+            _glideTime = Bind(cfg, "Look", "Window glide time", 0.5f, "Seconds to move between the seat and a window (0 = instant).", new RangeConstraint<float>(0f, 3f));
 
             _mouseSensitivity = Bind(cfg, "Look", "Mouse sensitivity", 2.0f,
                 "Degrees of rotation per unit of mouse movement.", new RangeConstraint<float>(0.1f, 10f));
@@ -190,6 +205,8 @@ namespace IVA
 
             if (!InIva) return;
             if (_nextSeatKey.Value.Down) NextSeat();
+            if (_mode == Mode.CustomInterior && _windowKey.Value.Down) NextWindow();
+            if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
             ReadLookInput();
         }
@@ -214,7 +231,22 @@ namespace IVA
             {
                 if (_session == null) return;
                 _session.ApplyPlacement(Placement());
-                _session.ApplyCamera(_flightCam, _seatIndex, look, EyeOffset(), _fov, IvaNearClip);
+                Vector3 pos;
+                Quaternion rot;
+                if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return;
+                rot *= look;
+                float fov = _fov;
+                if (_blend < 1f)
+                {
+                    float k = Mathf.SmoothStep(0f, 1f, _blend);
+                    pos = Vector3.Lerp(_fromPos, pos, k);
+                    rot = Quaternion.Slerp(_fromRot, rot, k);
+                    fov = Mathf.Lerp(_fromFov, _fov, k);
+                }
+                Transform pod = _session.PodTransform;
+                _flightCam.transform.SetPositionAndRotation(pod.TransformPoint(pos), pod.rotation * rot);
+                _flightCam.fieldOfView = fov;
+                _flightCam.nearClipPlane = IvaNearClip;
                 return;
             }
 
@@ -435,8 +467,46 @@ namespace IVA
             SWLogger.LogInfo($"Entered IVA (portrait camera), seat {_seatIndex + 1} of {_kerbalCams.Count}.");
         }
 
+        // Starts a glide from wherever the camera is now (including where the player was looking).
+        private void BeginGlide()
+        {
+            if (_session == null || _session.PodTransform == null || _flightCam == null) { _blend = 1f; return; }
+            Transform pod = _session.PodTransform;
+            _fromPos = pod.InverseTransformPoint(_flightCam.transform.position);
+            _fromRot = Quaternion.Inverse(pod.rotation) * _flightCam.transform.rotation;
+            _fromFov = _flightCam.fieldOfView;
+            _blend = 0f;
+            _yawLook = 0f;
+            _pitch = 0f;
+        }
+
+        // Seat -> nearest window -> next nearest ... -> back to the seat.
+        private void NextWindow()
+        {
+            if (_session == null || _session.Views.Count == 0)
+            {
+                SWLogger.LogInfo("IVA: this interior has no window views.");
+                return;
+            }
+            Vector3 eye;
+            Quaternion r;
+            if (!_session.TryGetPose(_seatIndex, -1, EyeOffset(), out eye, out r)) return;
+            Transform pod = _session.PodTransform;
+            List<int> order = Enumerable.Range(0, _session.Views.Count)
+                .OrderBy(i => (pod.InverseTransformPoint(_session.Views[i].Key.position) - eye).sqrMagnitude).ToList();
+            int at = order.IndexOf(_viewIndex);
+            int next = at + 1 < order.Count ? order[at + 1] : -1;
+            BeginGlide();
+            if (_viewIndex < 0) _seatFov = _fov;
+            _viewIndex = next;
+            _fov = next >= 0 ? Mathf.Clamp(_windowFov.Value, MinFov(), MaxFov()) : _seatFov;
+            SWLogger.LogInfo(next >= 0 ? $"IVA: window view {_session.ViewNames[next]}." : "IVA: back to the seat.");
+        }
+
         private void ResetView()
         {
+            _viewIndex = -1;
+            _blend = 1f;
             _yawLook = 0f;
             _pitch = 0f;
             _fov = Mathf.Clamp(_defaultFov.Value, MinFov(), MaxFov());
@@ -489,11 +559,11 @@ namespace IVA
             if (_mode == Mode.CustomInterior)
             {
                 if (_session.SeatCount < 2) return;
+                BeginGlide();
+                if (_viewIndex >= 0) _fov = _seatFov;
+                _viewIndex = -1;
                 _seatIndex = (_seatIndex + 1) % _session.SeatCount;
                 _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
-                _yawLook = 0f;
-                _pitch = 0f;
-                ApplyPose();
                 SWLogger.LogInfo($"Switched to seat {_seatIndex + 1} of {_session.SeatCount}.");
                 return;
             }

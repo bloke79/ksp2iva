@@ -276,6 +276,7 @@ C.build_shell(dome=True, ring_light=True)
 C.build_stringers(16, keep_clear, z1=C.Z_CEIL)
 for w in C.WINDOWS:
     C.build_window(w, depth=0.04, bolts=32)
+    C.view_markers(w, standoff=0.3)
 build_mdc()
 build_side_consoles()
 build_couches()

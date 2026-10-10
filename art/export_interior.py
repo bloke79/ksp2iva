@@ -73,7 +73,7 @@ for o in list(coll.objects):
     if o is not root:
         o.parent = root
 for o in scene.objects:
-    if o.name.startswith("IVA_Seat"):
+    if o.name.startswith(("IVA_Seat", "IVA_View")):   # eye points and window-view markers travel with the model
         if o.name not in coll.objects:
             for c in o.users_collection:
                 c.objects.unlink(o)

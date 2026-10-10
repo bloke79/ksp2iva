@@ -184,6 +184,7 @@ def build_equipment():
 C.build_shell(dome=True, ring_light=False)
 C.build_stringers(10, keep_clear, z1=CROWN_Z0)
 C.build_window(WIN, depth=0.035)
+C.view_markers(WIN, standoff=0.2)
 build_ceiling_console()
 build_crown()
 C.couch("Couch", X0, POSE, C.Z_FLOOR)

@@ -59,6 +59,7 @@ Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** 
 |---|---|
 | C | Enter or leave IVA (in flight only; C again while it loads cancels) |
 | V | Next seat |
+| B | Window view: lean up to the nearest window, again for the next, and after the last back to your seat |
 | Mouse | Look around |
 | Scroll wheel | Zoom (up zooms in) |
 
@@ -86,16 +87,18 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 
 | Section | Setting | Default | What it does |
 |---|---|---|---|
-| Keys | Toggle IVA / Next seat | C / V | Unity key names; modifiers with `+`, for example `LeftAlt+C` |
+| Keys | Toggle IVA / Next seat / Window view | C / V / B | Unity key names; modifiers with `+`, for example `LeftAlt+C` |
 | Look | sensitivity, invert, hold right mouse, max angle | 2 / off / off / 85 | |
+| Look | Window glide time | 0.5 | Seconds to move between seat and window (0 = instant) |
 | Zoom | starting, min, max field of view, speed, invert | 75 / 30 / 110 / 5 / off | |
+| Zoom | Window view field of view | 60 | Field of view at a window |
 | Interior | Use custom interiors | on | Off = original portrait-camera view |
 | Interior | Pod name filter | blank | Pick a pod by part of its name (names are in the log) |
 | Interior | Use for pods without their own interior | off | Put the Mk1-3 interior in other crewed pods too |
 | Interior | Fit to pod | on | Size the interior to the pod's measured shape |
 | Interior | Hide pod exterior in IVA | off | Turn on if bits of the pod's outer model poke through |
 | Alignment | Offset X/Y/Z, Yaw, Scale, Eye X/Y/Z | 0 / 0 / 1 / 0 | Set by the numpad tool |
-| General | Hide own kerbal | on | Portrait-camera view only |
+| General | Hide own kerbal | on | Hides your own kerbal's head (custom interiors) or whole body (portrait view) |
 
 ## First test: what to check
 

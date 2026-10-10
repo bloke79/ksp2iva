@@ -608,6 +608,18 @@ def couch(tag, x0, pose, z_floor, armrests=True, struts=None, liner_mat=None):
     return top
 
 
+def view_markers(w, standoff=0.28, drop=0.0):
+    """Window view for the mod's window key: IVA_View_<name> is where the camera goes, IVA_ViewAt_<name> what it looks at
+    (the middle of the glass). Positions only, so no axis conventions are involved in the export."""
+    z = w["z"]
+    for name, p in ((f"IVA_View_{w['name']}", polar(w["phi"], r_in(z) - standoff, z - drop)), (f"IVA_ViewAt_{w['name']}", polar(w["phi"], r_in(z) + 0.03, z))):
+        e = bpy.data.objects.new(name, None)
+        e.empty_display_type = "SPHERE"
+        e.empty_display_size = 0.02
+        e.location = p
+        L.link(e)
+
+
 def eye_marker(index, seat):
     """IVA_Seat<n> fallback eye point at the game's eye, looking along its forward (the game's own eye is used when found)."""
     e, f = Vector(seat["eye"]), Vector(seat["fwd"])
