@@ -2,11 +2,11 @@
 
 **Last updated:** 2026-10-10
 **Version / milestone:** 0.6.0 (modelled Mk1-3 interior) · KSP2 Redux 26w41a
-**Health:** 🟡 needs attention: never compiled against the real DLLs or run in game
+**Health:** 🟢 compiles against the real KSP2 Redux DLLs, and assets validated (`notes/2026-10-10-verification.md`). Not yet run in game.
 
 ## Next steps
-1. Set up the Redux SDK project (README › One-off setup), create the mod with ID `IVA`, copy
-   `Unity/Assets/IVA` in, and **fix compile errors against the real assemblies** (PLAN step 1).
+1. Set up the Redux SDK project (README › One-off setup), create the mod with ID `IVA`, then
+   `/sync-unity to iva-redux`. Expect a clean compile. Only the Addressables editor calls are unproven.
 2. Run **IVA > Set Up Interiors**, then inspect the prefab from a seat transform.
 3. Build for Player, fly a Mk1-3 and press C. Save the `IVA` log lines to `notes/`.
 
@@ -20,6 +20,8 @@
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – Verified against the installed game (26w41a): runtime and editor code compile; `Assets.Load`, `crew`,
+  render pipeline and flight camera confirmed; FBX, materials and textures validated. Fixed the `ILogger` ambiguity.
 - 2026-10-10 – Pushed to https://github.com/MattAtAstralas/ksp2iva (private), on top of the existing LICENSE commit.
 - 2026-10-10 – Imported into the Claude Code workspace, with ADRs written for the 0.4 and 0.5 decisions.
 - 2026-10-09/10 – (claude.ai) 0.3 port → 0.4 generated cabin (rejected) → 0.5 game interiors (none exist) →

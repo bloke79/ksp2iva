@@ -11,7 +11,8 @@ All code was written against stub DLLs in a cloud sandbox. The 10 riskiest assum
 in rough order of risk (details in `notes/2026-10-10-claude-ai-handoff.md` §4).
 
 ## Steps
-- [ ] 1. **Compile.** Set up the SDK project, create mod `IVA`, copy `Unity/Assets/IVA` in, and fix API mismatches
+- [~] 1. **Compile.** _(2026-10-10: compiles outside Unity against the real DLLs after one fix. See
+      `notes/2026-10-10-verification.md`. It still needs to compile inside the SDK project.)_ Set up the SDK project, create mod `IVA`, copy `Unity/Assets/IVA` in, and fix API mismatches
       (`Assets.Load`, `PartBehavior.Name`, `Module_CrewedInterior.crew`/`IsProbe`,
       `ViewController.GetActiveSimVessel`/`GetBehaviorIfLoaded`, `GameState.FlightView`, `KeyboardShortcut`,
       `ConfigValue<T>`, `RangeConstraint<T>`). Log each fix in `notes/api-corrections.md` and copy fixed files back here.

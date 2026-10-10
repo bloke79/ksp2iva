@@ -14,6 +14,7 @@ using KSP.Modules;
 using KSP.Sim.impl;
 using ReduxLib.Logging;
 using UnityEngine;
+using ILogger = ReduxLib.Logging.ILogger; // UnityEngine also defines ILogger
 
 namespace IVA
 {
