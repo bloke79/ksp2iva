@@ -60,6 +60,8 @@ Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** 
 | C | Enter or leave IVA (in flight only; C again while it loads cancels) |
 | N | Next seat (V is the game's camera-mode key) |
 | B | Window view: lean up to the nearest window, again for the next, and after the last back to your seat |
+| U | Unbuckle and float round the cabin; U again (or N / B) to sit in the nearest couch |
+| W A S D, Shift / Ctrl, Q / E | While floating: move, up / down, roll (the vessel's flight controls are locked meanwhile) |
 | Mouse | Look around |
 | Scroll wheel | Zoom (up zooms in) |
 
@@ -87,9 +89,10 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 
 | Section | Setting | Default | What it does |
 |---|---|---|---|
-| Keys | Toggle IVA / Next seat / Window view | C / N / B | Unity key names; modifiers with `+`, for example `LeftAlt+C` |
+| Keys | Toggle IVA / Next seat / Window view / Unbuckle | C / N / B / U | Unity key names; modifiers with `+`, for example `LeftAlt+C` |
 | Look | sensitivity, invert, hold right mouse, max angle | 2 / off / off / 85 | |
 | Look | Window glide time | 0.5 | Seconds to move between seat and window (0 = instant) |
+| Look | Float speed | 1.2 | Top speed when floating round the cabin (m/s) |
 | Zoom | starting, min, max field of view, speed, invert | 75 / 30 / 110 / 5 / off | |
 | Zoom | Window view field of view | 60 | Field of view at a window |
 | Interior | Use custom interiors | on | Off = original portrait-camera view |

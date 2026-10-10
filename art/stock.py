@@ -406,3 +406,89 @@ def mount(name, p, b, w, h, rail_ext=0.08):
         cbox(f"{name}Rail{k}", (w + 2 * rail_ext, 0.035, 0.03), M["frame"], q + b.col[2] * 0.015, b, ch=0.006)
         for i in range(-2, 3):
             L.cylinder(f"{name}Rail{k}Bolt{i}", 0.005, 0.005, M["buckle"], q + b.col[0] * i * (w + 2 * rail_ext) * 0.22 + b.col[2] * 0.032, b, segs=6)
+
+
+# ------------------------------------------------------------------ collision markers for moving around inside (unbuckle)
+COL_SKIP = ("Shell", "Dome", "Floor", "Deck", "Rib_", "RingFrame", "Plate_", "REF_", "IVA_", "Stringer", "Rivet", "CeilingBulkhead",
+            "RingLight", "Bundle", "Duct", "Window", "Glass", "Porthole", "Hatch", "Rung", "Ladder", "Seal", "Sleeve", "Flange",
+            "NamePlate", "Label", "Food", "Tag", "Stripe", "Junction", "CeilRing", "CeilHub", "TunnelRing")
+
+
+def _fitted_box(o):
+    """Oriented box from the principal axes of an object's vertices (world space): (centre, half-axes, volume)."""
+    import numpy as np
+    vs = o.data.vertices
+    if len(vs) < 4:
+        return None
+    mw = o.matrix_world
+    X = np.array([(mw @ v.co)[:] for v in vs])
+    mean = X.mean(axis=0)
+    _, vecs = np.linalg.eigh(np.cov((X - mean).T))
+    proj = (X - mean) @ vecs
+    lo, hi = proj.min(axis=0), proj.max(axis=0)
+    half = (hi - lo) / 2
+    centre = mean + vecs @ ((hi + lo) / 2)
+    axes = [Vector(vecs[:, i] * max(half[i], 0.0)) for i in range(3)]
+    return Vector(centre), axes, float(np.prod(np.maximum(hi - lo, 1e-3)))
+
+
+def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15):
+    """Position-only empties the mod reads to let the player float round the cabin without Unity physics:
+    IVA_ColAxis_0/1 (pod axis, floor to top), IVA_ColHull_<k> (a point on the hull at each height: radius profile),
+    IVA_ColDeck_<k> (deck heights), IVA_ColHole_<k>_c/x/y/z and IVA_ColBox_<k>_c/x/y/z (oriented boxes: centre and the
+    three half-axis tips) and IVA_Hatch_<name> (hatch positions, for a prompt). Positions only, so no axis conventions."""
+    import bpy
+    bpy.context.view_layer.update()
+
+    def mark(name, p):
+        e = bpy.data.objects.new(name, None)
+        e.empty_display_size = 0.01
+        e.location = Vector(p)
+        L.link(e)
+
+    def box(prefix, c, axes):
+        mark(prefix + "_c", c)
+        for s, a in zip("xyz", axes):
+            mark(f"{prefix}_{s}", Vector(c) + Vector(a))
+
+    mark("IVA_ColAxis_0", (0, 0, C.Z_FLOOR))
+    mark("IVA_ColAxis_1", (0, 0, C.Z_TOP))
+    n = 24
+    for k in range(n + 1):
+        z = C.Z_FLOOR + (C.Z_CEIL - C.Z_FLOOR) * k / n
+        mark(f"IVA_ColHull_{k:02d}", C.polar(0.0, C.r_in(z), z))
+    mark(f"IVA_ColHull_{n + 1:02d}", C.polar(0.0, C.r_in(C.Z_CEIL) * 0.35, C.Z_TOP))   # the dome closes in
+    for k, z in enumerate(decks):
+        mark(f"IVA_ColDeck_{k}", (0, 0, z))
+    for k, (x0, x1, y0, y1, z) in enumerate(holes):
+        box(f"IVA_ColHole_{k}", ((x0 + x1) / 2, (y0 + y1) / 2, z), [((x1 - x0) / 2, 0, 0), (0, (y1 - y0) / 2, 0), (0, 0, 0.4)])
+    for name, p in hatches:
+        mark(f"IVA_Hatch_{name}", p)
+    door = L.COLL.objects.get("HatchDoor")
+    if door is not None:
+        cs = [door.matrix_world @ Vector(c) for c in door.bound_box]
+        mid = sum(cs, Vector()) / 8
+        mark("IVA_Hatch_Side", Vector((mid.x * 0.9, mid.y * 0.9, mid.z)))   # a little in from the door
+    k = 0
+    for o in list(L.COLL.objects):
+        if o.type != "MESH" or o.name.startswith(COL_SKIP):
+            continue
+        mn = Vector(min(c[i] for c in o.bound_box) for i in range(3))
+        mx = Vector(max(c[i] for c in o.bound_box) for i in range(3))
+        m3 = o.matrix_world.to_3x3()
+        axes = [m3.col[i] * ((mx[i] - mn[i]) / 2) for i in range(3)]
+        centre = o.matrix_world @ ((mn + mx) / 2)
+        sizes = [a.length * 2 for a in axes]
+        if max(sizes) < min_size:
+            continue
+        fit = _fitted_box(o)   # beams and sweeps built in world space would otherwise get a loose axis-aligned box
+        if fit is not None and fit[2] < 0.9 * (sizes[0] * sizes[1] * sizes[2]):
+            centre, axes = fit[0], fit[1]
+        for i in range(3):   # flat things (panels): give them a little thickness along their normal
+            if axes[i].length < 0.005:
+                nrm = axes[(i + 1) % 3].cross(axes[(i + 2) % 3])
+                axes[i] = nrm.normalized() * 0.005 if nrm.length > 1e-9 else Vector((0, 0, 0.005))
+        box(f"IVA_ColBox_{k:04d}", centre, axes)
+        k += 1
+    print("collision boxes", k)
+    return k

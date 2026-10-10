@@ -39,7 +39,8 @@ $sub = if ($spec.plate) { $spec.plate.subtitle } else { "CREW $($spec.seats)   |
 
 # 2. model
 $blend = Join-Path $work "$Pod.blend"
-& $blender -b --python (Join-Path $art $Generator) -- $specPath $tex $blend 2>&1 | Select-String 'couch|WARNING|Error|Traceback|objects' | ForEach-Object { $_.Line.Trim() }
+Remove-Item $blend -ErrorAction SilentlyContinue   # so a failed build can't fall back on the previous model
+& $blender -b --python (Join-Path $art $Generator) -- $specPath $tex $blend 2>&1 | Select-String 'couch|WARNING|Error|Traceback|objects|collision boxes' | ForEach-Object { $_.Line.Trim() }
 if (-not (Test-Path $blend)) { throw "Model build failed" }
 
 # 3. previews

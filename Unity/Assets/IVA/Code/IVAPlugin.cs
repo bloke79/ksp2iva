@@ -3,7 +3,8 @@
 // modelled pod interiors (see CustomInterior.cs) with the real world visible through the windows.
 //
 // Press the toggle key (default C) in flight to sit inside your crew pod.
-// Press the next-seat key (default V) while in IVA to move to the next seat.
+// Press the next-seat key (default N) while in IVA to move to the next seat, B for window views,
+// U to unbuckle and float round the cabin (WASD, Shift/Ctrl up/down, Q/E roll; U again to sit back down).
 // Mouse looks around, scroll wheel zooms. The numpad lines the interior up with the pod.
 //
 // Modes, tried in order:
@@ -34,6 +35,8 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _toggleKey;
         private ConfigValue<KeyboardShortcut> _nextSeatKey;
         private ConfigValue<KeyboardShortcut> _windowKey;
+        private ConfigValue<KeyboardShortcut> _unbuckleKey;
+        private ConfigValue<float> _floatSpeed;
         private ConfigValue<float> _windowFov;
         private ConfigValue<float> _glideTime;
         private ConfigValue<float> _mouseSensitivity;
@@ -103,6 +106,11 @@ namespace IVA
 
         private bool InIva => _mode != Mode.None;
 
+        // Unbuckled: floating round the cabin (null while seated).
+        private FreeMove _free;
+        private bool _flightInputLocked;
+        private GUIStyle _promptStyle;
+
         public override void OnInitialized()
         {
             BindConfig();
@@ -122,6 +130,9 @@ namespace IVA
                 "Lean up to the nearest window; press again for the next window, and after the last one, back to your seat.");
             _windowFov = Bind(cfg, "Zoom", "Window view field of view", 60f, "Field of view at a window.", new RangeConstraint<float>(20f, 120f));
             _glideTime = Bind(cfg, "Look", "Window glide time", 0.5f, "Seconds to move between the seat and a window (0 = instant).", new RangeConstraint<float>(0f, 3f));
+            _unbuckleKey = Bind(cfg, "Keys", "Unbuckle", new KeyboardShortcut(KeyCode.U),
+                "Leave the couch and float round the cabin (WASD move, Shift/Ctrl up/down, Q/E roll); press again to sit in the nearest couch.");
+            _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
 
             _mouseSensitivity = Bind(cfg, "Look", "Mouse sensitivity", 2.0f,
                 "Degrees of rotation per unit of mouse movement.", new RangeConstraint<float>(0.1f, 10f));
@@ -216,14 +227,25 @@ namespace IVA
 
             if (!InIva) return;
             if (_mode == Mode.CustomInterior) KeepCameraGuard();
+            if (_mode == Mode.CustomInterior && _unbuckleKey.Value.Down)
+            {
+                if (_free != null) Buckle();
+                else Unbuckle();
+            }
             if (_nextSeatKey.Value.Down)
             {
                 SWLogger.LogInfo($"IVA: next-seat key ({_nextSeatKey.Value}) pressed in mode {_mode}.");
-                NextSeat();
+                if (_free != null) Buckle();   // back into the nearest couch first
+                else NextSeat();
             }
             else if (Input.GetKeyDown(KeyCode.V) && _nextSeatKey.Value.Main != KeyCode.V)
                 SWLogger.LogInfo("IVA: V pressed (V is the game's camera-mode key; next seat is " + _nextSeatKey.Value + ").");
-            if (_mode == Mode.CustomInterior && _windowKey.Value.Down) NextWindow();
+            if (_mode == Mode.CustomInterior && _windowKey.Value.Down)
+            {
+                if (_free != null) Buckle();
+                NextWindow();
+            }
+            if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
             ReadLookInput();
@@ -256,6 +278,12 @@ namespace IVA
             if (_mode != Mode.CustomInterior || _session == null || _session.PodTransform == null) return false;
             Vector3 pos;
             Quaternion rot;
+            if (_free != null)
+            {
+                posW = _session.PodTransform.TransformPoint(_free.Pos);
+                rotW = _session.PodTransform.rotation * _free.Rot;
+                return true;
+            }
             if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return false;
             rot *= Quaternion.Euler(_pitch, _yawLook, 0f);
             if (_blend < 1f)
@@ -478,9 +506,13 @@ namespace IVA
                 float mx = Input.GetAxis("Mouse X") * sens;
                 float my = Input.GetAxis("Mouse Y") * sens;
                 if (_invertY.Value) my = -my;
-                _yawLook = Mathf.Repeat(_yawLook + mx + 180f, 360f) - 180f;
-                float maxPitch = _maxPitch.Value;
-                _pitch = Mathf.Clamp(_pitch - my, -maxPitch, maxPitch);
+                if (_free != null) _free.Turn(mx, -my, 0f);   // floating: no horizon, turn about the view's own axes
+                else
+                {
+                    _yawLook = Mathf.Repeat(_yawLook + mx + 180f, 360f) - 180f;
+                    float maxPitch = _maxPitch.Value;
+                    _pitch = Mathf.Clamp(_pitch - my, -maxPitch, maxPitch);
+                }
             }
 
             float scroll = Input.mouseScrollDelta.y;
@@ -857,6 +889,8 @@ namespace IVA
 
         private void ExitIva()
         {
+            _free = null;
+            LockFlightInput(false);
             _loading = false;
             _loadingFor = null;
             ShowPortraitBody();
@@ -899,6 +933,78 @@ namespace IVA
             _vesselAtEntry = null;
             _origParent = null;
             if (was) SWLogger.LogInfo("Left IVA.");
+        }
+
+        // ------------------------------------------------------------------
+        // Unbuckled: floating round the cabin
+        // ------------------------------------------------------------------
+
+        private void Unbuckle()
+        {
+            if (_session == null || _session.Root == null || _session.PodTransform == null) return;
+            FreeMove f = FreeMove.Build(_session.Root, _session.PodTransform, SWLogger);
+            if (!f.Valid) return;
+            if (!ComputeIvaPose(out Vector3 posW, out Quaternion rotW, out float _)) return;
+            Transform pod = _session.PodTransform;
+            f.Begin(pod.InverseTransformPoint(posW), Quaternion.Inverse(pod.rotation) * rotW);
+            if (_viewIndex >= 0) _fov = _seatFov;
+            _viewIndex = -1;
+            _blend = 1f;
+            _yawLook = 0f;
+            _pitch = 0f;
+            _free = f;
+            _session.HideWholeKerbal(_seatIndex);   // you've left the couch
+            LockFlightInput(true);                  // WASD, Shift and Ctrl move you, not the vessel
+            SWLogger.LogInfo($"IVA: unbuckled from seat {_seatIndex + 1}.");
+        }
+
+        private void Buckle()
+        {
+            if (_free == null || _session == null) return;
+            int best = _seatIndex;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _session.SeatCount; i++)
+            {
+                if (!_session.TryGetPose(i, -1, EyeOffset(), out Vector3 eye, out Quaternion _)) continue;
+                float d = (eye - _free.Pos).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            BeginGlide();   // from where you are now
+            _free = null;
+            _seatIndex = best;
+            _viewIndex = -1;
+            _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
+            LockFlightInput(false);
+            SWLogger.LogInfo($"IVA: buckled into seat {_seatIndex + 1}.");
+        }
+
+        private void MoveFree()
+        {
+            float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
+            float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            var move = new Vector3(K(KeyCode.D) - K(KeyCode.A), K(KeyCode.LeftShift) - K(KeyCode.LeftControl), K(KeyCode.W) - K(KeyCode.S));
+            if (move.sqrMagnitude > 1f) move.Normalize();
+            _free.Turn(0f, 0f, (K(KeyCode.Q) - K(KeyCode.E)) * 70f * dt);
+            float top = _floatSpeed.Value;
+            _free.Step(move, dt, top * 2.5f, top, 2.5f);
+        }
+
+        private void LockFlightInput(bool on)
+        {
+            if (on == _flightInputLocked) return;
+            try
+            {
+                Game?.InputManager?.SetInputLock(on ? KSP.Input.InputLocks.FlightInputDisabled : KSP.Input.InputLocks.FlightInputEnabled);
+                _flightInputLocked = on;
+            }
+            catch (Exception e) { SWLogger.LogWarning($"IVA: couldn't {(on ? "lock" : "unlock")} the flight controls: {e.Message}"); }
+        }
+
+        private void OnGUI()
+        {
+            if (_free == null || !_free.NearHatch(0.6f, out string hatch)) return;
+            if (_promptStyle == null) _promptStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18 };
+            GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), $"{hatch} hatch: going through hatches isn't possible yet", _promptStyle);
         }
 
         private void NextSeat()

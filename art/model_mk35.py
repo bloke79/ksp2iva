@@ -628,6 +628,8 @@ build_lower_kit()
 build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
+S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)],
+                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
 print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; bulkhead at y {BULK_Y:.2f}")

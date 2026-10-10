@@ -76,16 +76,19 @@ Get out of the couch and float/walk round the cabin (FreeIva-style, our own code
 equipment rather than toy blocks.
 
 ## A. Moving around (unbuckle)
-- [ ] 1. **Collision shell from the generator:** each interior exports simple colliders (hull cylinder rings, deck, consoles,
+_2026-10-11: first version built. Collision is position-only markers (`stock.collision_markers`: hull profile, decks and
+openings, oriented equipment boxes, hatches) read by `FreeMove.cs`; no Unity physics, so nothing touches the vessel.
+Floating is zero-g everywhere for now; walking under gravity and climbing ladders are still to do._
+- [x] 1. **Collision shell from the generator:** each interior exports simple colliders (hull cylinder rings, deck, consoles,
       couches, large props) as `IVA_Collider_*` boxes/capsules; Set Up Interiors turns them into colliders on one private
       layer. Nothing physical touches the game's colliders.
-- [ ] 2. **Free camera:** U unbuckles (key configurable). The view becomes a small capsule in pod space: WASD to move,
+- [x] 2. **Free camera:** U unbuckles (key configurable). The view becomes a small capsule in pod space: WASD to move,
       Shift/Ctrl up/down, Q/E roll, mouse to look; it slides along the colliders (capsule sweeps, no rigidbody).
       Weightless drift with damping in orbit; on the ground or under thrust, "down" follows the pod's acceleration and you
       walk on the deck and floor, with ladders climbable (up/down while touching one).
-- [ ] 3. **Back to a seat:** U again returns you to the nearest couch (glide, as with window views); N still switches seats.
+- [x] 3. **Back to a seat:** U again returns you to the nearest couch (glide, as with window views); N still switches seats.
       Window views (B) work from wherever you are.
-- [ ] 4. **Hatch:** walking to the 3v's upper docking tunnel or side hatch just shows a "hatch" prompt for now (moving
+- [x] 4. **Hatch:** walking to the 3v's upper docking tunnel or side hatch just shows a "hatch" prompt for now (moving
       between parts is a later step).
 - [ ] 5. Test on the 3v first (it has the most room), then the Mk1-3; the Mk1 is too small to be worth it.
 

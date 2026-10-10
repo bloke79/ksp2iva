@@ -194,6 +194,17 @@ namespace IVA
         public void DisableLive() => Live = null;
 
         private GameObject _instance;
+        public Transform Root => _instance != null ? _instance.transform : null;
+
+        // Hide the whole body of a seat's kerbal: its player has unbuckled and is floating round the cabin.
+        public void HideWholeKerbal(int seat)
+        {
+            foreach (Renderer r in _hiddenBody) if (r != null) r.enabled = true;
+            _hiddenBody.Clear();
+            if (seat < 0 || seat >= EyeKerbals.Count || EyeKerbals[seat] == null) return;
+            foreach (Renderer r in EyeKerbals[seat].GetComponentsInChildren<Renderer>(false))
+                if (r.enabled) { _hiddenBody.Add(r); r.enabled = false; }
+        }
         private Vector3 _fitScale = Vector3.one;
         private readonly List<Renderer> _hiddenExterior = new List<Renderer>();
         private readonly List<Renderer> _hiddenStockCabin = new List<Renderer>();

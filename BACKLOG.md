@@ -17,7 +17,7 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 - [ ] **Brightness tuning** if needed after Matt's check: AO floor (`IVA_AO_FLOOR` = 0.4), `_AODirect` (0.45), deck lights.
 
 ## 2. Features
-- [ ] **Moving around inside (unbuckle):** U to unbuckle, WASD/mouse free camera with collision, U to return to the
+- [x] **Moving around inside (unbuckle), first version (zero-g floating, all pods; walking under gravity and ladders later):** U to unbuckle, WASD/mouse free camera with collision, U to return to the
       nearest couch, hatch prompt at the tunnel/side hatch. Exported collision shell from the generator.
       Test on the 3v first, then the Mk1-3. (`PLAN.md`, "Moving around inside")
 - [ ] **Live instruments check:** navball orientation (nose on the horizon facing north shows N at centre, E to the
