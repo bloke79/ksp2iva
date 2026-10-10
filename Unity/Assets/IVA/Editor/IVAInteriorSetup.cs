@@ -173,7 +173,12 @@ namespace IVA.EditorTools
             light.range = cl[3];
             light.intensity = Mathf.Clamp(cl[4] * 1.6f, 0.6f, 1.4f);   // the cabin lamp now carries the lighting (see IndirectLight)
             light.color = new Color(1f, 0.93f, 0.82f);
-            light.shadows = LightShadows.None;
+            // soft shadows from the cabin lamp give the modules, switches and housings their depth
+            light.shadows = LightShadows.Soft;
+            light.shadowStrength = 0.85f;
+            light.shadowBias = 0.02f;
+            light.shadowNormalBias = 0.2f;
+            light.shadowNearPlane = 0.05f;
 
             // Our own reflection probe: without it the shiny parts reflect the game's probes, i.e. the bright sky outside,
             // and the whole cabin reads as white. Box-sized to the model, it wins over the game's probes inside it.

@@ -236,6 +236,7 @@ namespace IVA
         private void OnCameraPreCull(Camera cam)
         {
             if (InIva && cam == _flightCam) ApplyPose();
+            else if (InIva && _mode == Mode.CustomInterior && cam != null && cam == _scaledCam) SyncScaledCamera();   // it renders first
         }
 
         private void ApplyPose()
@@ -264,6 +265,7 @@ namespace IVA
                 _flightCam.fieldOfView = fov;
                 _flightCam.nearClipPlane = IvaNearClip;
                 SyncCompanions(fov, IvaNearClip);
+                SyncScaledCamera();
                 return;
             }
 
@@ -623,6 +625,46 @@ namespace IVA
             }
         }
 
+        // The distant world (planets, Mun, stars) is drawn first by the scaled-space camera. The game turns it from the
+        // same simulation rotation as the main camera, converted into scaled space. Do the same with the IVA view, or the
+        // sky stays put while the cabin turns round it (the Mun showing in several windows).
+        private const string ScaledCameraName = "FlightCameraScaled_Main";
+        private Camera _scaledCam;
+        private Quaternion _scaledLocalRot;
+        private bool _scaledSaved, _scaledFailed;
+
+        private void SyncScaledCamera()
+        {
+            if (_scaledFailed || _flightCam == null) return;
+            try
+            {
+                if (_scaledCam == null)
+                {
+                    _scaledCam = FindObjectsByType<Camera>().FirstOrDefault(c => c != null && c.name == ScaledCameraName);
+                    if (_scaledCam == null) return;
+                }
+                if (!_scaledSaved) { _scaledLocalRot = _scaledCam.transform.localRotation; _scaledSaved = true; }
+                var uv = Game?.UniverseView;
+                if (uv == null || uv.PhysicsSpace == null || uv.ScaledSpace == null) return;
+                Quaternion q = _flightCam.transform.rotation;
+                var sim = uv.PhysicsSpace.PhysicsToRotation(new QuaternionD(q.x, q.y, q.z, q.w));
+                QuaternionD s = uv.ScaledSpace.RotationToScaled(sim);
+                _scaledCam.transform.rotation = new Quaternion((float)s.x, (float)s.y, (float)s.z, (float)s.w);
+                _scaledCam.fieldOfView = _flightCam.fieldOfView;
+            }
+            catch (Exception e)
+            {
+                _scaledFailed = true;
+                SWLogger.LogError("IVA: couldn't turn the scaled-space camera with the view: " + e.Message);
+            }
+        }
+
+        private void RestoreScaledCamera()
+        {
+            if (_scaledCam != null && _scaledSaved) _scaledCam.transform.localRotation = _scaledLocalRot;
+            _scaledSaved = false;
+        }
+
         private void SyncCompanions(float fov, float near)
         {
             SuppressCloseVesselCamera();
@@ -665,6 +707,7 @@ namespace IVA
             ShowPortraitBody();
 
             RestoreCompanions();
+            RestoreScaledCamera();
             _exitPod = _session != null ? _session.PodTransform : null;
             if (_session != null)
             {
