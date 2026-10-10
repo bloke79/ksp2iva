@@ -117,7 +117,7 @@ namespace IVA
             var cfg = SWConfiguration;
 
             _toggleKey = Bind(cfg, "Keys", "Toggle IVA", new KeyboardShortcut(KeyCode.C), "Enter or leave IVA view while in flight.");
-            _nextSeatKey = Bind(cfg, "Keys", "Next seat", new KeyboardShortcut(KeyCode.V), "Move to the next seat while in IVA.");
+            _nextSeatKey = Bind(cfg, "Keys", "Next seat", new KeyboardShortcut(KeyCode.N), "Move to the next seat while in IVA (V is the game's camera-mode key).");
             _windowKey = Bind(cfg, "Keys", "Window view", new KeyboardShortcut(KeyCode.B),
                 "Lean up to the nearest window; press again for the next window, and after the last one, back to your seat.");
             _windowFov = Bind(cfg, "Zoom", "Window view field of view", 60f, "Field of view at a window.", new RangeConstraint<float>(20f, 120f));
@@ -215,7 +215,14 @@ namespace IVA
             }
 
             if (!InIva) return;
-            if (_nextSeatKey.Value.Down) NextSeat();
+            if (_mode == Mode.CustomInterior) KeepCameraGuard();
+            if (_nextSeatKey.Value.Down)
+            {
+                SWLogger.LogInfo($"IVA: next-seat key ({_nextSeatKey.Value}) pressed in mode {_mode}.");
+                NextSeat();
+            }
+            else if (Input.GetKeyDown(KeyCode.V) && _nextSeatKey.Value.Main != KeyCode.V)
+                SWLogger.LogInfo("IVA: V pressed (V is the game's camera-mode key; next seat is " + _nextSeatKey.Value + ").");
             if (_mode == Mode.CustomInterior && _windowKey.Value.Down) NextWindow();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -290,6 +297,59 @@ namespace IVA
                 _shot = null;
                 return false;
             }
+        }
+
+        // The game's camera rig keeps updating under our shot and raycasts terrain for collisions; in some camera modes
+        // (cycled with V) that raycast crashes natively (TerrainHeightSampler via BasicCameraRigSolution.DoesCameraCollide).
+        // While in IVA, hold the rig in Auto mode with its input off, and put things back afterwards.
+        private CameraMode _modeBeforeIva = CameraMode.Auto;
+        private bool _inputWasEnabled = true, _guarding;
+
+        private void StartCameraGuard()
+        {
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                if (cm == null) return;
+                _modeBeforeIva = cm.GetFlightCameraMode();
+                _inputWasEnabled = cm.InputEnabled;
+                if (_modeBeforeIva != CameraMode.Auto) cm.SelectFlightCameraMode(CameraMode.Auto, false);
+                cm.DisableInput();
+                _guarding = true;
+                SWLogger.LogInfo($"IVA: holding the game camera in Auto mode with its input off (was {_modeBeforeIva}).");
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't hold the game camera: " + e.Message); }
+        }
+
+        private void KeepCameraGuard()
+        {
+            if (!_guarding) return;
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                if (cm == null) return;
+                if (cm.GetFlightCameraMode() != CameraMode.Auto)
+                {
+                    cm.SelectFlightCameraMode(CameraMode.Auto, false);
+                    SWLogger.LogInfo("IVA: the game camera mode changed during IVA (V?); put it back to Auto.");
+                }
+                if (cm.InputEnabled) cm.DisableInput();
+            }
+            catch (Exception) { }
+        }
+
+        private void StopCameraGuard()
+        {
+            if (!_guarding) return;
+            _guarding = false;
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                if (cm == null) return;
+                if (_inputWasEnabled) cm.EnableInput();
+                if (_modeBeforeIva != CameraMode.Auto) cm.SelectFlightCameraMode(_modeBeforeIva, false);
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: restoring the game camera failed: " + e.Message); }
         }
 
         private void StopShotOverride()
@@ -572,6 +632,7 @@ namespace IVA
             _mode = Mode.CustomInterior;
             if (_hideExterior.Value) _session.HidePodExterior();
             FindCompanionsAndReport();
+            StartCameraGuard();
             TryStartShotOverride();
             ApplyPose();
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
@@ -801,6 +862,7 @@ namespace IVA
             ShowPortraitBody();
 
             StopShotOverride();
+            StopCameraGuard();
             RestoreCompanions();
             RestoreScaledCamera();
             _exitPod = _session != null ? _session.PodTransform : null;
@@ -848,7 +910,7 @@ namespace IVA
             }
             if (_mode == Mode.CustomInterior)
             {
-                if (_session.SeatCount < 2) return;
+                if (_session.SeatCount < 2) { SWLogger.LogInfo($"IVA: only {_session.SeatCount} seat(s) here."); return; }
                 BeginGlide();
                 if (_viewIndex >= 0) _fov = _seatFov;
                 _viewIndex = -1;
