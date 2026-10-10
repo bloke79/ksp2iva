@@ -5,6 +5,8 @@
 **Health:** 🟢 compiles against the real KSP2 Redux DLLs, and assets validated (`notes/2026-10-10-verification.md`). Not yet run in game.
 
 ## Next steps
+0. **Test the new Mk1 (1v) interior:** fly a `pod_1v_conical_crew`, press C. Check the porthole lines up with the pod's real
+   window (catalogue Yaw 180) and the eye height; tune with the numpad and report the values.
 1. **First in-game test (Matt):** launch KSP2 through the Redux Launcher, put a Mk1-3 on the pad, press **C**. Try V,
    mouse look, scroll zoom, and exits (map, EVA, vessel switch). Then `/log-triage iva-redux first-test`.
 2. Tune yaw, scale and eye with the numpad (save with 5), then bake the defaults into `InteriorCatalogue`.
@@ -22,6 +24,9 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – Bespoke Mk1 (1v) interior: reclined form-fit couch, horseshoe panel with the porthole in its centre, periscope
+  display, foil-blanket walls, bolted side hatch. Built to the real hull (extracted from the game), overlap-checked panel layout,
+  EEVEE previews in `previews/mk1_*.png`. Exported to `Interiors/Conical1v`, set up (34 materials) and built; catalogue entry added.
 - 2026-10-10 – SDK project `C:\Games\KSP2Mods\IVA` (26w41a, Unity 6000.6.0f1) created and set up. Mod `IVA` created, source synced,
   real Unity compile clean after adding Addressables refs to `IVA.asmdef`. Set Up Interiors: 35 materials, address `IVA/Interior_Mk1-3`.
   Build for Player → `<KSP2>\mods\__Testing\IVA` (DLL, swinfo 0.6.0, catalogue includes the interior, 2.6 MB bundle).

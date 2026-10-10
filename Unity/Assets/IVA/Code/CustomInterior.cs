@@ -37,6 +37,9 @@ namespace IVA
             // The real Mk1-3's windows are symmetric about -Z, so the interior (front +Z) is turned 180 degrees.
             new InteriorDesign { Name = "Mk1-3", Address = "IVA/Interior_Mk1-3", Parts = new[] { "pod_2v_conical_crew" },
                                  Seats = 3, BaseRadius = 1.25f, Height = 1.95f, Yaw = 180f },
+            // Built to the real hull (extracted reference: base radius 0.625 m, height 0.963 m); front at -Z like the Mk1-3.
+            new InteriorDesign { Name = "Mk1", Address = "IVA/Interior_pod_1v_conical_crew", Parts = new[] { "pod_1v_conical_crew" },
+                                 Seats = 1, BaseRadius = 0.625f, Height = 0.963f, Yaw = 180f },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).

@@ -31,6 +31,8 @@ New-Item -ItemType Directory -Force $tex | Out-Null
 # 1. texture set: shared textures + this pod's name plate
 $shared = Join-Path $proj 'Unity\Assets\IVA\Interiors\Shared\Textures'
 Copy-Item "$shared\*.png" $tex -Force
+if ($spec.generator) { $Generator = $spec.generator }
+if ($spec.texgen) { & $py -I (Join-Path $art $spec.texgen) $tex | ForEach-Object { "  $_" } }
 $title = if ($spec.plate) { $spec.plate.title } else { ($spec.name -replace '\s*\(.*\)', '').ToUpper() + ' COMMAND POD' }
 $sub = if ($spec.plate) { $spec.plate.subtitle } else { "CREW $($spec.seats)   |   MAX 9 G   |   KEEP HATCH CLEAR" }
 & $py -I (Join-Path $art 'plategen.py') (Join-Path $tex 'plate.png') $title $sub | Out-Null
@@ -47,8 +49,10 @@ if (-not (Test-Path $blend)) { throw "Model build failed" }
 if ($Export) {
     $dest = Join-Path $proj "Unity\Assets\IVA\Interiors\$($spec.interior -replace 'Interior$','')"
     & $blender -b --python (Join-Path $art 'export_interior.py') -- $blend $dest $specPath 2>&1 | Select-String 'total triangles|materials|exported|Error|Traceback' | ForEach-Object { $_.Line.Trim() }
+    # pod-specific textures only: the plate plus anything this pod's texgen made that isn't in Shared
     New-Item -ItemType Directory -Force (Join-Path $dest 'Textures') | Out-Null
-    Copy-Item (Join-Path $tex 'plate.png') (Join-Path $dest 'Textures\plate.png') -Force
+    Get-ChildItem $tex -Filter *.png | Where-Object { $_.Name -eq 'plate.png' -or -not (Test-Path (Join-Path $shared $_.Name)) } |
+        ForEach-Object { Copy-Item $_.FullName (Join-Path $dest "Textures\$($_.Name)") -Force }
     Remove-Item (Join-Path $dest "*_export.blend*") -ErrorAction SilentlyContinue
     Write-Host "Exported to $dest"
 }

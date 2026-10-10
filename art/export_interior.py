@@ -94,7 +94,8 @@ def principled_info(mat):
     info["emissionStrength"] = bsdf.inputs["Emission Strength"].default_value
     for n in nt.nodes:
         if n.type == "TEX_IMAGE" and n.image:
-            fname = os.path.basename(n.image.filepath)
+            # filepaths are stored relative ("//textures\x.png"); bpy.path.basename handles that, the image name is the fallback
+            fname = bpy.path.basename(n.image.filepath) or n.image.name
             if n.image.colorspace_settings.name == "Non-Color":
                 info["normal"] = fname
             else:
@@ -113,10 +114,14 @@ mats = [principled_info(m) for m in bpy.data.materials if m.name in used]
 seats = [{"name": o.name, "position": list(o.matrix_world.translation)}
          for o in sorted([o for o in scene.objects if o.name.startswith("IVA_Seat")], key=lambda o: o.name)]
 prof = sorted(SPEC["profile"])
+# cabin light in Unity space (Blender x, y, z -> Unity -x, z, -y), with range and intensity
+cl = SPEC.get("cabin_light")
+cabin_light = ([-cl["position"][0], cl["position"][2], -cl["position"][1], cl.get("range", 2.6), cl.get("intensity", 1.0)]
+               if cl else [0.0, 1.55, 0.0, 2.6, 1.0])
 with open(os.path.join(OUT, "materials.json"), "w") as f:
     json.dump({"interior": NAME, "address": SPEC["address"],
                "design": {"part": SPEC["part"], "baseRadius": prof[0][1], "topRadius": prof[-1][1], "height": prof[-1][0], "seats": SPEC["seats"]},
-               "materials": mats, "seats_blender": seats}, f, indent=2)
+               "materials": mats, "seats_blender": seats, "cabinLight": cabin_light}, f, indent=2)
 print("materials", len(mats))
 
 bpy.ops.export_scene.fbx(

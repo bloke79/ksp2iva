@@ -49,6 +49,7 @@ namespace IVA.EditorTools
             public string interior;
             public string address;
             public MatInfo[] materials;
+            public float[] cabinLight;   // optional: x, y, z (Unity space, metres), range, intensity
         }
 
         [MenuItem("IVA/Set Up Interiors")]
@@ -162,11 +163,12 @@ namespace IVA.EditorTools
 
             var lightGo = new GameObject("IVA_CabinLight");
             lightGo.transform.SetParent(inst.transform, false);
-            lightGo.transform.localPosition = new Vector3(0f, 1.55f, 0f);
+            float[] cl = sheet.cabinLight != null && sheet.cabinLight.Length >= 5 ? sheet.cabinLight : new[] { 0f, 1.55f, 0f, 2.6f, 1.0f };
+            lightGo.transform.localPosition = new Vector3(cl[0], cl[1], cl[2]);
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
-            light.range = 2.6f;
-            light.intensity = 1.0f;
+            light.range = cl[3];
+            light.intensity = cl[4];
             light.color = new Color(1f, 0.93f, 0.82f);
             light.shadows = LightShadows.None;
 

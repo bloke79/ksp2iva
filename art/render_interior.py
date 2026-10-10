@@ -19,11 +19,28 @@ SAMPLES = int(ARGS[4]) if len(ARGS) > 4 else 32
 VIEWS = ARGS[5:] or ["seat", "overview", "console", "side"]
 os.makedirs(OUT, exist_ok=True)
 
-addon_utils.enable("cycles", default_set=True)
 bpy.ops.wm.open_mainfile(filepath=BLEND)
 scene = bpy.context.scene
-scene.render.engine = "CYCLES"
-try:  # use the GPU if one is available
+# EEVEE by default: Matt's PC hard-crashed (fatal WHEA error) twice during long Cycles batches on 2026-10-10.
+# EEVEE renders each frame in about a second with a short load burst. Set IVA_RENDER_ENGINE=CYCLES for photoreal
+# stills, and IVA_RENDER_CPU=1 to keep Cycles off the GPU.
+ENGINE = os.environ.get("IVA_RENDER_ENGINE", "EEVEE").upper()
+if ENGINE != "CYCLES":
+    scene.render.engine = "BLENDER_EEVEE"
+    ee = scene.eevee
+    ee.taa_render_samples = min(SAMPLES, 64)
+    for attr, val in (("use_raytracing", True), ("use_shadows", True), ("use_gtao", True), ("use_bloom", True)):
+        if hasattr(ee, attr):
+            setattr(ee, attr, val)
+    if hasattr(ee, "ray_tracing_options"):
+        ee.ray_tracing_options.resolution_scale = "2"
+    print("render engine EEVEE")
+else:
+    addon_utils.enable("cycles", default_set=True)
+    scene.render.engine = "CYCLES"
+try:  # Cycles only: use the GPU if one is available, unless IVA_RENDER_CPU=1
+    if ENGINE != "CYCLES" or os.environ.get("IVA_RENDER_CPU") == "1":
+        raise RuntimeError("no Cycles GPU setup")
     prefs = bpy.context.preferences.addons["cycles"].preferences
     for backend in ("OPTIX", "CUDA", "HIP", "ONEAPI"):
         try:
@@ -39,10 +56,11 @@ try:  # use the GPU if one is available
             continue
 except Exception:
     pass
-scene.cycles.samples = SAMPLES
-scene.cycles.use_denoising = True
-scene.cycles.denoiser = "OPENIMAGEDENOISE"
-scene.cycles.max_bounces = 6
+if ENGINE == "CYCLES":
+    scene.cycles.samples = SAMPLES
+    scene.cycles.use_denoising = True
+    scene.cycles.denoiser = "OPENIMAGEDENOISE"
+    scene.cycles.max_bounces = 6
 scene.render.resolution_x = W
 scene.render.resolution_y = int(W * 9 / 16)
 scene.view_settings.view_transform = "AgX"
@@ -148,6 +166,11 @@ views = {
     "console": camera("CamConsole", Vector((0.0, -con_r * 0.25, con_mid_z + span * 0.08)), console_target, 62),
     "side": camera("CamSide", eye_side, eye_side + Vector((-0.6 if eye_side.x > 0 else 0.6, -0.8, 0.15)), 85),
 }
+# bespoke designs can place their own cameras: "cameras": {view: {loc, target, fov}}
+for v, c in SPEC.get("cameras", {}).items():
+    views[v] = camera("Cam_" + v, Vector(c["loc"]), Vector(c["target"]), c.get("fov", 80))
+if not ARGS[5:] and "cameras" in SPEC:
+    VIEWS = ["seat"] + list(SPEC["cameras"].keys())
 part = SPEC["part"]
 for v in VIEWS:
     scene.camera = views[v]

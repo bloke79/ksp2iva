@@ -6,20 +6,192 @@
   "seats": 1,
   "yaw": 180,
   "_source": "Hull from extracted reference (y -0.363..0.600, r 0.625 -> 0.26). Porthole at 180 deg, z 0.38-0.53. Hatch near 125 deg.",
-  "profile": [[0.0, 0.625], [0.09, 0.59], [0.19, 0.56], [0.29, 0.51], [0.38, 0.46], [0.48, 0.45], [0.58, 0.39], [0.67, 0.37], [0.77, 0.34], [0.86, 0.28], [0.963, 0.26]],
+  "profile": [
+    [
+      0.0,
+      0.625
+    ],
+    [
+      0.09,
+      0.59
+    ],
+    [
+      0.19,
+      0.56
+    ],
+    [
+      0.29,
+      0.51
+    ],
+    [
+      0.38,
+      0.46
+    ],
+    [
+      0.48,
+      0.45
+    ],
+    [
+      0.58,
+      0.39
+    ],
+    [
+      0.67,
+      0.37
+    ],
+    [
+      0.77,
+      0.34
+    ],
+    [
+      0.86,
+      0.28
+    ],
+    [
+      0.963,
+      0.26
+    ]
+  ],
   "wall": 0.05,
   "floor": 0.08,
-  "ceiling": 0.80,
+  "ceiling": 0.8,
   "tunnel_radius": 0.2,
   "segments": 96,
   "ribs": 8,
-  "windows": [{"angle": 0, "z": 0.455, "half_w": 0.075, "half_h": 0.085, "corner": 0.03}],
-  "hatch": {"angle": -55, "z0": 0.16, "z1": 0.62, "half_deg": 22, "window": -1},
-  "console": {"half_deg": 35, "z0": 0.12, "depth": 0.15, "height": 0.22, "instrument_scale": 0.55},
-  "couch": {"scales": [0.7, 0.65, 0.6, 0.55, 0.5, 0.45], "seat_lift": 0.17, "pivot_y": [-0.42, -0.46, -0.50, -0.54, -0.58, -0.38], "fan": [0], "spread": [0.5]},
+  "windows": [
+    {
+      "angle": 0,
+      "z": 0.455,
+      "half_w": 0.075,
+      "half_h": 0.085,
+      "corner": 0.03
+    }
+  ],
+  "hatch": {
+    "angle": -55,
+    "z0": 0.16,
+    "z1": 0.62,
+    "half_deg": 22,
+    "window": -1
+  },
+  "console": {
+    "half_deg": 35,
+    "z0": 0.12,
+    "depth": 0.15,
+    "height": 0.22,
+    "instrument_scale": 0.55
+  },
+  "couch": {
+    "scales": [
+      0.7,
+      0.65,
+      0.6,
+      0.55,
+      0.5,
+      0.45
+    ],
+    "seat_lift": 0.17,
+    "pivot_y": [
+      -0.42,
+      -0.46,
+      -0.5,
+      -0.54,
+      -0.58,
+      -0.38
+    ],
+    "fan": [
+      0
+    ],
+    "spread": [
+      0.5
+    ]
+  },
   "lockers": null,
-  "rails": [[70, 0.6], [-70, 0.6]],
+  "rails": [
+    [
+      70,
+      0.6
+    ],
+    [
+      -70,
+      0.6
+    ]
+  ],
   "lights": 4,
   "extinguisher": null,
-  "plates": [[60, 0.5]]
+  "plates": [
+    [
+      60,
+      0.5
+    ]
+  ],
+  "generator": "model_mk1.py",
+  "texgen": "texgen_mk1.py",
+  "plate": {
+    "title": "MK1 COMMAND POD",
+    "subtitle": "CREW 1   |   MAX 11 G   |   PULL T TO ABORT"
+  },
+  "cameras": {
+    "overview": {
+      "loc": [
+        0.05,
+        0.17,
+        0.7
+      ],
+      "target": [
+        0.0,
+        -0.35,
+        0.38
+      ],
+      "fov": 105
+    },
+    "console": {
+      "loc": [
+        0.0,
+        0.1,
+        0.52
+      ],
+      "target": [
+        0.0,
+        -0.42,
+        0.45
+      ],
+      "fov": 72
+    },
+    "side": {
+      "loc": [
+        -0.12,
+        0.22,
+        0.62
+      ],
+      "target": [
+        0.42,
+        -0.12,
+        0.34
+      ],
+      "fov": 92
+    },
+    "couch": {
+      "loc": [
+        0.0,
+        -0.3,
+        0.68
+      ],
+      "target": [
+        0.0,
+        0.15,
+        0.28
+      ],
+      "fov": 95
+    }
+  },
+  "cabin_light": {
+    "position": [
+      0.0,
+      0.0,
+      0.78
+    ],
+    "range": 1.2,
+    "intensity": 0.8
+  }
 }
