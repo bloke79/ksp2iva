@@ -64,3 +64,40 @@ views and live instruments, to the standard of the reworked Mk1-3 (deep consoles
   building, as it's what you look up into from the couches.
 
 _Previous plan (first build and in-game test of 0.6.0) is complete; see git history and STATUS.md._
+
+---
+
+# Plan: Moving around inside, and a polish pass on the 3v
+
+_Created 2026-10-10 · Status: draft, awaiting Matt's approval_
+
+## Goal
+Get out of the couch and float/walk round the cabin (FreeIva-style, our own code), and make the 3v's kit look like real
+equipment rather than toy blocks.
+
+## A. Moving around (unbuckle)
+- [ ] 1. **Collision shell from the generator:** each interior exports simple colliders (hull cylinder rings, deck, consoles,
+      couches, large props) as `IVA_Collider_*` boxes/capsules; Set Up Interiors turns them into colliders on one private
+      layer. Nothing physical touches the game's colliders.
+- [ ] 2. **Free camera:** U unbuckles (key configurable). The view becomes a small capsule in pod space: WASD to move,
+      Shift/Ctrl up/down, Q/E roll, mouse to look; it slides along the colliders (capsule sweeps, no rigidbody).
+      Weightless drift with damping in orbit; on the ground or under thrust, "down" follows the pod's acceleration and you
+      walk on the deck and floor, with ladders climbable (up/down while touching one).
+- [ ] 3. **Back to a seat:** U again returns you to the nearest couch (glide, as with window views); N still switches seats.
+      Window views (B) work from wherever you are.
+- [ ] 4. **Hatch:** walking to the 3v's upper docking tunnel or side hatch just shows a "hatch" prompt for now (moving
+      between parts is a later step).
+- [ ] 5. Test on the 3v first (it has the most room), then the Mk1-3; the Mk1 is too small to be worth it.
+
+## B. 3v polish (from the in-game screenshot)
+- [ ] 1. **Materials:** woven canvas texture for bags, textured locker finish (seams, grime) instead of flat white plastic,
+      darker neutral colours, less glossy.
+- [ ] 2. **Proportions:** thinner straps and handles, smaller bevels (crisper edges), flatter cargo bags, thinner hazard-striped
+      rails, slimmer ladder.
+- [ ] 3. **Upper deck dressing:** fewer identical white boxes; vary sizes and types (lockers, drawers, racks with gear).
+- [ ] 4. Renders from the same spots as Matt's screenshot before export.
+
+## Done when
+- You can unbuckle, move anywhere in the 3v (both decks, up the ladder) without passing through walls or equipment, and
+  buckle back in; no crashes, camera restored on exit.
+- The upper deck screenshot angle looks like real kit.
