@@ -32,6 +32,8 @@ M = L.M
 M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.5, metal=0.35, uv_scale=(1.1, 1.1))
 M["shell"] = L.material("IVA_SeatShell", (0.86, 0.86, 0.84), rough=0.3, metal=0.05)
 M["bottle"] = L.material("IVA_Bottle", (0.22, 0.42, 0.30), rough=0.35, metal=0.4)
+M["canvas"] = L.material("IVA_Canvas", (0.55, 0.52, 0.42), rough=0.92)
+M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["periscope"] = L.material("IVA_Periscope", tex="periscope.png", rough=0.1, emit=1.6, emit_tex=True)
 
 C.setup(SPEC, wall=0.04, ceil=0.80, top=0.88)
@@ -66,6 +68,10 @@ def build_ceiling_console():
         ("toggles", 0, 3, 2, 1, {"cols": 6}), ("buttons", 2, 3, 1, 1, {"n": 3}), ("knobs", 3, 3, 1, 1, {"n": 2}),
     ], border=0.012)
     s.check()
+    G.housing(s, "Ceil", depth=0.055)
+    for k, deg in enumerate((20, 200)):   # cable runs from the console housing out to the crown
+        G.cables(f"CeilCables{k}", s.c + s.n * -0.04 + Vector((0.12 * math.sin(C.rad(deg)), -0.12 * math.cos(C.rad(deg)), 0.0)),
+                 C.frame_at(C.rad(deg), CROWN_Z1 + 0.005, CROWN_INSET)[0], droop=0.02, n=3)
 
 
 # ------------------------------------------------------------------ crown of instruments round the upper cone
@@ -99,14 +105,6 @@ def build_equipment():
         L.cylinder(f"O2Valve_{k}", 0.012, 0.03, M["rib"], p + b.col[0] * 0.115, rot, segs=12)
         for s in (-0.06, 0.06):
             L.torus(f"O2Strap_{k}_{s}", 0.037, 0.004, M["handle"], p + b.col[0] * s, rot @ Matrix.Rotation(math.pi / 2, 3, "Y"), seg=24, mseg=6)
-    p, b = C.frame_at(C.rad(122), 0.29, 0.04)
-    L.box("BreakerBox", (0.17, 0.13, 0.06), M["locker"], p, b, bevel=0.006)
-    for row in range(2):
-        for col in range(4):
-            q = p + b.col[2] * 0.032 + b.col[0] * (-0.054 + col * 0.036) + b.col[1] * (0.025 - row * 0.045)
-            L.cylinder(f"BoxBreaker_{row}_{col}", 0.007, 0.01, M["bezel"], q, b, segs=10)
-            L.cylinder(f"BoxBreakerCap_{row}_{col}", 0.004, 0.008, M["toggle"], q + b.col[2] * 0.007, b, segs=8)
-    L.plane("BoxLabel", 0.11, 0.022, M["plate"], p + b.col[2] * 0.031 + b.col[1] * 0.055, b)
     for k, (dz, dr) in enumerate(((0.0, 0.0), (0.018, 0.004), (0.009, 0.016))):
         L.tube(f"Loom_{k}", [C.polar(C.rad(a), C.r_in(0.1 + dz) - 0.02 - dr, 0.1 + dz) for a in range(80, 281, 10)], 0.007, M["cable"])
     for a in range(90, 280, 36):
@@ -122,6 +120,48 @@ def build_equipment():
         L.tube(f"GrabHandle{side}", [C.polar(phi, C.r_in(0.38) - 0.005, 0.38), a, c, C.polar(phi, C.r_in(0.52) - 0.005, 0.52)], 0.007, M["yellow"])
 
 
+# ------------------------------------------------------------------ filling the cabin: hip pedestals, umbilical, stowage
+def build_fill():
+    slope_up = Vector((0, -1, 0))
+    for side, y0, y1 in ((1, -0.08, 0.2), (-1, -0.08, 0.12)):
+        x0, x1 = (0.25, 0.37) if side > 0 else (-0.37, -0.25)
+        z0, z1 = 0.30, 0.345
+        G.prism(f"HipConsole{side}", [(y0, C.Z_FLOOR), (y1, C.Z_FLOOR), (y1, z1), (y0, z0)], x0, x1, M["console"])
+        up = Vector((0, y0 - y1, z0 - z1)).normalized()
+        top = C.Surface(f"HipTop{side}", ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2 + 0.004), (-1, 0, 0), up, (x1 - x0) - 0.012,
+                        math.hypot(y1 - y0, z1 - z0) - 0.016, corner=0.01)
+        rows = [("toggles", 0, 0, 2, 1, {"cols": 3}), ("lamps", 0, 1, 2, 1, {"n": 3}), ("dial", 0, 2, 1, 1, {"kind": "temp" if side > 0 else "press"}),
+                ("knobs", 1, 2, 1, 1, {"n": 1})]
+        if y1 - y0 > 0.25:
+            rows.append(("buttons", 0, 3, 2, 1, {"n": 3}))
+        G.grid(top, f"Hip{side}", 2, 4 if y1 - y0 > 0.25 else 3, rows, gap=0.004, border=0.004)
+        top.check()
+        p, b = Vector(((x0 + x1) / 2, y0 - 0.001, (C.Z_FLOOR + z0) / 2)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
+        G.vent(f"HipVent{side}", p, b, (x1 - x0) * 0.7, (z0 - C.Z_FLOOR) * 0.5, slots=5)
+
+    # compact environmental unit low at the back-left, and the suit umbilical to the kerbal's chest
+    p, b = C.frame_at(C.rad(-158), 0.11, 0.075)
+    G.box_unit("ECSUnit", p, (0.17, 0.12, 0.13), L.basis(b.col[0], -b.col[2], b.col[1]), lamps_n=2)
+    G.hose("Umbilical", [p + b.col[2] * 0.05 + Vector((0, 0, 0.06)), Vector((-0.22, 0.2, 0.3)), Vector((-0.21, 0.03, 0.36)), Vector((-0.15, -0.04, 0.37))],
+           r=0.015, mat=M["umbilical"])
+
+    # stowage bags low on the front wall, either side of the head; first-aid kit and extinguisher on the side walls
+    for side in (-1, 1):
+        p, b = C.frame_at(C.rad(side * 28), 0.2, 0.01)
+        L.box(f"Bag{side}", (0.16, 0.12, 0.07), M["canvas"], p + b.col[2] * 0.035, b, bevel=0.025, segs=4)
+        for sx in (-0.3, 0.3):
+            L.box(f"Bag{side}Strap{sx}", (0.016, 0.13, 0.078), M["strap"], p + b.col[2] * 0.035 + b.col[0] * (0.16 * sx), b, bevel=0.003)
+    p, b = C.frame_at(C.rad(108), 0.46, 0.04)
+    L.box("FirstAid", (0.12, 0.09, 0.06), M["btn_soft"], p, b, bevel=0.006)
+    L.box("FirstAidCrossH", (0.045, 0.014, 0.004), M["red"], p + b.col[2] * 0.031, b)
+    L.box("FirstAidCrossV", (0.014, 0.045, 0.004), M["red"], p + b.col[2] * 0.031, b)
+    p, b = C.frame_at(C.rad(-104), 0.45, 0.05)
+    L.cylinder("Extinguisher", 0.04, 0.2, M["extinguisher"], p, L.basis(b.col[0], b.col[2], -b.col[1]), segs=24, bevel=0.008)
+    L.cylinder("ExtinguisherHead", 0.017, 0.04, M["rib"], p + b.col[1] * 0.12, L.basis(b.col[0], b.col[2], -b.col[1]), segs=12)
+    for dz in (-0.05, 0.05):
+        L.torus(f"ExtinguisherClamp{dz}", 0.043, 0.004, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=24, mseg=6)
+
+
 # ------------------------------------------------------------------ build
 C.build_shell(dome=True, ring_light=False)
 C.build_stringers(10, keep_clear, z1=CROWN_Z0)
@@ -132,6 +172,7 @@ build_crown()
 C.couch("Couch", X0, POSE, C.Z_FLOOR)
 C.build_hatch(HATCH_PHI, HATCH_HALF, HATCH_Z0, HATCH_Z1)
 build_equipment()
+build_fill()
 C.eye_marker(0, SEAT)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])
 e = Vector(SEAT["eye"])
