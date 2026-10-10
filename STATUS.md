@@ -21,6 +21,9 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-11 – 3v interior declared **v1**. Stock-style pass backported to the Mk1-3 and Mk1: ribs, ring frames, inspection
+  plates, cable bundles into junction boxes, chamfered couch frames and console struts, stepped housings, deck plates,
+  hatch segment ring and equipment boxes (Mk1-3). All three pods re-exported and built.
 - 2026-10-10 – 3v stock-style detail pass (from rendering the stock Mk1-3 interior): new `art/stock.py` (chamfered ribs,
   ring frames and beams, colour-coded cable bundles with ties and sockets, inspection plates, light fixtures, floor
   hatches, foot restraints, wall racks, and a clearance check so structure fits round equipment). Solid panelled ceiling

@@ -27,6 +27,10 @@ L.begin(SPEC["interior"], TEX)
 import capsule as C  # noqa: E402  (after begin: shares L.M)
 import modules as G  # noqa: E402
 G.materials()
+M = L.M
+import stock as S  # noqa: E402
+S.materials()
+M["deckplate"] = L.material("IVA_DeckPlate", tex="deckplate_color.png", normal="deckplate_normal.png", rough=0.6, metal=0.35, normal_strength=0.8)
 
 M = L.M
 M["blanket"] = L.material("IVA_WallPanel", tex="wallpanel_color.png", normal="wallpanel_normal.png", rough=0.55, metal=0.3, uv_scale=(1.0, 1.0), normal_strength=0.8)
@@ -60,7 +64,7 @@ def build_ceiling_console():
         a = C.rad(deg)
         p = Vector((0.17 * math.sin(a), -0.15 * math.cos(a), 0.79))
         q, _ = C.frame_at(a, 0.80, 0.0)
-        C.bracket(f"CeilingBracket_{k}", p, q, r=0.009)
+        S.beam(f"CeilingBracket_{k}", p, q, 0.026, 0.026, M["frame"], up=(0, 0, 1))
     G.grid(s, "Ceil", 4, 4, [
         ("dial", 0, 0, 1, 1, {"kind": "alt"}), ("annunciators", 1, 0, 2, 1, {"cols": 4, "rows": 2}), ("dial", 3, 0, 1, 1, {"kind": "press"}),
         ("periscope", 0, 1, 1, 1, {}), ("navball", 1, 1, 2, 2, {}), ("mfd", 3, 1, 1, 1, {"screen": "mfd_systems"}),
@@ -70,8 +74,9 @@ def build_ceiling_console():
     s.check()
     G.housing(s, "Ceil", depth=0.055)
     for k, deg in enumerate((20, 200)):   # cable runs from the console housing out to the crown
-        G.cables(f"CeilCables{k}", s.c + s.n * -0.04 + Vector((0.12 * math.sin(C.rad(deg)), -0.12 * math.cos(C.rad(deg)), 0.0)),
-                 C.frame_at(C.rad(deg), CROWN_Z1 + 0.005, CROWN_INSET)[0], droop=0.02, n=3)
+        a = s.c + s.n * -0.04 + Vector((0.12 * math.sin(C.rad(deg)), -0.12 * math.cos(C.rad(deg)), 0.0))
+        e = C.frame_at(C.rad(deg), CROWN_Z1 + 0.005, CROWN_INSET)[0]
+        S.bundle(f"CeilCables{k}", [a, (a + e) / 2 + Vector((0, 0, 0.012)), e], n=3, r=0.007, colours=[S.CABLES[(k + i) % 4] for i in range(3)])
 
 
 # ------------------------------------------------------------------ crown of instruments round the upper cone
@@ -105,13 +110,13 @@ def build_equipment():
         L.cylinder(f"O2Valve_{k}", 0.012, 0.03, M["rib"], p + b.col[0] * 0.115, rot, segs=12)
         for s in (-0.06, 0.06):
             L.torus(f"O2Strap_{k}_{s}", 0.037, 0.004, M["handle"], p + b.col[0] * s, rot @ Matrix.Rotation(math.pi / 2, 3, "Y"), seg=24, mseg=6)
-    for k, (dz, dr) in enumerate(((0.0, 0.0), (0.018, 0.004), (0.009, 0.016))):
-        L.tube(f"Loom_{k}", [C.polar(C.rad(a), C.r_in(0.1 + dz) - 0.02 - dr, 0.1 + dz) for a in range(80, 281, 10)], 0.007, M["cable"])
+    S.bundle("Loom", [C.polar(C.rad(a), C.r_in(0.11) - 0.03, 0.11) for a in range(80, 281, 20)], n=4, r=0.0075, ends=(True, True))
     for a in range(90, 280, 36):
         p, b = C.frame_at(C.rad(a), 0.11, 0.03)
         L.box(f"LoomClamp_{a}", (0.015, 0.04, 0.03), M["rib"], p, b, bevel=0.003)
     # loom up the back wall to the crown
-    L.tube("RiserLoom", [C.polar(math.pi + 0.18, C.r_in(z) - 0.02, z) for z in (0.11, 0.3, 0.45, CROWN_Z0 - 0.01)], 0.009, M["cable"])
+    S.bundle("RiserLoom", [C.polar(math.pi + 0.18, C.r_in(z) - 0.03, z) for z in (0.13, 0.3, 0.45, CROWN_Z0 - 0.02)], n=3, r=0.008,
+             colours=["cable_k", "cable_r", "cable_y"])
     # grab handles either side of the porthole
     for side in (-1, 1):
         phi = WIN["phi"] + side * C.rad(24)
@@ -162,9 +167,33 @@ def build_fill():
         L.torus(f"ExtinguisherClamp{dz}", 0.043, 0.004, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=24, mseg=6)
 
 
+def dome_z(r):
+    """Height of the ceiling dome at radius r (inverse of capsule.build_shell's dome)."""
+    R = C.r_in(C.Z_CEIL)
+    c = max(-1.0, min(1.0, r / R))
+    t = math.acos(c) / (math.pi / 2 * 0.92)
+    return C.Z_CEIL + (C.Z_TOP - C.Z_CEIL) * math.sin(min(1.0, t) * math.pi / 2)
+
+
+def deck_floor():
+    f = L.COLL.objects.get("Floor")
+    if f is not None:   # solid deck plates instead of grating
+        f.data.materials[0] = M["deckplate"]
+
+
+# ------------------------------------------------------------------ stock-style structure (built last, fits round everything)
+def build_structure():
+    clear = S.Clearance()
+    S.ring_frame("Skirt", C.Z_FLOOR + 0.04, clear, h=0.05, d=0.03)
+    clear = S.Clearance()
+    S.wall_ribs("Wall", 10, C.Z_FLOOR + 0.07, CROWN_Z0 - 0.02, clear, w=0.045, d=0.035, min_len=0.22)
+    clear = S.Clearance()
+    S.wall_plates("Wall", clear, [2 * math.pi * k / 10 for k in range(10)], (0.24, 0.44), size=(0.11, 0.09), chance=0.6, seed=14)
+
+
 # ------------------------------------------------------------------ build
 C.build_shell(dome=True, ring_light=False)
-C.build_stringers(10, keep_clear, z1=CROWN_Z0)
+deck_floor()
 C.build_window(WIN, depth=0.035)
 C.view_markers(WIN, standoff=0.2)
 build_ceiling_console()
@@ -173,6 +202,7 @@ C.couch("Couch", X0, POSE, C.Z_FLOOR)
 C.build_hatch(HATCH_PHI, HATCH_HALF, HATCH_Z0, HATCH_Z1)
 build_equipment()
 build_fill()
+build_structure()
 C.eye_marker(0, SEAT)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])
 e = Vector(SEAT["eye"])

@@ -27,6 +27,10 @@ L.begin(SPEC["interior"], TEX)
 import capsule as C  # noqa: E402  (after begin: shares L.M)
 import modules as G  # noqa: E402
 G.materials()
+M = L.M
+import stock as S  # noqa: E402
+S.materials()
+M["deckplate"] = L.material("IVA_DeckPlate", tex="deckplate_color.png", normal="deckplate_normal.png", rough=0.6, metal=0.35, normal_strength=0.8)
 
 M = L.M
 M["blanket"] = L.material("IVA_WallPanel", tex="wallpanel_color.png", normal="wallpanel_normal.png", rough=0.55, metal=0.3, uv_scale=(1.0, 1.0), normal_strength=0.8)
@@ -77,13 +81,14 @@ def build_mdc():
     for side in (-1, 1):
         a = Vector((side * 0.335, MDC_Y - MDC_H / 2 - 0.01, MDC_Z + 0.01))
         b = Vector((side * 0.335, MDC_Y + MDC_H / 2 + 0.01, MDC_Z + 0.01))
-        L.tube(f"MDC_Seam{side}", [a, b], 0.018, M["couchframe"])
+        S.beam(f"MDC_Seam{side}", a, b, 0.045, 0.045, M["frame"])
         # hangers straight up to the ceiling ring, clear of the windows' sight lines
         for k, y in enumerate((MDC_Y - 0.17, MDC_Y + 0.17)):
-            C.bracket(f"MDC_Hanger{side}_{k}", Vector((side * 0.335, y, MDC_Z + 0.03)), Vector((side * 0.335, y, C.Z_CEIL + 0.03)), r=0.012)
+            S.beam(f"MDC_Hanger{side}_{k}", Vector((side * 0.335, y, MDC_Z + 0.03)), Vector((side * 0.335, y, C.Z_CEIL + 0.03)), 0.034, 0.034, M["frame"], up=(0, 1, 0))
+            S.cbox(f"MDC_Collar{side}_{k}", (0.05, 0.05, 0.03), M["frame_dark"], (side * 0.335, y, MDC_Z + 0.14), ch=0.006)
     # back hood over the whole console
     hy = MDC_Y + MDC_H / 2 + 0.02
-    L.box("MDC_Hood", (1.5, 0.03, 0.06), M["couchframe"], (0, hy, MDC_Z + 0.02), bevel=0.01)
+    S.cbox("MDC_Hood", (1.5, 0.04, 0.07), M["frame"], (0, hy, MDC_Z + 0.02), ch=0.012)
     # floodlights under the hood's back edge, aimed down the couches (out of the crew's line of sight)
     aim = Vector((0, 0.45, -1)).normalized()
     for k, x in enumerate((-0.6, -0.2, 0.2, 0.6)):
@@ -144,15 +149,15 @@ def build_couches():
     prof = POSE["couch"]
     for k, y in enumerate((prof[len(prof) // 4][0], prof[(3 * len(prof)) // 4][0])):
         z = min(zz for yy, zz, ww in prof if abs(yy - y) < 0.04) - 0.1
-        L.tube(f"CouchFrameBeam_{k}", [Vector((xs[0] - 0.14, y, z)), Vector((xs[-1] + 0.14, y, z))], 0.016, M["couchframe"])
+        S.beam(f"CouchFrameBeam_{k}", Vector((xs[0] - 0.16, y, z)), Vector((xs[-1] + 0.16, y, z)), 0.045, 0.055, M["frame"])
         for x in (xs[0] - 0.14, xs[-1] + 0.14):
-            L.tube(f"CouchFrameLeg_{k}_{x:.2f}", [Vector((x, y, z)), Vector((x * 1.08, y, C.Z_FLOOR + 0.005))], 0.016, M["couchframe"])
-            L.cylinder(f"CouchFrameFoot_{k}_{x:.2f}", 0.03, 0.014, M["couchframe"], (x * 1.08, y, C.Z_FLOOR + 0.007))
+            S.beam(f"CouchFrameLeg_{k}_{x:.2f}", Vector((x, y, z)), Vector((x * 1.08, y, C.Z_FLOOR + 0.02)), 0.042, 0.042, M["frame"], up=(0, 1, 0))
+            S.cbox(f"CouchFrameFoot_{k}_{x:.2f}", (0.085, 0.085, 0.024), M["frame_dark"], (x * 1.08, y, C.Z_FLOOR + 0.012), ch=0.008)
     # attenuator struts from the frame to the walls (the Apollo couch struts)
     for side in (-1, 1):
         y = prof[len(prof) // 2][0]
         a = Vector((side * (xs[-1] + 0.14), y, 0.3))
-        L.tube(f"Attenuator{side}", [a, C.polar(side * C.rad(90), C.r_in(0.42) - 0.01, 0.42)], 0.02, M["rib"])
+        S.beam(f"Attenuator{side}", a, C.polar(side * C.rad(90), C.r_in(0.42) - 0.01, 0.42), 0.04, 0.04, M["frame"], up=(0, 1, 0))
         L.cylinder(f"AttenuatorSleeve{side}", 0.028, 0.12, M["couchframe"], (a + C.polar(side * C.rad(90), C.r_in(0.42) - 0.01, 0.42)) / 2,
                    Vector((side, 0, 0.1)).to_track_quat("Z", "Y").to_matrix(), segs=20)
 
@@ -219,7 +224,10 @@ def build_fill():
         p, b = Vector((x, PED_Y0 - 0.001, (C.Z_FLOOR + PED_Z0) / 2)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
         G.vent(f"PedestalVent{side}", p, b, PED_W * 0.7, (PED_Z0 - C.Z_FLOOR) * 0.6, slots=7)
         # cable runs from the back of the console housing up across the ceiling to the wall (out of the crew's view)
-        G.cables(f"CeilingCables{side}", (side * 0.5, MDC_Y + MDC_H / 2 + 0.03, MDC_Z + 0.1), C.frame_at(C.rad(side * 128), 1.42, 0.01)[0], droop=0.05, n=4)
+        end = C.polar(C.rad(side * 128), C.r_in(1.42) - 0.04, 1.42)
+        S.bundle(f"CeilingCables{side}", [Vector((side * 0.5, MDC_Y + MDC_H / 2 + 0.03, MDC_Z + 0.1)), Vector((side * 0.62, MDC_Y + 0.4, MDC_Z + 0.25)), end],
+                 n=4, colours=["cable_k", "cable_r", "cable_g", "cable_y"], ends=(True, False))
+        S.junction(f"CeilingCablesBox{side}", C.rad(side * 128), 1.42)
 
     # equipment behind the feet: environmental control unit and two battery/junction boxes
     G.box_unit("ECSUnit", (0, 0.66, C.Z_FLOOR + 0.12), (0.52, 0.22, 0.24), lamps_n=3)
@@ -239,7 +247,7 @@ def build_fill():
     hy = MDC_Y + MDC_H / 2 + 0.05
     L.tube("HoodRail", [Vector((-0.7, hy, MDC_Z - 0.04)), Vector((-0.7, hy + 0.04, MDC_Z - 0.04)), Vector((0.7, hy + 0.04, MDC_Z - 0.04)), Vector((0.7, hy, MDC_Z - 0.04))], 0.006, M["yellow"])
     for side in (-1, 1):
-        C.bracket(f"HoodBrace{side}", Vector((side * 0.74, MDC_Y + MDC_H / 2, MDC_Z + 0.02)), C.frame_at(C.rad(side * 150), C.Z_CEIL - 0.06, 0.01)[0], r=0.014)
+        S.beam(f"HoodBrace{side}", Vector((side * 0.74, MDC_Y + MDC_H / 2, MDC_Z + 0.02)), C.frame_at(C.rad(side * 150), C.Z_CEIL - 0.06, 0.01)[0], 0.034, 0.034, M["frame"], up=(0, 0, 1))
 
 
 # ------------------------------------------------------------------ stowage and safety kit on the walls
@@ -317,9 +325,57 @@ def build_ceiling():
     L.cylinder("DockWheelHub", 0.025, 0.04, M["rib"], (0, 0, z - 0.03), segs=20)
 
 
+def dome_z(r):
+    """Height of the ceiling dome at radius r (inverse of capsule.build_shell's dome)."""
+    R = C.r_in(C.Z_CEIL)
+    c = max(-1.0, min(1.0, r / R))
+    t = math.acos(c) / (math.pi / 2 * 0.92)
+    return C.Z_CEIL + (C.Z_TOP - C.Z_CEIL) * math.sin(min(1.0, t) * math.pi / 2)
+
+
+def deck_floor():
+    f = L.COLL.objects.get("Floor")
+    if f is not None:   # solid deck plates instead of grating
+        f.data.materials[0] = M["deckplate"]
+
+
+# ------------------------------------------------------------------ stock-style structure and dressing (built last, fits round everything)
+def build_structure():
+    D = C.Z_CEIL
+    clear = S.Clearance()
+    # segmented ring round the docking hatch, equipment boxes round the top of the wall
+    for k in range(12):
+        a = 2 * math.pi * (k + 0.5) / 12
+        r = 0.4
+        S.cbox(f"HatchSegment{k}", (0.17, 0.11, 0.022), M["frame"] if k % 2 else M["frame_dark"],
+               Vector((r * math.cos(a), r * math.sin(a), dome_z(r) - 0.014)), Matrix.Rotation(a + math.pi / 2, 3, "Z"), ch=0.005)
+    n = 0
+    for deg in range(-165, 180, 30):
+        phi = C.rad(deg)
+        p, b = C.frame_at(phi, D - 0.17, 0.0)
+        size = (0.2, 0.1, 0.13)
+        rot = L.basis(b.col[0], -b.col[2], b.col[1])
+        c = p + b.col[2] * (size[1] / 2 + 0.005)
+        corners = [c + b.col[0] * sx * size[0] / 2 + b.col[1] * sz * size[2] / 2 for sx in (-1, 1) for sz in (-1, 1)]
+        if S.in_window(phi, D - 0.17, 0.08) or any(clear.blocked(q, 0.01) for q in corners + [c]):
+            continue
+        G.box_unit(f"Cassette{n}", c, size, rot, vents=n % 2 == 0, lamps_n=2)
+        n += 1
+    clear = S.Clearance()
+    S.cable_run("RunLow", C.Z_FLOOR + 0.22, clear, seed=3, n=3)
+    S.cable_run("RunHigh", D - 0.36, clear, seed=4)
+    clear = S.Clearance()
+    S.ring_frame("Skirt", C.Z_FLOOR + 0.05, clear, h=0.06, d=0.035)
+    S.ring_frame("Cornice", D - 0.05, clear, h=0.07, d=0.045)
+    clear = S.Clearance()
+    S.wall_ribs("Wall", 16, C.Z_FLOOR + 0.1, D - 0.1, clear, w=0.055, d=0.04, min_len=0.4)
+    clear = S.Clearance()
+    S.wall_plates("Wall", clear, [2 * math.pi * k / 16 for k in range(16)], (0.3, 0.65, 1.05, 1.4), size=(0.15, 0.11), chance=0.5, seed=13)
+
+
 # ------------------------------------------------------------------ build
 C.build_shell(dome=True, ring_light=True)
-C.build_stringers(16, keep_clear, z1=C.Z_CEIL)
+deck_floor()
 for w in C.WINDOWS:
     C.build_window(w, depth=0.04, bolts=32)
     C.view_markers(w, standoff=0.3)
@@ -333,6 +389,7 @@ build_wall_equipment()
 build_fill()
 build_stowage()
 build_ceiling()
+build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])

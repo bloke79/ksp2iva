@@ -2,7 +2,7 @@
 
 _Last updated 2026-10-11. Ordered by priority within each section. Detailed designs live in `PLAN.md`; current state in `STATUS.md`._
 
-## 1. Finish the 3v (Mk3-5, 5 seats): close to done
+## 1. 3v (Mk3-5, 5 seats): v1 done 2026-10-11; in-game checks left
 - [ ] **In-game check of the latest build**: upstairs fixes (glovebox, freezer, bike, table, cables into
       junction boxes, floor clutter removed), overall brightness, frame rate.
 - [ ] **Basics still unconfirmed in game:** N switches seats, seat view the right way up, B reaches the docking windows,
@@ -24,10 +24,10 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
       right; pitching up brings blue up from the bottom), altimeter, pressure and temperature needles.
 - [ ] **Window views (B):** confirm on all three pods.
 
-## 3. Bring the other built pods up to the stock style
-- [ ] **Mk1-3 (3 seats):** apply `art/stock.py` (ribs, frames, cable bundles, ceiling detail, stepped console housings,
+## 3. Bring the other built pods up to the stock style (done 2026-10-11; in-game check left)
+- [x] **Mk1-3 (3 seats):** apply `art/stock.py` (ribs, frames, cable bundles, ceiling detail, stepped console housings,
       chamfered couch frames), re-export. It currently only has the lighter shared wall texture.
-- [ ] **Mk1 (1 seat):** the same, scaled to the small cabin.
+- [x] **Mk1 (1 seat):** the same, scaled to the small cabin.
 
 ## 4. New interiors (renders first for each)
 - [ ] **Remaining pods and cockpits:** 1.5v, cupola, landers (1v, 2v, 3v), Mk1/Mk2/Mk3 cockpits (and inline variants).

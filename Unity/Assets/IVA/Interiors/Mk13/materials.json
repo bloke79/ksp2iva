@@ -274,6 +274,102 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_CableBlack",
+      "color": [
+        0.019999999552965164,
+        0.019999999552965164,
+        0.02199999988079071
+      ],
+      "metallic": 0.0,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_CableGreen",
+      "color": [
+        0.03500000014901161,
+        0.2800000011920929,
+        0.05999999865889549
+      ],
+      "metallic": 0.0,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_CableRed",
+      "color": [
+        0.41999998688697815,
+        0.03500000014901161,
+        0.02500000037252903
+      ],
+      "metallic": 0.0,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_CableYellow",
+      "color": [
+        0.6800000071525574,
+        0.5199999809265137,
+        0.03999999910593033
+      ],
+      "metallic": 0.0,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Canvas",
       "color": [
         0.27000001072883606,
@@ -366,6 +462,30 @@
       "tiling": [
         2.5,
         2.5
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_DeckPlate",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.3499999940395355,
+      "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "deckplate_color.png",
+      "normal": "deckplate_normal.png",
+      "normalStrength": 0.800000011920929,
+      "tiling": [
+        1.0,
+        1.0
       ],
       "emissionFromTexture": false
     },
@@ -466,11 +586,59 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Frame.001",
+      "color": [
+        0.5199999809265137,
+        0.5299999713897705,
+        0.550000011920929
+      ],
+      "metallic": 0.30000001192092896,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_FrameDark",
       "color": [
         0.1599999964237213,
         0.17000000178813934,
         0.1899999976158142
+      ],
+      "metallic": 0.4000000059604645,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_FrameDark.001",
+      "color": [
+        0.10000000149011612,
+        0.10499999672174454,
+        0.11500000208616257
       ],
       "metallic": 0.4000000059604645,
       "roughness": 0.5,
