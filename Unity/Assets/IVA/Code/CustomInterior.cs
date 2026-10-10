@@ -28,6 +28,8 @@ namespace IVA
         public float BaseRadius;   // outer pod radius at the base it was designed for (metres)
         public float Height;       // outer pod height it was designed for (metres)
         public float Yaw;          // turns the interior so its front lines up with the part's real front (degrees)
+        public bool OnHull;        // built to the real hull: place at HullBaseY with no auto-fit scaling
+        public float HullBaseY;    // part-local Y of the hull's base (from the extracted reference mesh)
     }
 
     public static class InteriorCatalogue
@@ -36,10 +38,10 @@ namespace IVA
         {
             // The real Mk1-3's windows are symmetric about -Z, so the interior (front +Z) is turned 180 degrees.
             new InteriorDesign { Name = "Mk1-3", Address = "IVA/Interior_Mk1-3", Parts = new[] { "pod_2v_conical_crew" },
-                                 Seats = 3, BaseRadius = 1.25f, Height = 1.95f, Yaw = 180f },
+                                 Seats = 3, BaseRadius = 1.25f, Height = 1.95f, Yaw = 180f, OnHull = true, HullBaseY = -0.505f },
             // Built to the real hull (extracted reference: base radius 0.625 m, height 0.963 m); front at -Z like the Mk1-3.
             new InteriorDesign { Name = "Mk1", Address = "IVA/Interior_pod_1v_conical_crew", Parts = new[] { "pod_1v_conical_crew" },
-                                 Seats = 1, BaseRadius = 0.625f, Height = 0.963f, Yaw = 180f },
+                                 Seats = 1, BaseRadius = 0.625f, Height = 0.963f, Yaw = 180f, OnHull = true, HullBaseY = -0.363f },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
@@ -172,6 +174,13 @@ namespace IVA
         public PartBehavior Pod { get; private set; }
         public InteriorDesign Design { get; private set; }
         public readonly List<Transform> Seats = new List<Transform>();
+        // The game's own seated kerbals and their "IVA EyeTransform" points. When present, the camera goes there
+        // (the game draws these kerbals in the pod, so any other eye point ends up inside one of them).
+        public readonly List<Transform> Eyes = new List<Transform>();
+        public readonly List<Kerbal3DModel> EyeKerbals = new List<Kerbal3DModel>();
+        private readonly List<Renderer> _hiddenBody = new List<Renderer>();
+        public int SeatCount => Eyes.Count > 0 ? Eyes.Count : Seats.Count;
+        public bool UsesGameEyes => Eyes.Count > 0;
         public PodMeasure Measure { get; private set; }
 
         private GameObject _instance;
@@ -179,7 +188,7 @@ namespace IVA
         private readonly List<Renderer> _hiddenExterior = new List<Renderer>();
         private CustomInteriorSession() { }
 
-        public bool IsValid => Pod != null && _instance != null && Seats.Count > 0 && Seats[0] != null;
+        public bool IsValid => Pod != null && _instance != null && SeatCount > 0;
 
         public static CustomInteriorSession Create(PodInfo pod, InteriorDesign design, GameObject prefab,
             PlacementSettings place, ILogger log)
@@ -209,6 +218,7 @@ namespace IVA
                 s.Seats.Add(t);
 
             CorrectOrientation(inst, s.Seats, log);
+            s.FindGameEyes(log);
 
             s._instance = holder;
             s.ComputeFit(place);
@@ -319,10 +329,12 @@ namespace IVA
         {
             if (_instance == null) return;
             Transform t = _instance.transform;
-            Vector3 basePos = Measure.Valid && place.FitToPod ? Measure.AxisCentre + new Vector3(0f, Measure.YMin, 0f) : Vector3.zero;
+            Vector3 basePos;
+            if (Design.OnHull) basePos = new Vector3(0f, Design.HullBaseY, 0f);    // built to the real hull: exact
+            else basePos = Measure.Valid && place.FitToPod ? Measure.AxisCentre + new Vector3(0f, Measure.YMin, 0f) : Vector3.zero;
             t.localPosition = basePos + place.Offset;
             t.localRotation = Quaternion.Euler(0f, Design.Yaw + place.Yaw, 0f);
-            t.localScale = _fitScale * Mathf.Clamp(place.ExtraScale, 0.5f, 2f);
+            t.localScale = (Design.OnHull ? Vector3.one : _fitScale) * Mathf.Clamp(place.ExtraScale, 0.5f, 2f);
         }
 
         // Logs where the pod's own window meshes are, to help line the interior up.
@@ -356,8 +368,52 @@ namespace IVA
         }
 
         // Positions the flight camera at a seat.
+        // Finds the game's seated kerbals in this pod and their IVA eye points, and logs where they are.
+        private void FindGameEyes(ILogger log)
+        {
+            Module_CrewedInterior crewed = Pod.GetComponentInChildren<Module_CrewedInterior>(true);
+            if (crewed == null || crewed.crew == null) { log.LogInfo("IVA: no crew list on the pod; using the interior's seat points."); return; }
+            for (int i = 0; i < crewed.crew.Length; i++)
+            {
+                Kerbal3DModel k = crewed.crew[i];
+                if (k == null || k.ThisKerbalInfo == null) continue;
+                Transform eye = PodLocator.FindChildRecursive(k.transform, "IVA EyeTransform");
+                Vector3 kp = Pod.transform.InverseTransformPoint(k.transform.position);
+                string where = eye != null ? $"eye at {Pod.transform.InverseTransformPoint(eye.position):F3}" : "no IVA EyeTransform";
+                log.LogInfo($"IVA: seat {i}: kerbal {k.name} at {kp:F3} (pod space), layer {k.gameObject.layer}, active {k.gameObject.activeInHierarchy}, {where}.");
+                if (eye == null || Vector3.Distance(eye.position, Pod.transform.position) > 5f) continue;   // not in the pod (e.g. a separate internal space)
+                Eyes.Add(eye);
+                EyeKerbals.Add(k);
+            }
+            log.LogInfo(Eyes.Count > 0 ? $"IVA: using the game's eye points for {Eyes.Count} seated kerbal(s)."
+                                       : "IVA: no usable game eye points; using the interior's seat points.");
+        }
+
+        // Hides the kerbal you're looking out of (so you don't see the inside of your own head) and shows the others.
+        public void ShowSeat(int seat, bool hideOwnBody)
+        {
+            foreach (Renderer r in _hiddenBody) if (r != null) r.enabled = true;
+            _hiddenBody.Clear();
+            if (!hideOwnBody || seat < 0 || seat >= EyeKerbals.Count || EyeKerbals[seat] == null) return;
+            foreach (Renderer r in EyeKerbals[seat].GetComponentsInChildren<Renderer>(false))
+            {
+                if (!r.enabled) continue;
+                r.enabled = false;
+                _hiddenBody.Add(r);
+            }
+        }
+
         public void ApplyCamera(Camera cam, int seat, Quaternion look, Vector3 eyeOffset, float fov, float nearClip)
         {
+            if (UsesGameEyes)
+            {
+                if (seat < 0 || seat >= Eyes.Count || Eyes[seat] == null) return;
+                Transform e = Eyes[seat];
+                cam.transform.SetPositionAndRotation(e.TransformPoint(eyeOffset), e.rotation * look);
+                cam.fieldOfView = fov;
+                cam.nearClipPlane = nearClip;
+                return;
+            }
             if (seat < 0 || seat >= Seats.Count || Seats[seat] == null) return;
             Transform s = Seats[seat];
             cam.transform.SetPositionAndRotation(s.TransformPoint(eyeOffset), s.rotation * look);
@@ -367,6 +423,9 @@ namespace IVA
 
         public void End()
         {
+            ShowSeat(-1, false);
+            Eyes.Clear();
+            EyeKerbals.Clear();
             foreach (Renderer r in _hiddenExterior) if (r != null) r.enabled = true;
             _hiddenExterior.Clear();
             if (_instance != null) UnityEngine.Object.Destroy(_instance);

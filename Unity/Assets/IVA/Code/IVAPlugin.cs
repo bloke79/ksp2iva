@@ -122,7 +122,7 @@ namespace IVA
             _invertZoom = Bind(cfg, "Zoom", "Invert scroll zoom", false, "By default scrolling up zooms in.");
 
             _hideOwnKerbal = Bind(cfg, "General", "Hide own kerbal", true,
-                "Portrait-camera view only: hide the kerbal you're looking through.");
+                "Hide the body of the kerbal you're looking out of (custom interiors and the portrait view).");
 
             _useCustomInterior = Bind(cfg, "Interior", "Use custom interiors", true,
                 "Use the modelled interiors shipped with this mod. Turn off for the original portrait-camera view.");
@@ -418,7 +418,9 @@ namespace IVA
             _mode = Mode.CustomInterior;
             if (_hideExterior.Value) _session.HidePodExterior();
             ApplyPose();
-            SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.Seats.Count}.");
+            _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value);
+            SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
+                             (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
         }
 
         private void EnterPortraitMode()
@@ -486,12 +488,13 @@ namespace IVA
         {
             if (_mode == Mode.CustomInterior)
             {
-                if (_session.Seats.Count < 2) return;
-                _seatIndex = (_seatIndex + 1) % _session.Seats.Count;
+                if (_session.SeatCount < 2) return;
+                _seatIndex = (_seatIndex + 1) % _session.SeatCount;
+                _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value);
                 _yawLook = 0f;
                 _pitch = 0f;
                 ApplyPose();
-                SWLogger.LogInfo($"Switched to seat {_seatIndex + 1} of {_session.Seats.Count}.");
+                SWLogger.LogInfo($"Switched to seat {_seatIndex + 1} of {_session.SeatCount}.");
                 return;
             }
 
