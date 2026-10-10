@@ -26,6 +26,9 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – Camera-rig crash root-caused: moving the flight camera outside the rig's view (old portrait fallback) makes
+  the rig's terrain raycast crash natively. Custom IVA now uses a camera shot override (no transform moves); pods without
+  an interior use Redux's own first-person camera. 3v pod plan approved; capture shows its crew live in the portrait booth.
 - 2026-10-10 – Live instruments: navball turns with the real attitude (horizon frame via PhysicsSpace), altimeter
   (km + tens-of-km hands), outside pressure and temperature needles. Gauge faces without printed needles
   (`texgen.py` now builds named textures only, with Windows font fallback). Untested in game.

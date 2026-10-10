@@ -60,7 +60,7 @@ namespace IVA
         private bool _ready;
 
         // ---- State ----
-        private enum Mode { None, CustomInterior, Portrait }
+        private enum Mode { None, CustomInterior, Portrait, Native }
 
         private Mode _mode = Mode.None;
         private Camera _flightCam;
@@ -310,7 +310,7 @@ namespace IVA
 
         private void ApplyPose()
         {
-            if (_flightCam == null) return;
+            if (_flightCam == null || _mode == Mode.Native) return;   // Redux's first-person camera drives itself
             Quaternion look = Quaternion.Euler(_pitch, _yawLook, 0f);
 
             if (_mode == Mode.CustomInterior)
@@ -393,6 +393,10 @@ namespace IVA
         {
             if (_flightCam == null) return false;
             if (_mode == Mode.Portrait) return _seatCam != null;
+            if (_mode == Mode.Native)
+            {
+                try { return Game?.CameraManager != null && Game.CameraManager.IsFirstPersonCameraActive; } catch (Exception) { return false; }
+            }
             if (_mode == Mode.CustomInterior)
             {
                 if (_session == null || !_session.IsValid) return false;
@@ -574,7 +578,26 @@ namespace IVA
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
         }
 
+        // Pods without an interior of ours: hand over to Redux's own first-person camera. The old portrait-camera view
+        // moved the flight camera to the crew portrait booth, and the game's camera rig then crashed in its terrain
+        // raycast (native crash in TerrainHeightSampler from BasicCameraRigSolution.DoesCameraCollide).
         private void EnterPortraitMode()
+        {
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                if (cm != null && cm.SelectNextFirstPersonCameraTarget())
+                {
+                    _mode = Mode.Native;
+                    SWLogger.LogInfo("Entered IVA (Redux first-person camera; no interior for this pod yet).");
+                    return;
+                }
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: Redux first-person camera unavailable: " + e.Message); }
+            SWLogger.LogInfo("IVA: no interior for this pod and no first-person camera available; staying in the normal view.");
+        }
+
+        private void EnterLegacyPortraitMode()
         {
             if (!FindKerbalCams()) return;
             SaveFlightCamera();
@@ -786,7 +809,12 @@ namespace IVA
                 _session = null;
             }
 
-            if (_flightCam != null && _mode != Mode.None)
+            if (_mode == Mode.Native)
+            {
+                try { if (Game?.CameraManager != null && Game.CameraManager.IsFirstPersonCameraActive) Game.CameraManager.ExitFirstPersonCamera(true); }
+                catch (Exception e) { SWLogger.LogWarning("IVA: leaving the first-person camera failed: " + e.Message); }
+            }
+            else if (_flightCam != null && _mode != Mode.None)
             {
                 _origParentAtExit = _origParent;
                 _exitLocalPos = _origLocalPos;
@@ -812,6 +840,11 @@ namespace IVA
 
         private void NextSeat()
         {
+            if (_mode == Mode.Native)
+            {
+                try { Game?.CameraManager?.SelectNextFirstPersonCameraTarget(); } catch (Exception) { }
+                return;
+            }
             if (_mode == Mode.CustomInterior)
             {
                 if (_session.SeatCount < 2) return;

@@ -419,6 +419,9 @@ namespace IVA
                 string where = eye != null ? $"eye at {Pod.transform.InverseTransformPoint(eye.position):F3}" : "no IVA EyeTransform";
                 log.LogInfo($"IVA: seat {i}: kerbal {k.name} at {kp:F3} (pod space), layer {k.gameObject.layer}, active {k.gameObject.activeInHierarchy}, {where}.");
                 if (eye == null || Vector3.Distance(eye.position, Pod.transform.position) > 5f) continue;   // not in the pod (e.g. a separate internal space)
+                // Only kerbals the flight camera draws (Local.Characters). Pods without a stock cabin (e.g. the 3v) keep their
+                // crew in the portrait booth on another layer, beside the pod; those aren't seats in our cabin.
+                if (k.gameObject.layer != 17) continue;
                 Eyes.Add(eye);
                 EyeKerbals.Add(k);
             }
