@@ -1,0 +1,28 @@
+{
+  "part": "pod_1.5v_conical_crew",
+  "name": "Mk1-2 (1.5v)",
+  "interior": "Conical15vInterior",
+  "address": "IVA/Interior_pod_1.5v_conical_crew",
+  "seats": 2,
+  "yaw": 180,
+  "_source": "Hull from extracted reference (y -0.542..0.986, r 0.94 -> 0.30). Two arched windows at 180 +/- 45 deg, z 0.73-1.37.",
+  "profile": [[0.0, 0.94], [0.15, 0.86], [0.30, 0.83], [0.46, 0.76], [0.61, 0.72], [0.76, 0.61], [0.92, 0.52], [1.07, 0.47], [1.22, 0.40], [1.37, 0.34], [1.528, 0.30]],
+  "wall": 0.06,
+  "floor": 0.12,
+  "ceiling": 1.30,
+  "tunnel_radius": 0.22,
+  "segments": 112,
+  "ribs": 10,
+  "windows": [
+    {"angle": -45, "z": 1.05, "half_w": 0.15, "half_h": 0.30, "corner": 0.12},
+    {"angle": 45, "z": 1.05, "half_w": 0.15, "half_h": 0.30, "corner": 0.12}
+  ],
+  "hatch": {"angle": 180, "z0": 0.25, "z1": 0.95, "half_deg": 20, "window": -1},
+  "console": {"half_deg": 50, "z0": 0.28, "depth": 0.26, "height": 0.36, "instrument_scale": 0.75},
+  "couch": {"scales": [0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55], "seat_lift": 0.22, "pivot_y": [-0.32, -0.36, -0.40, -0.44, -0.48, -0.52], "fan": [0, 6, -6, 10], "spread": [0.62, 0.56, 0.5]},
+  "lockers": {"from_deg": 110, "to_deg": 150, "height": 0.25, "depth": 0.15},
+  "rails": [[70, 0.8], [-70, 0.8]],
+  "lights": 6,
+  "extinguisher": {"angle": -110, "f": 0.35},
+  "plates": [[62, 0.45]]
+}

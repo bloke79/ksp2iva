@@ -1,0 +1,30 @@
+{
+  "part": "pod_3v_conical_crew",
+  "name": "Mk3-5 (3v)",
+  "interior": "Conical3vInterior",
+  "address": "IVA/Interior_pod_3v_conical_crew",
+  "seats": 5,
+  "yaw": 180,
+  "_source": "Hull from extracted reference (y -1.641..2.528, r 1.91 -> 0.70, cylinder-ish to 2.5 m then cone). Tall windows 180 +/- 27 deg z 2.9-3.7; side windows 180 +/- 80 deg z 0.55-1.65; hatch 180 deg low.",
+  "profile": [[0.0, 1.91], [0.42, 1.84], [0.83, 1.80], [1.25, 1.72], [1.67, 1.62], [2.08, 1.49], [2.50, 1.46], [2.92, 1.24], [3.33, 1.03], [3.75, 0.80], [4.169, 0.70]],
+  "wall": 0.08,
+  "floor": 0.30,
+  "ceiling": 3.76,
+  "tunnel_radius": 0.5,
+  "segments": 160,
+  "ribs": 16,
+  "windows": [
+    {"angle": -27, "z": 3.30, "half_w": 0.17, "half_h": 0.42, "corner": 0.08},
+    {"angle": 27, "z": 3.30, "half_w": 0.17, "half_h": 0.42, "corner": 0.08},
+    {"angle": -80, "z": 1.10, "half_w": 0.14, "half_h": 0.55, "corner": 0.10},
+    {"angle": 80, "z": 1.10, "half_w": 0.14, "half_h": 0.55, "corner": 0.10}
+  ],
+  "hatch": {"angle": 0, "z0": 0.55, "z1": 1.60, "half_deg": 14, "window": -1},
+  "console": {"half_deg": 45, "z0": 1.75, "depth": 0.50, "height": 0.85, "instrument_scale": 1.0},
+  "couch": {"scales": [1.0, 0.95, 0.9, 0.85, 0.8], "seat_lift": 0.95, "pivot_y": [-0.3, -0.45, -0.6, -0.75], "fan": [0, 6, 10, 14], "spread": [0.62, 0.58, 0.54]},
+  "lockers": {"from_deg": 120, "to_deg": 240, "height": 0.6, "depth": 0.3},
+  "rails": [[60, 0.55], [-60, 0.55], [135, 0.45], [-135, 0.45]],
+  "lights": 8,
+  "extinguisher": {"angle": -120, "f": 0.3},
+  "plates": [[55, 0.5]]
+}

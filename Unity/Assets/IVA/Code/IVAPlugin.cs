@@ -340,13 +340,13 @@ namespace IVA
                 PodInfo pod = PodLocator.FindPod(Game, (_podNameFilter.Value ?? "").Trim(), SWLogger);
                 if (pod != null)
                 {
-                    InteriorDesign design = InteriorCatalogue.ForPod(pod.Seats, _anyPod.Value);
+                    InteriorDesign design = InteriorCatalogue.ForPod(pod.Name, pod.Seats, _anyPod.Value);
                     if (design != null)
                     {
                         StartLoad(pod, design);
                         return; // finishes in OnInteriorLoaded
                     }
-                    SWLogger.LogInfo($"IVA: no interior for a {pod.Seats}-seat pod yet (turn on 'Use for pods without their own interior' to use the Mk1-3 one).");
+                    SWLogger.LogInfo($"IVA: no interior for {pod.Name} yet (turn on 'Use for pods without their own interior' to borrow one).");
                 }
             }
 

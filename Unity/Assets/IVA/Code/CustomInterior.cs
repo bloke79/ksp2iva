@@ -23,23 +23,28 @@ namespace IVA
     {
         public string Name;
         public string Address;
+        public string[] Parts;     // part names this interior was designed for
         public int Seats;
         public float BaseRadius;   // outer pod radius at the base it was designed for (metres)
         public float Height;       // outer pod height it was designed for (metres)
+        public float Yaw;          // turns the interior so its front lines up with the part's real front (degrees)
     }
 
     public static class InteriorCatalogue
     {
         public static readonly List<InteriorDesign> All = new List<InteriorDesign>
         {
-            new InteriorDesign { Name = "Mk1-3", Address = "IVA/Interior_Mk1-3", Seats = 3, BaseRadius = 1.25f, Height = 1.95f },
+            // The real Mk1-3's windows are symmetric about -Z, so the interior (front +Z) is turned 180 degrees.
+            new InteriorDesign { Name = "Mk1-3", Address = "IVA/Interior_Mk1-3", Parts = new[] { "pod_2v_conical_crew" },
+                                 Seats = 3, BaseRadius = 1.25f, Height = 1.95f, Yaw = 180f },
         };
 
-        public static InteriorDesign ForPod(int seats, bool anyPod)
+        // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
+        public static InteriorDesign ForPod(string partName, int seats, bool anyPod)
         {
-            InteriorDesign exact = All.FirstOrDefault(d => d.Seats == seats);
-            if (exact != null) return exact;
-            return anyPod ? All.FirstOrDefault() : null;
+            InteriorDesign exact = All.FirstOrDefault(d => d.Parts != null && d.Parts.Any(p => string.Equals(p, partName, StringComparison.OrdinalIgnoreCase)));
+            if (exact != null || !anyPod) return exact;
+            return All.FirstOrDefault(d => d.Seats == seats) ?? All.FirstOrDefault();
         }
     }
 
@@ -241,20 +246,37 @@ namespace IVA
             for (int i = 0; i < t.childCount; i++) SetLayerRecursive(t.GetChild(i), layer);
         }
 
-        // Measures the pod from its own colliders (or meshes if it has none), in the pod's local space.
+        // Effect and helper meshes that aren't part of the hull (re-entry glow, RCS plumes, lower LODs).
+        private static readonly string[] NonHullNames = { "reentry", "vfx", "exh", "lod_1", "lod_2", "lod_3", "IVA_" };
+
+        private static bool IsHullRenderer(Renderer r)
+        {
+            if (r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer) return false;
+            for (Transform t = r.transform; t != null; t = t.parent)
+            {
+                string n = t.name;
+                if (NonHullNames.Any(x => n.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0)) return false;
+                if (t.GetComponent<PartBehavior>() != null) break;
+            }
+            return true;
+        }
+
+        // Measures the pod's hull in its own local space: from its mesh colliders (the hull collision shape),
+        // else its hull meshes. Box colliders are skipped: pods carry audio volumes and ladder/airlock boxes
+        // that reach well outside the hull (the Mk1-3's audio box made it measure 2.61 m tall instead of 1.81 m).
         public static PodMeasure MeasurePod(PartBehavior pod)
         {
             var m = new PodMeasure();
             Transform pt = pod.transform;
             var bounds = new List<Bounds>();
-            foreach (Collider c in pod.GetComponentsInChildren<Collider>(false))
+            foreach (MeshCollider c in pod.GetComponentsInChildren<MeshCollider>(false))
                 if (c != null && c.enabled && !c.isTrigger && c.GetComponentInParent<PartBehavior>() == pod) bounds.Add(c.bounds);
-            m.Source = "colliders";
+            m.Source = "mesh colliders";
             if (bounds.Count == 0)
             {
                 foreach (Renderer r in pod.GetComponentsInChildren<Renderer>(false))
-                    if (r != null && r.GetComponentInParent<PartBehavior>() == pod && !r.name.StartsWith("IVA_", StringComparison.Ordinal)) bounds.Add(r.bounds);
-                m.Source = "meshes";
+                    if (r != null && r.GetComponentInParent<PartBehavior>() == pod && IsHullRenderer(r)) bounds.Add(r.bounds);
+                m.Source = "hull meshes";
             }
             if (bounds.Count == 0) { m.Source = "nothing"; return m; }
 
@@ -296,7 +318,7 @@ namespace IVA
             Transform t = _instance.transform;
             Vector3 basePos = Measure.Valid && place.FitToPod ? Measure.AxisCentre + new Vector3(0f, Measure.YMin, 0f) : Vector3.zero;
             t.localPosition = basePos + place.Offset;
-            t.localRotation = Quaternion.Euler(0f, place.Yaw, 0f);
+            t.localRotation = Quaternion.Euler(0f, Design.Yaw + place.Yaw, 0f);
             t.localScale = _fitScale * Mathf.Clamp(place.ExtraScale, 0.5f, 2f);
         }
 

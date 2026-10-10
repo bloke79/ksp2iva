@@ -103,8 +103,8 @@ namespace IVA.EditorTools
             string texDir = dir + "/Textures";
             foreach (MatInfo m in sheet.materials)
             {
-                if (!string.IsNullOrEmpty(m.normal)) SetTextureType(texDir + "/" + m.normal, normalMap: true);
-                if (!string.IsNullOrEmpty(m.texture)) SetTextureType(texDir + "/" + m.texture, normalMap: false);
+                if (!string.IsNullOrEmpty(m.normal)) SetTextureType(TexPath(texDir, m.normal), normalMap: true);
+                if (!string.IsNullOrEmpty(m.texture)) SetTextureType(TexPath(texDir, m.texture), normalMap: false);
             }
 
             // 2. Materials
@@ -215,6 +215,14 @@ namespace IVA.EditorTools
             ti.SaveAndReimport();
         }
 
+        // Textures shared by every interior live in Interiors/Shared/Textures; an interior's own Textures folder
+        // only holds what differs (e.g. its name plate) and wins when both have the file.
+        private static string TexPath(string texDir, string file)
+        {
+            string own = texDir + "/" + file;
+            return File.Exists(own) ? own : InteriorsRoot + "/Shared/Textures/" + file;
+        }
+
         private static Color FromLinear(float[] c, float a = 1f)
         {
             if (c == null || c.Length < 3) return Color.white;
@@ -228,11 +236,11 @@ namespace IVA.EditorTools
             mat.SetFloat("_Glossiness", Mathf.Clamp01(1f - m.roughness));
 
             Vector2 tiling = m.tiling != null && m.tiling.Length >= 2 ? new Vector2(m.tiling[0], m.tiling[1]) : Vector2.one;
-            Texture2D main = string.IsNullOrEmpty(m.texture) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(texDir + "/" + m.texture);
+            Texture2D main = string.IsNullOrEmpty(m.texture) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(TexPath(texDir, m.texture));
             mat.SetTexture("_MainTex", main);
             mat.SetTextureScale("_MainTex", tiling);
 
-            Texture2D normal = string.IsNullOrEmpty(m.normal) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(texDir + "/" + m.normal);
+            Texture2D normal = string.IsNullOrEmpty(m.normal) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(TexPath(texDir, m.normal));
             mat.SetTexture("_BumpMap", normal);
             mat.SetFloat("_BumpScale", m.normalStrength);
             if (normal != null) mat.EnableKeyword("_NORMALMAP"); else mat.DisableKeyword("_NORMALMAP");
