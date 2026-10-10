@@ -42,6 +42,10 @@ namespace IVA
             // Built to the real hull (extracted reference: base radius 0.625 m, height 0.963 m); front at -Z like the Mk1-3.
             new InteriorDesign { Name = "Mk1", Address = "IVA/Interior_pod_1v_conical_crew", Parts = new[] { "pod_1v_conical_crew" },
                                  Seats = 1, BaseRadius = 0.625f, Height = 0.963f, Yaw = 180f, OnHull = true, HullBaseY = -0.363f },
+            // Large 3v pod (hull base y -1.641, 1.91 m radius, 4.17 m tall). Its crew live in the portrait booth, so the
+            // interior's own seat points are used and the crew are moved onto the couches while in IVA.
+            new InteriorDesign { Name = "Mk3-5", Address = "IVA/Interior_pod_3v_conical_crew", Parts = new[] { "pod_3v_conical_crew" },
+                                 Seats = 5, BaseRadius = 1.911f, Height = 4.169f, Yaw = 180f, OnHull = true, HullBaseY = -1.641f },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
@@ -238,6 +242,7 @@ namespace IVA
             CorrectOrientation(inst, s.Seats, log);
             s.FindGameEyes(log);
             s.HideStockCabin(log);
+            s.MoveCrewIntoSeats(log);
 
             s._instance = holder;
             s.ComputeFit(place);
@@ -509,6 +514,78 @@ namespace IVA
         }
 
         // Hides the head of the kerbal you're looking out of (so you don't see the inside of it) and shows everyone else.
+        // ---- crew kept in the portrait booth (pods with no stock cabin, e.g. the 3v): sit them in our couches ----
+        // Offset from the eye point to the kerbal's root, and its rotation, as in the stock Mk1-3 interior (pod space).
+        private static readonly Vector3 KerbalFromEye = new Vector3(0f, -0.149f, 0.518f);
+        private static readonly Quaternion KerbalRotation = Quaternion.LookRotation(Vector3.up, Vector3.back);
+
+        private class MovedKerbal
+        {
+            public Kerbal3DModel Kerbal;
+            public Transform T;
+            public Vector3 LocalPos;
+            public Quaternion LocalRot;
+            public int Seat;
+            public readonly List<KeyValuePair<GameObject, int>> Layers = new List<KeyValuePair<GameObject, int>>();
+            public readonly List<Renderer> Hidden = new List<Renderer>();
+        }
+
+        private readonly List<MovedKerbal> _moved = new List<MovedKerbal>();
+        public bool MovesCrew => _moved.Count > 0;
+
+        private void MoveCrewIntoSeats(ILogger log)
+        {
+            if (Eyes.Count > 0 || Seats.Count == 0) return;      // the game already seats its crew in this pod
+            Module_CrewedInterior crewed = Pod.GetComponentInChildren<Module_CrewedInterior>(true);
+            if (crewed == null || crewed.crew == null) return;
+            EyeKerbals.Clear();
+            for (int i = 0; i < Seats.Count; i++) EyeKerbals.Add(null);
+            int seat = 0;
+            foreach (Kerbal3DModel k in crewed.crew)
+            {
+                if (k == null || k.ThisKerbalInfo == null) continue;
+                if (seat >= Seats.Count) break;
+                var m = new MovedKerbal { Kerbal = k, T = k.transform, LocalPos = k.transform.localPosition, LocalRot = k.transform.localRotation, Seat = seat };
+                foreach (Transform t in k.GetComponentsInChildren<Transform>(true))
+                {
+                    m.Layers.Add(new KeyValuePair<GameObject, int>(t.gameObject, t.gameObject.layer));
+                    t.gameObject.layer = 17;    // Local.Characters: drawn by the flight camera
+                }
+                foreach (Renderer r in k.GetComponentsInChildren<Renderer>(true))
+                    if (r.enabled && r.name.IndexOf("Backdrop", StringComparison.OrdinalIgnoreCase) >= 0) { r.enabled = false; m.Hidden.Add(r); }
+                _moved.Add(m);
+                EyeKerbals[seat] = k;
+                seat++;
+            }
+            UpdateMovedCrew();
+            if (_moved.Count > 0)
+                log.LogInfo($"IVA: sat {_moved.Count} kerbal(s) from the portrait booth in the couches: " + string.Join(", ", _moved.Select(m => m.Kerbal.name)));
+        }
+
+        // Called every frame while in IVA (the booth may reposition them).
+        public void UpdateMovedCrew()
+        {
+            if (_moved.Count == 0 || Pod == null) return;
+            Transform pod = Pod.transform;
+            foreach (MovedKerbal m in _moved)
+            {
+                if (m.T == null || m.Seat >= Seats.Count || Seats[m.Seat] == null) continue;
+                Vector3 eye = pod.InverseTransformPoint(Seats[m.Seat].position);
+                m.T.SetPositionAndRotation(pod.TransformPoint(eye + KerbalFromEye), pod.rotation * KerbalRotation);
+            }
+        }
+
+        private void RestoreMovedCrew()
+        {
+            foreach (MovedKerbal m in _moved)
+            {
+                if (m.T != null) { m.T.localPosition = m.LocalPos; m.T.localRotation = m.LocalRot; }
+                foreach (var kv in m.Layers) if (kv.Key != null) kv.Key.layer = kv.Value;
+                foreach (Renderer r in m.Hidden) if (r != null) r.enabled = true;
+            }
+            _moved.Clear();
+        }
+
         public void ShowSeat(int seat, bool hideOwnHead, ILogger log = null)
         {
             foreach (Renderer r in _hiddenBody) if (r != null) r.enabled = true;
@@ -599,6 +676,7 @@ namespace IVA
 
         public void End()
         {
+            RestoreMovedCrew();
             foreach (Renderer r in _hiddenStockCabin) if (r != null) r.enabled = true;
             _hiddenStockCabin.Clear();
             ShowSeat(-1, false);

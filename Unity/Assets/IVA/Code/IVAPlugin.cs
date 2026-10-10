@@ -317,6 +317,7 @@ namespace IVA
             {
                 if (_session == null) return;
                 _session.ApplyPlacement(Placement());
+                _session.UpdateMovedCrew();
                 if (_shot != null)
                 {
                     // the game has placed the cameras from our shot; only keep the close-up clip and the close-vessel

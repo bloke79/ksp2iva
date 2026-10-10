@@ -34,7 +34,7 @@ views and live instruments, to the standard of the reworked Mk1-3 (deep consoles
       `IVA-pose/pod_3v_conical_crew.obj`. Then press C again to leave.
 - [x] 2. _(2026-10-10: done; eyes at z 1.0, five seats 0.62 m apart.)_ **Spec** `art/pods/pod_3v_conical_crew.json`: hull profile, the six windows (from `window_paint.py`), hatch (measured
       from the hull), pose block (`pose_extract.py` on the capture), cabin light, preview cameras.
-- [ ] 3. _(2026-10-10: concept built, renders `previews/mk35_concept_*.png`, awaiting approval.)_ **Layout concept for approval:** a top-down plan and a side section render with the captured kerbals in place,
+- [x] 3. _(2026-10-10: approved; Matt asked for both decks filled out as a working mission cabin.)_ **Layout concept for approval:** a top-down plan and a side section render with the captured kerbals in place,
       showing where everything goes. Proposed layout, to adjust round the real poses:
       - **Lower deck:** the couches on one frame (Apollo style), a wide main display console hung above the faces in
         sections (one per seat), pedestal consoles between couches, side consoles by the two-pane windows, umbilicals.
@@ -42,10 +42,10 @@ views and live instruments, to the standard of the reworked Mk1-3 (deep consoles
         avionics racks, tanks), a central ladder up to the docking tunnel, and a **docking station**: a secondary console
         under the upper windows, for rendezvous views (window view B goes there).
       - Floor: ECS and power units behind the feet; stowage and safety kit on the walls.
-- [ ] 3b. **Crew into the couches** (code): move the booth kerbals onto the IVA seats while in IVA (see findings).
-- [ ] 4. **Generator** `art/model_mk35.py` on `capsule.py` + `modules.py` (same tools as the Mk1-3), renders after each
+- [x] 3b. _(2026-10-10: done, untested in game.)_ **Crew into the couches** (code): move the booth kerbals onto the IVA seats while in IVA (see findings).
+- [x] 4. _(2026-10-10: `model_mk35.py` + `props.py` mission kit: sleeping bags, galley, science rack, laptop, whiteboard, tool board, cargo bags, jetpacks, cameras, binders, zero-g plush...)_ **Generator** `art/model_mk35.py` on `capsule.py` + `modules.py` (same tools as the Mk1-3), renders after each
       pass (eye views per seat, overview, upper deck, windows). Overlap checks must be clean.
-- [ ] 5. **Approval of renders**, then export, Unity set-up and a catalogue entry in `CustomInterior.cs`
+- [ ] 5. _(2026-10-10: exported, set up (60 materials), catalogue entry added, built; ~630k triangles.)_ **Approval of renders**, then export, Unity set-up and a catalogue entry in `CustomInterior.cs`
       (`Parts = pod_3v_conical_crew`, `OnHull`, `HullBaseY = -1.641`, `Yaw = 180`).
 - [ ] 6. **In-game test (Matt):** seat switching (V), window views (B) including the docking windows, live instruments,
       lighting, nothing clipping through, leaving IVA cleanly.
