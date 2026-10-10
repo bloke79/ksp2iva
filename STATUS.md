@@ -1,15 +1,15 @@
 # Status: iva-redux
 
 **Last updated:** 2026-10-10
-**Version / milestone:** 0.6.0 (modelled Mk1-3 interior) · KSP2 Redux 26w41a
-**Health:** 🟢 compiles against the real KSP2 Redux DLLs, and assets validated (`notes/2026-10-10-verification.md`). Not yet run in game.
+**Version / milestone:** 0.6.0 + Mk1 (1v) interior (unreleased) · KSP2 Redux 26w41a
+**Health:** 🟡 Mk1-3 works in game; Mk1 (1v) built but untested in game. Open bug: one native crash in the game's camera rig right after entering IVA (see `notes/2026-10-10-first-test.md`).
 
 ## Next steps
 0. **Test the new Mk1 (1v) interior:** fly a `pod_1v_conical_crew`, press C. Check the porthole lines up with the pod's real
    window (catalogue Yaw 180) and the eye height; tune with the numpad and report the values.
-1. **First in-game test (Matt):** launch KSP2 through the Redux Launcher, put a Mk1-3 on the pad, press **C**. Try V,
-   mouse look, scroll zoom, and exits (map, EVA, vessel switch). Then `/log-triage iva-redux first-test`.
-2. Tune yaw, scale and eye with the numpad (save with 5), then bake the defaults into `InteriorCatalogue`.
+1. Re-test the Mk1-3: measurement fix + Yaw 180 change its placement (was oversized by the audio-box collider).
+2. Investigate the camera-rig crash (`/bugfix`): IVA moves the flight camera while the game's rig raycasts terrain.
+3. Next interiors, each bespoke with renders first: 1.5v, 3v, cupola, landers, cockpits.
 
 Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then `.\scripts\build-mod.ps1 -Project iva-redux`
 (about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).
@@ -18,9 +18,7 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - Nothing yet. The project was imported from `_strip/` with the claude.ai handoff in `notes/`.
 
 ## Blockers / questions for Matt
-- Steps 1–3 need Matt's PC with KSP2 Redux 26w41a, Unity Hub and the Redux SDK Manager.
-  Claude Code can edit code and read logs, but Matt has to drive the Unity editor and the game.
-- Where is the KSP2 install, and where should the SDK Unity project live? (Record both here once known.)
+- In-game testing needs Matt at the PC (Claude builds and reads logs; Matt flies).
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
