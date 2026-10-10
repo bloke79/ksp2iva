@@ -8,7 +8,7 @@ Read first: `STATUS.md` (where things stand) → `PLAN.md` (current plan) →
 `notes/2026-10-10-claude-ai-handoff.md` (full design and history from the claude.ai session) →
 `README.md` (user guide) / `CHANGES.md` (version history).
 
-**Repo:** https://github.com/MattAtAstralas/ksp2iva (private, `main`, GPL-3.0). This folder is its own git
+**Repo:** https://github.com/bloke79/ksp2iva (private, `main`, GPL-3.0). This folder is its own git
 repo, separate from the rest of the workspace.
 
 _Imported 2026-10-10 from `_strip/`. Everything before that was written in a cloud sandbox with
