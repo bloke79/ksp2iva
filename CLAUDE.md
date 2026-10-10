@@ -47,6 +47,12 @@ files (`Code/IVA.asmdef`, `IVA.asset`, `Pipelines/`) back here. Fixes made insid
 | Unity setup | Menu **IVA > Set Up Interiors**. Should report 35 materials and address `IVA/Interior_Mk1-3` |
 | Build | `Assets/IVA/Pipelines/` → **Build for Player** → **Execute** → `<KSP2>\mods\__Testing\IVA\` |
 
+| Sync code to Unity | `.\scripts\sync-to-unity.ps1 -Project iva-redux` (from the workspace root; or `/sync-unity to iva-redux`) |
+| Read the game log | `.\scripts\get-game-log.ps1 -Project iva-redux -Save <name>` (or `/log-triage iva-redux`) |
+
+Paths live in `mod.config.json`. The game log is confirmed at
+`%USERPROFILE%\AppData\LocalLow\Intercept Games\Kerbal Space Program 2\Player.log` and is overwritten every launch.
+The stock game also logs "IVA Portrait…" lines, which aren't ours (the config filters them out).
 Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full loop: `workflows/mod-build-test.md`.
 
 ## Design facts that code depends on

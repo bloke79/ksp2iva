@@ -37,6 +37,12 @@ in rough order of risk (details in `notes/2026-10-10-claude-ai-handoff.md` §4).
 - The pod's height of 1.95 m is assumed. A wrong value distorts the fit.
 - Which way the real Mk1-3's windows face is unknown until the first log.
 
+## Follow-ups (from workspace setup)
+- Make every log line use one distinctive prefix (`[IVA]`). The code currently mixes `IVA:`, `IVA align` and `[IVA]`,
+  and the stock game logs "IVA Portrait…".
+- Check the interior load never blocks on `.Result`/`WaitForCompletion` inside a callback (see
+  `knowledge/ksp2-redux-modding.md` › Logs).
+
 ## Follow-ups (handoff §6)
 - Kerbal crew models in the other seats; live navball and screens; animated switches; interior sounds.
 - Interiors for other pods: repeat the `art/` pipeline, add an `InteriorCatalogue` entry, export into `Interiors/<Name>/`.

@@ -1,0 +1,26 @@
+{
+  "modId": "IVA",
+  "logPrefix": "IVA",
+  "logPattern": "\\[IVA\\]|\\bIVA( align)?:|IVA loaded",
+  "logIgnore": [
+    "\\[Discord\\]",
+    "UIValueBinder",
+    "Audio configuration error",
+    "IVA Portrait",
+    "\\[PlumeManager\\]",
+    "Unable to Bind the dropdown"
+  ],
+  "game": "KSP2 Redux",
+  "gameVersion": "26w41a",
+  "gameDir": "",
+  "unityProject": "",
+  "sourceFolder": "Unity/Assets/IVA",
+  "unityModFolder": "Assets/IVA",
+  "buildOutput": "mods/__Testing/IVA",
+  "preserveInUnity": ["Code/IVA.asmdef", "IVA.asset", "Pipelines"],
+  "logCandidates": [
+    "%USERPROFILE%\\AppData\\LocalLow\\Intercept Games\\Kerbal Space Program 2\\Player.log",
+    "{gameDir}\\Ksp2.log",
+    "{gameDir}\\Player.log"
+  ]
+}
