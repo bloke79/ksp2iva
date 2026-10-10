@@ -87,7 +87,7 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
 - `Assets/Editor/ReduxModBatch.cs` (copied from the workspace `scripts/unity/`) is an editor-only batch helper and doesn't ship.
 
 ## Gotchas
-- Stock interior prefabs (`interior_1v_m1_pod_crew` etc.) do have modelled cabins (seats, sticks, ceiling screens), but they serve the crew portrait camera, not the flight view (ADR-002 still holds for what you see in flight).
+- Stock interior prefabs (`interior_1v_m1_pod_crew` etc.) do have modelled cabins (seats, sticks, ceiling screens), and the game draws them **in flight** round the seated kerbals (visible through the windows from outside). Custom IVA hides them (except the kerbals) while ours is showing and restores them on exit.
 - The original mod's `kerbalCam` cameras are portrait-booth cameras, not cameras inside the pod.
 - The addressables group `addressables_IVA_all` only exists if the mod was created with Mod ID exactly `IVA`.
 - This repo is GPL-3.0, but the licence of Mudkip909's original is still unknown. Check that it's compatible

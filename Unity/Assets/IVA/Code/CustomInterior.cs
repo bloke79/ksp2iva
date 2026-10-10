@@ -186,6 +186,7 @@ namespace IVA
         private GameObject _instance;
         private Vector3 _fitScale = Vector3.one;
         private readonly List<Renderer> _hiddenExterior = new List<Renderer>();
+        private readonly List<Renderer> _hiddenStockCabin = new List<Renderer>();
         private CustomInteriorSession() { }
 
         public bool IsValid => Pod != null && _instance != null && SeatCount > 0;
@@ -219,6 +220,7 @@ namespace IVA
 
             CorrectOrientation(inst, s.Seats, log);
             s.FindGameEyes(log);
+            s.HideStockCabin(log);
 
             s._instance = holder;
             s.ComputeFit(place);
@@ -505,8 +507,36 @@ namespace IVA
             cam.nearClipPlane = nearClip;
         }
 
+        // The game draws its own cabin model round the seated kerbals in flight (it's what you see through the windows from
+        // outside). Inside our interior it overlaps ours: extra window frames, its consoles and seats. Hide everything in that
+        // stock interior except the kerbals themselves while ours is showing; End() puts it back.
+        private void HideStockCabin(ILogger log)
+        {
+            var roots = new HashSet<Transform>();
+            foreach (Kerbal3DModel k in EyeKerbals)
+            {
+                if (k == null) continue;
+                Transform root = null;
+                for (Transform t = k.transform.parent; t != null && t != Pod.transform; t = t.parent)
+                    if (t.name.StartsWith("interior_", StringComparison.OrdinalIgnoreCase)) root = t;   // topmost one
+                if (root != null) roots.Add(root);
+            }
+            foreach (Transform root in roots)
+                foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
+                    if (r.enabled && r.GetComponentInParent<Kerbal3DModel>() == null)
+                    {
+                        r.enabled = false;
+                        _hiddenStockCabin.Add(r);
+                    }
+            log.LogInfo(roots.Count == 0 ? "IVA: no stock cabin found round the kerbals."
+                : $"IVA: hid the stock cabin ({string.Join(", ", roots.Select(r => r.name))}): {_hiddenStockCabin.Count} renderers: " +
+                  string.Join(", ", _hiddenStockCabin.Select(r => r.name)));
+        }
+
         public void End()
         {
+            foreach (Renderer r in _hiddenStockCabin) if (r != null) r.enabled = true;
+            _hiddenStockCabin.Clear();
             ShowSeat(-1, false);
             Eyes.Clear();
             EyeKerbals.Clear();
