@@ -1,50 +1,53 @@
-# Plan: First build and in-game test of 0.6.0
+# Plan: Bespoke interior for the large 3v command pod
 
-_Created 2026-10-10 · Status: draft (from handoff §4–5)_
+_Created 2026-10-10 · Status: draft, awaiting Matt's approval_
 
 ## Goal
-Get 0.6.0 compiling against the real KSP2 Redux 26w41a assemblies and confirm in game that the Mk1-3
-interior loads, sits inside the pod, lines up with its windows and shows the real world through them.
+A full, stock-quality interior for `pod_3v_conical_crew`, built round the game's real seated poses, with working window
+views and live instruments, to the standard of the reworked Mk1-3 (deep consoles, pedestals, umbilicals, equipment).
 
-## Context
-All code was written against stub DLLs in a cloud sandbox. The 10 riskiest assumptions are listed below,
-in rough order of risk (details in `notes/2026-10-10-claude-ai-handoff.md` §4).
+## What we already know
+- **Hull:** 4.17 m tall, 1.91 m base radius narrowing to about 0.8 m at the top (`reference/pod_3v_conical_crew`); hull base at part y -1.641.
+- **Windows are painted, not glass:** six amber panes are part of the hull texture (found by colour with
+  `art/window_paint.py`). From inside, the game's hull isn't drawn (one-sided), so we cut real openings there and see out.
+  - Upper pair, front, ±22.9°, z 3.13 (half 0.28 x 0.16 m): the docking windows near the top.
+  - Two two-pane side windows at ±65°: z 0.88 and 1.39 (each about 0.3 x 0.43 m).
+- **Hatch:** front, below the upper windows, with a ladder outside (to be measured).
+- **Unknown until captured:** how many seats, where the kerbals lie, and which stock interior prefab the game uses
+  (there's no `interior_3v_*` prefab, so it borrows one).
 
 ## Steps
-- [x] 1. **Compile.** _(2026-10-10: clean in the SDK project after the `ILogger` alias and the asmdef Addressables references.)_ Set up the SDK project, create mod `IVA`, copy `Unity/Assets/IVA` in, and fix API mismatches
-      (`Assets.Load`, `PartBehavior.Name`, `Module_CrewedInterior.crew`/`IsProbe`,
-      `ViewController.GetActiveSimVessel`/`GetBehaviorIfLoaded`, `GameState.FlightView`, `KeyboardShortcut`,
-      `ConfigValue<T>`, `RangeConstraint<T>`). Log each fix in `notes/api-corrections.md` and copy fixed files back here.
-- [x] 2. _(2026-10-10: 35 materials, address set. Visual prefab check still open.)_ **Editor setup.** Check the asmdef references (`Unity.Addressables`, `.Editor`, `Unity.ResourceManager`).
-      Run **IVA > Set Up Interiors**, expect 35 materials and address `IVA/Interior_Mk1-3`. Check the prefab
-      is upright with its front facing +Z, then look from `IVA_Seat0`.
-- [ ] 3. **First flight.** Build for Player, launch, put a Mk1-3 on the pad and press C. Collect all `IVA` log lines into
-      `notes/YYYY-MM-DD-first-test.md`. Record the log file location.
-- [ ] 4. **Check the logged assumptions:** the addressable loads; Standard shader isn't pink or black; pod base radius
-      and height are about 1.25 / 1.95 (not inflated by ladders or RCS); flight camera name; the interior layer is drawn;
-      the exterior doesn't poke through.
-- [ ] 5. **Tune** yaw (window angles from the log), fit scale and eye height, then save with numpad 5.
-- [ ] 6. **Bake defaults:** hard-code the good per-pod yaw, scale and eye values in `InteriorCatalogue`.
-- [ ] 7. Exercise V (all 3 seats), look, zoom, and exits (map, EVA, vessel switch, pod destroyed, C during load).
+- [ ] 1. **Pose capture (Matt, about 2 minutes).** Put a crewed 3v pod on the pad (fill every seat if possible) and press C.
+      The mod now captures poses in pods without an interior: it logs the seats, the stock interior it uses, and writes
+      `IVA-pose/pod_3v_conical_crew.obj`. Then press C again to leave.
+- [ ] 2. **Spec** `art/pods/pod_3v_conical_crew.json`: hull profile, the six windows (from `window_paint.py`), hatch (measured
+      from the hull), pose block (`pose_extract.py` on the capture), cabin light, preview cameras.
+- [ ] 3. **Layout concept for approval:** a top-down plan and a side section render with the captured kerbals in place,
+      showing where everything goes. Proposed layout, to adjust round the real poses:
+      - **Lower deck:** the couches on one frame (Apollo style), a wide main display console hung above the faces in
+        sections (one per seat), pedestal consoles between couches, side consoles by the two-pane windows, umbilicals.
+      - **Upper deck** (the pod has ~2 m of headroom the smaller pods don't): an equipment ring round the walls (lockers,
+        avionics racks, tanks), a central ladder up to the docking tunnel, and a **docking station**: a secondary console
+        under the upper windows, for rendezvous views (window view B goes there).
+      - Floor: ECS and power units behind the feet; stowage and safety kit on the walls.
+- [ ] 4. **Generator** `art/model_mk35.py` on `capsule.py` + `modules.py` (same tools as the Mk1-3), renders after each
+      pass (eye views per seat, overview, upper deck, windows). Overlap checks must be clean.
+- [ ] 5. **Approval of renders**, then export, Unity set-up and a catalogue entry in `CustomInterior.cs`
+      (`Parts = pod_3v_conical_crew`, `OnHull`, `HullBaseY = -1.641`, `Yaw = 180`).
+- [ ] 6. **In-game test (Matt):** seat switching (V), window views (B) including the docking windows, live instruments,
+      lighting, nothing clipping through, leaving IVA cleanly.
 
 ## Done when
-- The log shows `placed the Mk1-3 interior` with no exceptions.
-- The interior is lit correctly (not pink or black), its windows line up with the pod's, all three seats work, and every exit path restores the camera.
-- Defaults are baked in, so a fresh install needs no numpad tuning.
+- Matt approves the renders and the in-game look; every seat's eye view shows its console section.
+- All six windows line up with the hull's panes and window views reach them.
+- The log shows the interior placed with no errors, and no part or stock-cabin geometry shows through.
 
 ## Risks / open questions
-- Standard shader may not render in the game build. Fallback: copy a shader from a stock part's material at run time.
-- The pod's height of 1.95 m is assumed. A wrong value distorts the fit.
-- Which way the real Mk1-3's windows face is unknown until the first log.
+- Painted windows: if the game draws the hull double-sided anywhere, the panes would block the view from inside;
+  fallback is to hide those hull faces while in IVA.
+- The borrowed stock interior may put the kerbals somewhere awkward for a 4 m pod (e.g. a 3-seat layout in a bigger
+  shell); the capture decides the layout.
+- An upper deck is only seen through window views until moving around inside (FreeIva-style) exists; it's still worth
+  building, as it's what you look up into from the couches.
 
-## Follow-ups (from workspace setup)
-- Make every log line use one distinctive prefix (`[IVA]`). The code currently mixes `IVA:`, `IVA align` and `[IVA]`,
-  and the stock game logs "IVA Portrait…".
-- Check the interior load never blocks on `.Result`/`WaitForCompletion` inside a callback (see
-  `knowledge/ksp2-redux-modding.md` › Logs).
-
-## Follow-ups (handoff §6)
-- Kerbal crew models in the other seats; live navball and screens; animated switches; interior sounds.
-- Interiors for other pods: repeat the `art/` pipeline, add an `InteriorCatalogue` entry, export into `Interiors/<Name>/`.
-
-## History
+_Previous plan (first build and in-game test of 0.6.0) is complete; see git history and STATUS.md._

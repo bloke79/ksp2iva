@@ -495,6 +495,7 @@ namespace IVA
                         return; // finishes in OnInteriorLoaded
                     }
                     SWLogger.LogInfo($"IVA: no interior for {pod.Name} yet (turn on 'Use for pods without their own interior' to borrow one).");
+                    CustomInteriorSession.CapturePoses(pod, SWLogger);
                 }
             }
 

@@ -388,6 +388,24 @@ namespace IVA
 
         // Positions the flight camera at a seat.
         // Finds the game's seated kerbals in this pod and their IVA eye points, and logs where they are.
+        // For pods without an interior yet: log the seated kerbals and write the pose capture (IVA-pose/<part>.obj), so a
+        // bespoke interior can be designed round them. Nothing is placed or changed.
+        public static void CapturePoses(PodInfo pod, ILogger log)
+        {
+            try
+            {
+                var s = new CustomInteriorSession { Pod = pod.Pod };
+                log.LogInfo($"IVA: capturing poses in {pod.Name}.");
+                s.FindGameEyes(log);
+                var stock = new HashSet<string>();
+                foreach (Kerbal3DModel k in s.EyeKerbals)
+                    for (Transform t = k != null ? k.transform.parent : null; t != null && t != pod.Pod.transform; t = t.parent)
+                        if (t.name.StartsWith("interior_", StringComparison.OrdinalIgnoreCase)) stock.Add(t.name);
+                log.LogInfo($"IVA: {pod.Name} uses the stock interior {string.Join(", ", stock)}.");
+            }
+            catch (Exception e) { log.LogWarning("IVA: pose capture failed: " + e.Message); }
+        }
+
         private void FindGameEyes(ILogger log)
         {
             Module_CrewedInterior crewed = Pod.GetComponentInChildren<Module_CrewedInterior>(true);
