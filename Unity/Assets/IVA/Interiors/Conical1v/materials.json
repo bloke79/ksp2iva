@@ -754,6 +754,30 @@
       "emissionFromTexture": true
     },
     {
+      "name": "IVA_ScreenData",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.15000000596046448,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 2.200000047683716,
+      "texture": "crt_data.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
       "name": "IVA_SeatShell",
       "color": [
         0.8600000143051147,
@@ -830,17 +854,17 @@
     {
       "name": "IVA_Seat0",
       "position": [
-        0.0,
-        0.23468273878097534,
-        0.5145367980003357
+        -0.002099999925121665,
+        -0.0421999990940094,
+        0.48410001397132874
       ]
     }
   ],
   "cabinLight": [
     -0.0,
-    0.78,
-    -0.0,
-    1.2,
-    0.8
+    0.55,
+    -0.2,
+    1.0,
+    0.7
   ]
 }

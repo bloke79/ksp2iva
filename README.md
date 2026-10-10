@@ -117,16 +117,16 @@ This hasn't been run in game yet. After pressing C, look in the game log for lin
 
 ## Changing the interior
 
-The model is built entirely from the Blender scripts in `art/` (Blender's Python module, `pip install bpy`):
+Each interior is built entirely from the Blender scripts in `art/`, one spec per pod in `art/pods/`. One command
+builds the textures, model and preview renders, and `-Export` also writes the FBX, `materials.json` and textures into
+`Unity/Assets/IVA/Interiors/<Interior>`:
 
 ```
-python texgen.py <textures-folder>
-python model_mk13.py <textures-folder> mk13.blend
-python render_mk13.py mk13.blend <renders-folder>        (previews)
-python export_mk13.py mk13.blend <export-folder>         (FBX + materials.json for Unity)
+.\art\build_interior.ps1 -Pod pod_2v_conical_crew            (model + previews)
+.\art\build_interior.ps1 -Pod pod_2v_conical_crew -Export    (also export for Unity)
 ```
 
-Copy the exported `Mk13Interior.fbx`, `materials.json` and the textures into `Assets/IVA/Interiors/Mk13`, run **IVA > Set Up Interiors**, then **Build for Player**. Or just tell me what to change.
+Then run **IVA > Set Up Interiors** and **Build for Player**. Or just tell me what to change.
 
 ## Credits and licence
 

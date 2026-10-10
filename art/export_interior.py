@@ -20,6 +20,8 @@ depsgraph = bpy.context.evaluated_depsgraph_get()
 
 # ---------------------------------------------------------------- bake every mesh/curve into world-space meshes
 baked = {}
+for o in [o for o in scene.objects if o.name.startswith("REF_")]:   # preview-only stand-ins of the game's kerbals
+    bpy.data.objects.remove(o, do_unlink=True)
 sources = [o for o in scene.objects if o.type in {"MESH", "CURVE"}]
 for obj in sources:
     ev = obj.evaluated_get(depsgraph)

@@ -1,15 +1,17 @@
 # Status: iva-redux
 
 **Last updated:** 2026-10-10
-**Version / milestone:** 0.6.0 + Mk1 (1v) interior (unreleased) · KSP2 Redux 26w41a
-**Health:** 🟡 Mk1-3 works in game; Mk1 (1v) built but untested in game. Open bug: one native crash in the game's camera rig right after entering IVA (see `notes/2026-10-10-first-test.md`).
+**Version / milestone:** 0.6.0 + pose-fitted Mk1 and Mk1-3 interiors (unreleased) · KSP2 Redux 26w41a
+**Health:** 🟡 Both interiors rebuilt round the game's seated poses; built, not yet seen in game. Open bug: one native crash in the game's camera rig right after entering IVA (see `notes/2026-10-10-first-test.md`).
 
 ## Next steps
-0. **Test the new Mk1 (1v) interior:** fly a `pod_1v_conical_crew`, press C. Check the porthole lines up with the pod's real
-   window (catalogue Yaw 180) and the eye height; tune with the numpad and report the values.
-1. Re-test the Mk1-3: measurement fix + Yaw 180 change its placement (was oversized by the audio-box collider).
-2. Investigate the camera-rig crash (`/bugfix`): IVA moves the flight camera while the game's rig raycasts terrain.
-3. Next interiors, each bespoke with renders first: 1.5v, 3v, cupola, landers, cockpits.
+0. **Test both reworked interiors in game** (C in a 1v and a full Mk1-3): couches should sit under the kerbals, the
+   console fill the view straight up, windows line up with the hull's. Check whether the game's own stick/pedal
+   meshes (`IVA_Cockpit_Controls`) also show; if so, drop our hand controllers.
+1. Investigate the camera-rig crash (`/bugfix`): IVA moves the flight camera while the game's rig raycasts terrain.
+2. Next interiors, each bespoke with renders first: 1.5v, 3v, cupola, landers, cockpits. Enter IVA in each once
+   first so the pose dump captures its seated kerbals, then run `pose_extract.py` on the capture.
+3. Before release: decide whether to keep the pose dump (`CustomInterior.DumpPoses`) or put it behind a setting.
 
 Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then `.\scripts\build-mod.ps1 -Project iva-redux`
 (about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).
@@ -22,6 +24,13 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – Reworked the Mk1 and Mk1-3 interiors round the game's real seated poses. The mod now dumps the posed
+  kerbals once per pod type (`IVA-pose/<part>.obj`); `pose_extract.py` turns that into couch profiles, eyes, hands.
+  Shared `art/capsule.py` (hull, windows, hatch, pose-fitted couches, console surfaces, overlap-checked layouts).
+  Mk1: ceiling console above the face inside a crown of instruments. Mk1-3: new spec from the real hull and windows;
+  Apollo-style three-section console over the crew, side consoles, couch frame, lockers, tanks, docking hatch.
+  Previews `previews/mk1_*.png`, `previews/mk13_*.png`; exported, set up (35 / 37 materials) and built.
+- 2026-10-10 – Camera now uses the game's `IVA EyeTransform`; only your own kerbal's head is hidden (body stays).
 - 2026-10-10 – Bespoke Mk1 (1v) interior: reclined form-fit couch, horseshoe panel with the porthole in its centre, periscope
   display, foil-blanket walls, bolted side hatch. Built to the real hull (extracted from the game), overlap-checked panel layout,
   EEVEE previews in `previews/mk1_*.png`. Exported to `Interiors/Conical1v`, set up (34 materials) and built; catalogue entry added.

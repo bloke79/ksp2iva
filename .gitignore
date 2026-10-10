@@ -21,3 +21,6 @@ Thumbs.db
 
 # Release zips
 dist/
+
+# Python bytecode
+__pycache__/

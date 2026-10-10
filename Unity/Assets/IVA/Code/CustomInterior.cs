@@ -387,6 +387,67 @@ namespace IVA
             }
             log.LogInfo(Eyes.Count > 0 ? $"IVA: using the game's eye points for {Eyes.Count} seated kerbal(s)."
                                        : "IVA: no usable game eye points; using the interior's seat points.");
+            DumpPoses(log);
+        }
+
+        // Development aid: writes the seated kerbals' posed meshes (pod space, Unity axes) to an OBJ once per pod type,
+        // so interiors can be modelled around the real poses. Output: <persistentDataPath>/IVA-pose/<pod>.obj.
+        private void DumpPoses(ILogger log)
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(Application.persistentDataPath, "IVA-pose");
+                string file = System.IO.Path.Combine(dir, Pod.name.Replace("(Clone)", "").Trim() + ".obj");
+                if (System.IO.File.Exists(file) || EyeKerbals.Count == 0) return;
+                System.IO.Directory.CreateDirectory(dir);
+                var sb = new System.Text.StringBuilder();
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                int vbase = 1, parts = 0;
+                Transform pod = Pod.transform;
+                for (int s = 0; s < EyeKerbals.Count; s++)
+                {
+                    Vector3 e = pod.InverseTransformPoint(Eyes[s].position);
+                    sb.AppendLine(string.Format(ci, "# seat {0} eye {1:F4} {2:F4} {3:F4} fwd {4:F3} {5:F3} {6:F3}", s, e.x, e.y, e.z,
+                        pod.InverseTransformDirection(Eyes[s].forward).x, pod.InverseTransformDirection(Eyes[s].forward).y, pod.InverseTransformDirection(Eyes[s].forward).z));
+                    foreach (Renderer r in EyeKerbals[s].GetComponentsInChildren<Renderer>(true))
+                    {
+                        Mesh mesh = null;
+                        Matrix4x4 m;
+                        if (r is SkinnedMeshRenderer smr)
+                        {
+                            mesh = new Mesh();
+                            smr.BakeMesh(mesh, true);
+                            m = Matrix4x4.TRS(r.transform.position, r.transform.rotation, Vector3.one);
+                        }
+                        else
+                        {
+                            MeshFilter mf = r.GetComponent<MeshFilter>();
+                            if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                            mesh = mf.sharedMesh;
+                            m = r.transform.localToWorldMatrix;
+                        }
+                        Vector3[] v = mesh.vertices;
+                        int[] t = mesh.triangles;
+                        if (v.Length == 0) continue;
+                        sb.AppendLine($"g seat{s}_{r.name.Replace(' ', '_')}");
+                        foreach (Vector3 p in v)
+                        {
+                            Vector3 q = pod.InverseTransformPoint(m.MultiplyPoint3x4(p));
+                            sb.AppendLine(string.Format(ci, "v {0:F4} {1:F4} {2:F4}", q.x, q.y, q.z));
+                        }
+                        for (int i = 0; i + 2 < t.Length; i += 3)
+                            sb.AppendLine($"f {t[i] + vbase} {t[i + 1] + vbase} {t[i + 2] + vbase}");
+                        vbase += v.Length;
+                        parts++;
+                    }
+                }
+                System.IO.File.WriteAllText(file, sb.ToString());
+                log.LogInfo($"IVA: wrote the seated kerbal poses ({parts} meshes) to {file}.");
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning($"IVA: couldn't write the kerbal poses: {ex.Message}");
+            }
         }
 
         // Kerbals are assembled from separate head/hair/helmet/hat/face-decoration parts and a body. Only those

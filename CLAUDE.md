@@ -40,11 +40,11 @@ files (`Code/IVA.asmdef`, `IVA.asset`, `Pipelines/`) back here. Fixes made insid
 ## Commands
 | Task | Command / action |
 |---|---|
-| Textures | `python -I art/texgen.py <textures-dir>` |
-| Model | `python -I art/model_mk13.py <textures-dir> <scratch>/mk13.blend` |
-| Previews | `python -I art/render_mk13.py <scratch>/mk13.blend <renders-dir>` (Cycles, about 3 min per view) |
-| Export | `python -I art/export_mk13.py <scratch>/mk13.blend <export-dir>` |
-| Unity setup | Menu **IVA > Set Up Interiors**. Should report 35 materials and address `IVA/Interior_Mk1-3` |
+| Shared textures | `python -I art/texgen.py <textures-dir>` (into `Interiors/Shared/Textures`) |
+| Model + previews | `.\art\build_interior.ps1 -Pod <part>` (EEVEE previews in `scratch/iva-redux/<part>/renders`) |
+| Export | `.\art\build_interior.ps1 -Pod <part> -Export` (FBX, materials.json, pod textures into `Interiors/<Interior>`) |
+| Pose data | `pose_extract.py <pose.obj> <stock_interior.json> <spec>` (see "Seated poses" below) |
+| Unity setup | Menu **IVA > Set Up Interiors**, or batch `ReduxModBatch.RunMenu -menu "IVA/Set Up Interiors"`. Mk1-3: 37 materials, `IVA/Interior_Mk1-3`; Mk1: 35, `IVA/Interior_pod_1v_conical_crew` |
 | Build | `Assets/IVA/Pipelines/` → **Build for Player** → **Execute** → `<KSP2>\mods\__Testing\IVA\` |
 
 | Sync code to Unity | `.\scripts\sync-to-unity.ps1 -Project iva-redux` (from the workspace root; or `/sync-unity to iva-redux`) |
@@ -56,11 +56,13 @@ The stock game also logs "IVA Portrait…" lines, which aren't ours (the config 
 Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full loop: `workflows/mod-build-test.md`.
 
 ## Design facts that code depends on
-- Blender: metres, Z up, pod base at Z=0, cabin front -Y. Designed for an outer cone with a 1.25 m base radius,
-  0.625 m top radius and 1.95 m height (**the height is assumed**). The FBX is exported with forward -Z, up Y and
-  `bake_space_transform`, so Unity gets Y up and cabin front +Z.
-- Seats `IVA_Seat0..2` are at Blender (0, 0.315, 1.075) and (±0.465, 0.315, 1.075), with identity rotation. Couches are at 0.75 scale.
-- Fit: `sxz = podBaseRadius / 1.25`, `sy = podHeight / 1.95`, each clamped to 0.6–1.6, and made uniform if they're within 8%.
+- Blender: metres, Z up, hull base (`hull_base_y` in the spec) at Z=0, cabin front -Y. With the catalogue's Yaw 180 and
+  `OnHull` placement, Unity part space is (x, z + hull_base_y, y): models are built directly in pod coordinates.
+- **Seated poses:** the game draws its own kerbals lying on their backs, heads to the front (-Y), looking up (+Z), and the
+  camera uses their `IVA EyeTransform`. Couches, consoles and windows are laid out round the spec `pose` block (eyes,
+  couch profile, hands, head) made by `pose_extract.py` from the mod's pose capture
+  (`<LocalLow>/.../IVA-pose/<part>.obj`, written once per pod type on entering IVA; reference copies in
+  `C:\Games\KSP2Mods\reference\poses`, never in the repo). Previews show the captured kerbals as `REF_*` objects, which the exporter drops.
 - The flight camera (`FlightCameraPhysics_Main`) is **never parented** in custom mode. Its pose is set in `LateUpdate` and
   `Camera.onPreCull`. Restore the original pose, FOV and near clip on exit.
 - Blender scripts: `import bpy` must come **before** `bmesh`/`mathutils`.
@@ -85,7 +87,7 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
 - `Assets/Editor/ReduxModBatch.cs` (copied from the workspace `scripts/unity/`) is an editor-only batch helper and doesn't ship.
 
 ## Gotchas
-- Stock KSP2 pods have **no** modelled interiors (ADR-002).
+- Stock interior prefabs (`interior_1v_m1_pod_crew` etc.) do have modelled cabins (seats, sticks, ceiling screens), but they serve the crew portrait camera, not the flight view (ADR-002 still holds for what you see in flight).
 - The original mod's `kerbalCam` cameras are portrait-booth cameras, not cameras inside the pod.
 - The addressables group `addressables_IVA_all` only exists if the mod was created with Mod ID exactly `IVA`.
 - This repo is GPL-3.0, but the licence of Mudkip909's original is still unknown. Check that it's compatible

@@ -125,7 +125,7 @@ def r_in(z):
     return prof[-1][1] - SPEC.get("wall", 0.07)
 
 
-con = SPEC["console"]
+con = SPEC.get("console") or {"z0": zf + span * 0.55, "height": span * 0.3, "depth": span * 0.25}
 con_mid_z = con["z0"] + con["height"] * 0.55
 con_r = r_in(con_mid_z) - con["depth"] * 0.7
 k = max(0.4, min(1.6, span / 1.55))      # size relative to the Mk1-3 cabin
@@ -134,24 +134,35 @@ k = max(0.4, min(1.6, span / 1.55))      # size relative to the Mk1-3 cabin
 sun_data = bpy.data.lights.new("Sun", "SUN"); sun_data.energy = 4.5; sun_data.angle = math.radians(0.6)
 sun = bpy.data.objects.new("Sun", sun_data); scene.collection.objects.link(sun)
 sun.matrix_world = Matrix.Translation((0, 0, 3)) @ (Vector((0.35, -0.75, 0.55)).to_track_quat("Z", "Y").to_matrix().to_4x4())
-for i, (y, f, energy, size) in enumerate(((0.1, 0.92, 32, 0.8), (-0.4, 0.75, 18, 0.5), (0.5, 0.68, 12, 0.6))):
+for i, pl in enumerate(SPEC.get("preview_lights", [])):   # bespoke cabins place their own lamps (loc, dir, energy W, size m)
+    ld = bpy.data.lights.new(f"Preview{i}", "AREA"); ld.energy = pl["energy"]; ld.size = pl.get("size", 0.3); ld.color = (1.0, 0.93, 0.82)
+    lo = bpy.data.objects.new(f"Preview{i}", ld); scene.collection.objects.link(lo)
+    lo.matrix_world = Matrix.Translation(pl["loc"]) @ Vector(pl["dir"]).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+for i, (y, f, energy, size) in enumerate([] if "preview_lights" in SPEC else ((0.1, 0.92, 32, 0.8), (-0.4, 0.75, 18, 0.5), (0.5, 0.68, 12, 0.6))):
     ld = bpy.data.lights.new(f"Cabin{i}", "AREA"); ld.energy = energy * k * k; ld.size = size * k; ld.color = (1.0, 0.93, 0.82)
     lo = bpy.data.objects.new(f"Cabin{i}", ld); scene.collection.objects.link(lo)
     lo.location = (0, y * k, zf + span * f)
     lo.rotation_euler = (math.pi, 0, 0)
-ld = bpy.data.lights.new("ConsoleGlow", "AREA"); ld.energy = 6 * k * k; ld.size = 0.8 * k; ld.color = (0.6, 0.85, 1.0)
-lo = bpy.data.objects.new("ConsoleGlow", ld); scene.collection.objects.link(lo)
-lo.matrix_world = Matrix.Translation((0, -con_r * 0.6, con_mid_z)) @ (Vector((0, 1, 0.4)).to_track_quat("-Z", "Y").to_matrix().to_4x4())
+if "preview_lights" not in SPEC:
+    ld = bpy.data.lights.new("ConsoleGlow", "AREA"); ld.energy = 6 * k * k; ld.size = 0.8 * k; ld.color = (0.6, 0.85, 1.0)
+    lo = bpy.data.objects.new("ConsoleGlow", ld); scene.collection.objects.link(lo)
+    lo.matrix_world = Matrix.Translation((0, -con_r * 0.6, con_mid_z)) @ (Vector((0, 1, 0.4)).to_track_quat("-Z", "Y").to_matrix().to_4x4())
 
 
-def camera(name, loc, target, fov_deg):
+def camera(name, loc, target, fov_deg, up=None):
     cd = bpy.data.cameras.new(name)
     cd.angle = math.radians(fov_deg)
     cd.clip_start = 0.01
     co = bpy.data.objects.new(name, cd)
     scene.collection.objects.link(co)
     d = (Vector(target) - Vector(loc)).normalized()
-    co.matrix_world = Matrix.Translation(loc) @ d.to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    if up is None:
+        rot = d.to_track_quat("-Z", "Y").to_matrix()
+    else:  # explicit screen-up, e.g. a kerbal lying on their back sees the head end at the top of the view
+        z = -d
+        x = Vector(up).cross(z).normalized()
+        rot = Matrix((x, z.cross(x), z)).transposed()
+    co.matrix_world = Matrix.Translation(loc) @ rot.to_4x4()
     return co
 
 
@@ -168,11 +179,15 @@ views = {
 }
 # bespoke designs can place their own cameras: "cameras": {view: {loc, target, fov}}
 for v, c in SPEC.get("cameras", {}).items():
-    views[v] = camera("Cam_" + v, Vector(c["loc"]), Vector(c["target"]), c.get("fov", 80))
+    views[v] = camera("Cam_" + v, Vector(c["loc"]), Vector(c["target"]), c.get("fov", 80), c.get("up"))
 if not ARGS[5:] and "cameras" in SPEC:
-    VIEWS = ["seat"] + list(SPEC["cameras"].keys())
+    VIEWS = list(SPEC["cameras"].keys())
 part = SPEC["part"]
 for v in VIEWS:
+    hide = SPEC.get("cameras", {}).get(v, {}).get("hide", [])   # e.g. your own head in an eye view, as the game hides it
+    for o in scene.objects:
+        if o.name.startswith("REF_"):
+            o.hide_render = any(o.name.startswith(h) for h in hide)
     scene.camera = views[v]
     scene.render.filepath = os.path.join(OUT, f"{part}_{v}.png")
     bpy.ops.render.render(write_still=True)

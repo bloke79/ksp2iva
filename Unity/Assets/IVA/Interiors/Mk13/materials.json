@@ -2,9 +2,10 @@
   "interior": "Mk13Interior",
   "address": "IVA/Interior_Mk1-3",
   "design": {
+    "part": "pod_2v_conical_crew",
     "baseRadius": 1.25,
-    "topRadius": 0.625,
-    "height": 1.95,
+    "topRadius": 0.62,
+    "height": 1.811,
     "seats": 3
   },
   "materials": [
@@ -64,6 +65,54 @@
         0.03500000014901161
       ],
       "metallic": 0.30000001192092896,
+      "roughness": 0.3499999940395355,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Blanket",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.6000000238418579,
+      "roughness": 0.41999998688697815,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "blanket_color.png",
+      "normal": "blanket_normal.png",
+      "normalStrength": 1.0,
+      "tiling": [
+        1.600000023841858,
+        1.600000023841858
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Bottle",
+      "color": [
+        0.2199999988079071,
+        0.41999998688697815,
+        0.30000001192092896
+      ],
+      "metallic": 0.4000000059604645,
       "roughness": 0.3499999940395355,
       "emission": [
         1.0,
@@ -201,30 +250,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Cable",
-      "color": [
-        0.05000000074505806,
-        0.05000000074505806,
-        0.05000000074505806
-      ],
-      "metallic": 0.0,
-      "roughness": 0.6000000238418579,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_Console",
       "color": [
         0.10000000149011612,
@@ -293,30 +318,6 @@
       "tiling": [
         2.5,
         2.5
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_Extinguisher",
-      "color": [
-        0.75,
-        0.05000000074505806,
-        0.03999999910593033
-      ],
-      "metallic": 0.20000000298023224,
-      "roughness": 0.30000001192092896,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
       ],
       "emissionFromTexture": false
     },
@@ -657,6 +658,54 @@
       "emissionFromTexture": true
     },
     {
+      "name": "IVA_Net",
+      "color": [
+        0.30000001192092896,
+        0.3199999928474426,
+        0.20000000298023224
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8999999761581421,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Periscope",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.10000000149011612,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.600000023841858,
+      "texture": "periscope.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
       "name": "IVA_Plate",
       "color": [
         0.800000011920929,
@@ -753,6 +802,30 @@
       "emissionFromTexture": true
     },
     {
+      "name": "IVA_SeatShell",
+      "color": [
+        0.8600000143051147,
+        0.8600000143051147,
+        0.8399999737739563
+      ],
+      "metallic": 0.05000000074505806,
+      "roughness": 0.30000001192092896,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Strap",
       "color": [
         0.11999999731779099,
@@ -761,6 +834,30 @@
       ],
       "metallic": 0.0,
       "roughness": 0.8500000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Tank",
+      "color": [
+        0.7799999713897705,
+        0.7900000214576721,
+        0.800000011920929
+      ],
+      "metallic": 0.699999988079071,
+      "roughness": 0.30000001192092896,
       "emission": [
         1.0,
         1.0,
@@ -799,54 +896,6 @@
         1.0
       ],
       "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_TunnelWhite",
-      "color": [
-        0.8600000143051147,
-        0.8600000143051147,
-        0.8399999737739563
-      ],
-      "metallic": 0.0,
-      "roughness": 0.5,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_WallPadding",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.0,
-      "roughness": 0.8500000238418579,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": "quilt_color.png",
-      "normal": "quilt_normal.png",
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
     }
   ],
   "seats_blender": [
@@ -854,25 +903,32 @@
       "name": "IVA_Seat0",
       "position": [
         0.0,
-        0.3149999976158142,
-        1.0750000476837158
+        -0.1867000013589859,
+        0.7179999947547913
       ]
     },
     {
       "name": "IVA_Seat1",
       "position": [
-        -0.4650000035762787,
-        0.3149999976158142,
-        1.0750000476837158
+        0.621999979019165,
+        -0.1867000013589859,
+        0.7179999947547913
       ]
     },
     {
       "name": "IVA_Seat2",
       "position": [
-        0.4650000035762787,
-        0.3149999976158142,
-        1.0750000476837158
+        -0.621999979019165,
+        -0.1867000013589859,
+        0.7179999947547913
       ]
     }
+  ],
+  "cabinLight": [
+    -0.0,
+    0.95,
+    -0.1,
+    2.6,
+    1.0
   ]
 }
