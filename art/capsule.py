@@ -767,3 +767,41 @@ def reference_kerbals(pose_obj, base_y):
             faces.append([int(t) - base_idx for t in line.split()[1:]][::-1])   # Unity -> Blender is a mirror: keep normals outward
     flush()
     return out
+
+
+def reference_kerbal_copies(pose_obj, base_y, offsets, tag="s"):
+    """Preview stand-ins for pods whose crew aren't in the pod (e.g. the 3v): copies of seat 0 from another pod's capture,
+    moved by each offset (x, y, z) in model space. Objects are REF_<tag><i>_<mesh>."""
+    if not pose_obj or not os.path.exists(pose_obj):
+        print("no pose reference at", pose_obj)
+        return []
+    groups, cur, verts, gi = {}, None, [], {}
+    for line in open(pose_obj):
+        if line.startswith("g "):
+            cur = line[2:].strip()
+            groups[cur] = []
+        elif line.startswith("v "):
+            x, y, z = map(float, line.split()[1:])
+            verts.append((x, z, y - base_y))
+            gi.setdefault(cur, []).append(len(verts) - 1)
+        elif line.startswith("f ") and cur:
+            groups[cur].append([int(t) - 1 for t in line.split()[1:]][::-1])
+    suit = L.material("REF_Suit", (0.85, 0.86, 0.88), rough=0.6)
+    skin = L.material("REF_Skin", (0.45, 0.75, 0.3), rough=0.5)
+    out = []
+    for i, off in enumerate(offsets):
+        for g, faces in groups.items():
+            if not g.startswith("seat0") or not faces:
+                continue
+            idx = sorted({v for f in faces for v in f})
+            remap = {v: k for k, v in enumerate(idx)}
+            me = bpy.data.meshes.new(f"REF_{tag}{i}_{g}")
+            me.from_pydata([(verts[v][0] + off[0], verts[v][1] + off[1], verts[v][2] + off[2]) for v in idx], [], [[remap[v] for v in f] for f in faces])
+            me.validate()
+            obj = bpy.data.objects.new(f"REF_{tag}{i}_{g}", me)
+            obj.data.materials.append(skin if "head" in g else suit)
+            L.link(obj)
+            for poly in me.polygons:
+                poly.use_smooth = True
+            out.append(obj)
+    return out

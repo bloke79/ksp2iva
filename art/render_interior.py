@@ -180,6 +180,11 @@ views = {
 # bespoke designs can place their own cameras: "cameras": {view: {loc, target, fov}}
 for v, c in SPEC.get("cameras", {}).items():
     views[v] = camera("Cam_" + v, Vector(c["loc"]), Vector(c["target"]), c.get("fov", 80), c.get("up"))
+    if "ortho" in c:          # cut-away plan/section views: orthographic, clipped at a plane through the cabin
+        views[v].data.type = "ORTHO"
+        views[v].data.ortho_scale = c["ortho"]
+    if "clip" in c:
+        views[v].data.clip_start = c["clip"]
 if not ARGS[5:] and "cameras" in SPEC:
     VIEWS = list(SPEC["cameras"].keys())
 part = SPEC["part"]

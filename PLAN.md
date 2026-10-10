@@ -32,9 +32,9 @@ views and live instruments, to the standard of the reworked Mk1-3 (deep consoles
 - [x] 1. _(2026-10-10: done. Findings below; the session also hit the open camera-rig crash, now fixed.)_ **Pose capture (Matt, about 2 minutes).** Put a crewed 3v pod on the pad (fill every seat if possible) and press C.
       The mod now captures poses in pods without an interior: it logs the seats, the stock interior it uses, and writes
       `IVA-pose/pod_3v_conical_crew.obj`. Then press C again to leave.
-- [ ] 2. **Spec** `art/pods/pod_3v_conical_crew.json`: hull profile, the six windows (from `window_paint.py`), hatch (measured
+- [x] 2. _(2026-10-10: done; eyes at z 1.0, five seats 0.62 m apart.)_ **Spec** `art/pods/pod_3v_conical_crew.json`: hull profile, the six windows (from `window_paint.py`), hatch (measured
       from the hull), pose block (`pose_extract.py` on the capture), cabin light, preview cameras.
-- [ ] 3. **Layout concept for approval:** a top-down plan and a side section render with the captured kerbals in place,
+- [ ] 3. _(2026-10-10: concept built, renders `previews/mk35_concept_*.png`, awaiting approval.)_ **Layout concept for approval:** a top-down plan and a side section render with the captured kerbals in place,
       showing where everything goes. Proposed layout, to adjust round the real poses:
       - **Lower deck:** the couches on one frame (Apollo style), a wide main display console hung above the faces in
         sections (one per seat), pedestal consoles between couches, side consoles by the two-pane windows, umbilicals.
