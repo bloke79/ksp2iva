@@ -1,25 +1,14 @@
 # Status: iva-redux
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-11
 **Version / milestone:** 0.6.0 + pose-fitted Mk1 and Mk1-3 interiors (unreleased) · KSP2 Redux 26w41a
-**Health:** 🟡 Both interiors rebuilt round the game's seated poses; built, not yet seen in game. Open bug: one native crash in the game's camera rig right after entering IVA (see `notes/2026-10-10-first-test.md`).
+**Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Next steps
-- **Test now (3v, all pods):** the 3v is two decks: the flight deck (5 couches + MDC, and an aft locker/avionics bulkhead
-  with a ladder aisle where the empty back half was) and a tall living deck (kitchen, dining, sleep, hygiene, bike, with the
-  lab and docking station as an upper tier round the wall) in the KSP2 stock-matched look (charcoal/gunmetal, new `IVA/Interior` shader with baked
-  vertex-colour AO, warm deck lights). Check: N switches seats, the 3v view is no longer upside down, B reaches the
-  docking windows, overall brightness (AO floor is `IVA_AO_FLOOR`=0.4, direct strength `_AODirect`=0.45), frame rate.
-  Then: free movement inside the cabin (PLAN.md, deferred until after the polish).
-- **Test now:** window views (B) and live instruments. Check the navball: nose on the horizon facing north should show
-  N at the centre and E to its right; pitching up should bring the blue up from the bottom. If it's mirrored or rolled, say how.
-0. **Test both reworked interiors in game** (C in a 1v and a full Mk1-3): couches should sit under the kerbals, the
-   console fill the view straight up, windows line up with the hull's. Check whether the game's own stick/pedal
-   meshes (`IVA_Cockpit_Controls`) also show; if so, drop our hand controllers.
-1. Investigate the camera-rig crash (`/bugfix`): IVA moves the flight camera while the game's rig raycasts terrain.
-2. Next interiors, each bespoke with renders first: 1.5v, 3v, cupola, landers, cockpits. Enter IVA in each once
-   first so the pose dump captures its seated kerbals, then run `pose_extract.py` on the capture.
-3. Before release: decide whether to keep the pose dump (`CustomInterior.DumpPoses`) or put it behind a setting.
+The prioritised to-do list is in **`BACKLOG.md`**. Top of it:
+1. Matt checks the latest 3v build in game (upstairs fixes, brightness, frame rate, N/B, view orientation).
+2. Tidy the last 3v items (short rib pieces, triangle budget, thin spots).
+3. Moving around inside (unbuckle), then the stock-style pass on the Mk1-3 and Mk1, then cabins and Starlab.
 
 Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then `.\scripts\build-mod.ps1 -Project iva-redux`
 (about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).

@@ -90,12 +90,12 @@ equipment rather than toy blocks.
 - [ ] 5. Test on the 3v first (it has the most room), then the Mk1-3; the Mk1 is too small to be worth it.
 
 ## B. 3v polish (from the in-game screenshot)
-- [ ] 1. **Materials:** woven canvas texture for bags, textured locker finish (seams, grime) instead of flat white plastic,
+- [x] 1. **Materials:** woven canvas texture for bags, textured locker finish (seams, grime) instead of flat white plastic,
       darker neutral colours, less glossy.
-- [ ] 2. **Proportions:** thinner straps and handles, smaller bevels (crisper edges), flatter cargo bags, thinner hazard-striped
+- [x] 2. **Proportions:** thinner straps and handles, smaller bevels (crisper edges), flatter cargo bags, thinner hazard-striped
       rails, slimmer ladder.
-- [ ] 3. **Upper deck dressing:** fewer identical white boxes; vary sizes and types (lockers, drawers, racks with gear).
-- [ ] 4. Renders from the same spots as Matt's screenshot before export.
+- [x] 3. **Upper deck dressing:** fewer identical white boxes; vary sizes and types (lockers, drawers, racks with gear).
+- [x] 4. Renders from the same spots as Matt's screenshot before export.
 
 ## Done when
 - You can unbuckle, move anywhere in the 3v (both decks, up the ladder) without passing through walls or equipment, and
