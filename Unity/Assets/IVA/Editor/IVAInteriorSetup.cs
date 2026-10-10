@@ -171,7 +171,7 @@ namespace IVA.EditorTools
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
             light.range = cl[3];
-            light.intensity = Mathf.Min(cl[4], 0.8f);
+            light.intensity = Mathf.Clamp(cl[4] * 1.6f, 0.6f, 1.4f);   // the cabin lamp now carries the lighting (see IndirectLight)
             light.color = new Color(1f, 0.93f, 0.82f);
             light.shadows = LightShadows.None;
 
@@ -273,8 +273,41 @@ namespace IVA.EditorTools
             return new Color(c[0], c[1], c[2], a).gamma; // Blender stores linear colours; Unity materials take sRGB
         }
 
+        // Inside a closed cabin almost none of the sky's ambient light gets in. The Standard shader scales ambient and
+        // reflected light by its occlusion map, so every interior material gets a flat dark one: the cabin is then lit by
+        // the cabin lamp, its own glowing displays and the sun through the windows, not the daylight outside.
+        private const float IndirectLight = 0.22f;
+        private static Texture2D _dim;
+
+        private static Texture2D DimOcclusion()
+        {
+            if (_dim != null) return _dim;
+            string path = InteriorsRoot + "/Shared/Textures/indirect_dim.png";
+            if (!File.Exists(path))
+            {
+                var t = new Texture2D(4, 4, TextureFormat.RGB24, false, true);
+                byte v = (byte)Mathf.RoundToInt(IndirectLight * 255f);
+                var px = new Color32[16];
+                for (int i = 0; i < 16; i++) px[i] = new Color32(v, v, v, 255);
+                t.SetPixels32(px);
+                File.WriteAllBytes(path, t.EncodeToPNG());
+                AssetDatabase.ImportAsset(path);
+            }
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti != null && (ti.sRGBTexture || ti.mipmapEnabled))
+            {
+                ti.sRGBTexture = false;      // the value is a light factor, not a colour
+                ti.mipmapEnabled = false;
+                ti.SaveAndReimport();
+            }
+            _dim = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            return _dim;
+        }
+
         private static void Configure(Material mat, MatInfo m, string texDir)
         {
+            mat.SetTexture("_OcclusionMap", DimOcclusion());
+            mat.SetFloat("_OcclusionStrength", 1f);
             mat.SetColor("_Color", string.IsNullOrEmpty(m.texture) ? FromLinear(m.color) : Color.white);
             mat.SetFloat("_Metallic", Mathf.Clamp01(m.metallic));
             mat.SetFloat("_Glossiness", Mathf.Clamp01(1f - m.roughness));
@@ -294,7 +327,7 @@ namespace IVA.EditorTools
                 mat.EnableKeyword("_EMISSION");
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 // Blender strengths (up to 6 for lamps) bloom badly in the game's post-processing: scale them down
-                float k = Mathf.Clamp(m.emissionStrength * 0.35f, 0.2f, 2f);
+                float k = Mathf.Clamp(m.emissionStrength * 0.25f, 0.2f, 1.2f);
                 if (m.emissionFromTexture && main != null)
                 {
                     mat.SetTexture("_EmissionMap", main);

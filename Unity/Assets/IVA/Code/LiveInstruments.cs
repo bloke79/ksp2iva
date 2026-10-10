@@ -61,7 +61,7 @@ namespace IVA
                     return byName.TryGetValue($"IVA_Live{role}_{name}", out m) && parent != null
                         ? parent.InverseTransformDirection(m.position - t.position).normalized : Vector3.zero;
                 }
-                if (name.StartsWith("Navball", StringComparison.Ordinal))
+                if (name.IndexOf("navball", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     var b = new Ball
                     {
@@ -72,7 +72,7 @@ namespace IVA
                     { log.LogWarning($"IVA: navball {name} is missing its markers; it won't move."); continue; }
                     li._balls.Add(b);
                 }
-                else if (name.StartsWith("Needle_", StringComparison.Ordinal))
+                else if (name.StartsWith("Needle_", StringComparison.Ordinal))   // the navball's name comes from the module that holds it
                 {
                     Vector3 axis = Dir("Axis"), zero = Dir("Zero"), mid = Dir("Mid");
                     if (axis == Vector3.zero || zero == Vector3.zero || mid == Vector3.zero)
