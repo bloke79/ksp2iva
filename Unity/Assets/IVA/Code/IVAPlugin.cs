@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KSP.Game;
+using KSP.Sim;
 using KSP.Sim.impl;
 using Redux.ExtraModTypes;
 using ReduxLib.Configuration;
@@ -236,7 +237,75 @@ namespace IVA
         private void OnCameraPreCull(Camera cam)
         {
             if (InIva && cam == _flightCam) ApplyPose();
-            else if (InIva && _mode == Mode.CustomInterior && cam != null && cam == _scaledCam) SyncScaledCamera();   // it renders first
+            else if (InIva && _mode == Mode.CustomInterior && _shot == null && cam != null && cam == _scaledCam) SyncScaledCamera();   // it renders first
+        }
+
+        // The IVA camera pose in world (physics) space: seat eye or window view, the player's look, and any glide.
+        private bool ComputeIvaPose(out Vector3 posW, out Quaternion rotW, out float fov)
+        {
+            posW = Vector3.zero;
+            rotW = Quaternion.identity;
+            fov = _fov;
+            if (_mode != Mode.CustomInterior || _session == null || _session.PodTransform == null) return false;
+            Vector3 pos;
+            Quaternion rot;
+            if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return false;
+            rot *= Quaternion.Euler(_pitch, _yawLook, 0f);
+            if (_blend < 1f)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, _blend);
+                pos = Vector3.Lerp(_fromPos, pos, k);
+                rot = Quaternion.Slerp(_fromRot, rot, k);
+                fov = Mathf.Lerp(_fromFov, _fov, k);
+            }
+            Transform pod = _session.PodTransform;
+            posW = pod.TransformPoint(pos);
+            rotW = pod.rotation * rot;
+            return true;
+        }
+
+        // Preferred: hand the game's camera manager our shot, so it places all its cameras itself.
+        private IvaCameraShot _shot;
+
+        private bool TryStartShotOverride()
+        {
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                var space = Game?.UniverseView?.PhysicsSpace;
+                if (cm == null || space == null) return false;
+                if (cm.IsFirstPersonCameraActive) cm.ExitFirstPersonCamera(false);   // Redux's own first-person view
+                // undo any offset an earlier transform-driven IVA left on the camera under its mount
+                _flightCam.transform.localPosition = _origLocalPos;
+                _flightCam.transform.localRotation = _origLocalRot;
+                _shot = new IvaCameraShot(space, ComputeIvaPose, IvaNearClip);
+                cm.SetCameraShotOverride(CameraID.Flight, _shot);
+                cm.RefreshCameraShot(CameraID.Flight);
+                SWLogger.LogInfo("IVA: driving the game's flight camera with the IVA view (camera shot override).");
+                return true;
+            }
+            catch (Exception e)
+            {
+                SWLogger.LogWarning("IVA: couldn't hand the view to the game's camera manager (" + e.Message + "); moving the camera directly instead.");
+                _shot = null;
+                return false;
+            }
+        }
+
+        private void StopShotOverride()
+        {
+            if (_shot == null) return;
+            try
+            {
+                UniverseCameraManager cm = Game?.CameraManager;
+                if (cm != null && cm.GetCameraShotIncludeOverride(CameraID.Flight) == _shot)
+                {
+                    cm.ClearCameraShotOverride(CameraID.Flight);
+                    cm.RefreshCameraShot(CameraID.Flight);
+                }
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: clearing the camera shot override failed: " + e.Message); }
+            _shot = null;
         }
 
         private void ApplyPose()
@@ -248,20 +317,19 @@ namespace IVA
             {
                 if (_session == null) return;
                 _session.ApplyPlacement(Placement());
+                if (_shot != null)
+                {
+                    // the game has placed the cameras from our shot; only keep the close-up clip and the close-vessel
+                    // camera off (the game clamps the main camera's near clip to 0.2 m and turns that camera on)
+                    _flightCam.nearClipPlane = IvaNearClip;
+                    SuppressCloseVesselCamera();
+                    return;
+                }
                 Vector3 pos;
                 Quaternion rot;
-                if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return;
-                rot *= look;
-                float fov = _fov;
-                if (_blend < 1f)
-                {
-                    float k = Mathf.SmoothStep(0f, 1f, _blend);
-                    pos = Vector3.Lerp(_fromPos, pos, k);
-                    rot = Quaternion.Slerp(_fromRot, rot, k);
-                    fov = Mathf.Lerp(_fromFov, _fov, k);
-                }
-                Transform pod = _session.PodTransform;
-                _flightCam.transform.SetPositionAndRotation(pod.TransformPoint(pos), pod.rotation * rot);
+                float fov;
+                if (!ComputeIvaPose(out pos, out rot, out fov)) return;
+                _flightCam.transform.SetPositionAndRotation(pos, rot);
                 _flightCam.fieldOfView = fov;
                 _flightCam.nearClipPlane = IvaNearClip;
                 SyncCompanions(fov, IvaNearClip);
@@ -498,6 +566,7 @@ namespace IVA
             _mode = Mode.CustomInterior;
             if (_hideExterior.Value) _session.HidePodExterior();
             FindCompanionsAndReport();
+            TryStartShotOverride();
             ApplyPose();
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
@@ -706,6 +775,7 @@ namespace IVA
             _loadingFor = null;
             ShowPortraitBody();
 
+            StopShotOverride();
             RestoreCompanions();
             RestoreScaledCamera();
             _exitPod = _session != null ? _session.PodTransform : null;

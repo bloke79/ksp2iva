@@ -67,8 +67,10 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
   moving parts are `IVA_Live_<name>` meshes (exported unmerged as `Mesh_<Material>__Live_<name>`, pivot at origin) with
   `IVA_Live<Role>_<name>` markers (Axis/Zero/Mid for needles; Zenith/North/Axis/Up for the navball). `LiveInstruments.cs`
   drives them from `VesselComponent` telemetry; horizon vectors go through `UniverseView.PhysicsSpace.VectorToPhysics`.
-- The flight camera (`FlightCameraPhysics_Main`) is **never parented** in custom mode. Its pose is set in `LateUpdate` and
-  `Camera.onPreCull`. Restore the original pose, FOV and near clip on exit.
+- **Camera:** custom IVA hands the game a camera shot (`IvaCameraShot`, via `UniverseCameraManager.SetCameraShotOverride
+  (CameraID.Flight, …)`, the mechanism Redux's own first-person camera uses), so the game places the physics, scaled-space,
+  cloud and reflection cameras consistently. The mod only forces the near clip to 0.02 m and keeps the "Close Vessel" camera
+  off in `Camera.onPreCull`. If the override can't be set, it falls back to moving the camera itself (never parented).
 - Blender scripts: `import bpy` must come **before** `bmesh`/`mathutils`.
 
 ## Conventions
