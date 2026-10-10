@@ -728,9 +728,18 @@ def view_markers(w, standoff=0.28, drop=0.0):
 
 def eye_marker(index, seat):
     """IVA_Seat<n> fallback eye point at the game's eye, looking along its forward (the game's own eye is used when found)."""
-    e, f = Vector(seat["eye"]), Vector(seat["fwd"])
-    pitch = math.atan2(-f.z, -f.y)        # identity looks along -Y; Rx(pitch) takes (0,-1,0) to (0,-cos,-sin)
-    return L.seat_marker(index, e, 0.0, pitch)
+    # Full orientation, not just pitch: the marker's -Y is the view direction and its +Z the view's up, which for a kerbal
+    # lying on their back is the head end (-Y, towards the windows). Pitching alone left "up" pointing at the feet, so
+    # the view came out rolled 180 degrees.
+    e, f = Vector(seat["eye"]), Vector(seat["fwd"]).normalized()
+    up = Vector(seat.get("up", (0.0, -1.0, 0.0)))
+    up = (up - f * up.dot(f)).normalized()
+    col_y, col_z = -f, up
+    col_x = col_y.cross(col_z)
+    rot = Matrix((col_x, col_y, col_z)).transposed()
+    m = L.seat_marker(index, e, 0.0, 0.0)
+    m.matrix_world = Matrix.Translation(e) @ rot.to_4x4()
+    return m
 
 
 # ------------------------------------------------------------------ preview-only stand-ins of the game's kerbals

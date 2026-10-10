@@ -5,6 +5,11 @@
 **Health:** 🟡 Both interiors rebuilt round the game's seated poses; built, not yet seen in game. Open bug: one native crash in the game's camera rig right after entering IVA (see `notes/2026-10-10-first-test.md`).
 
 ## Next steps
+- **Test now (3v, all pods):** the 3v is rebuilt as three decks (A: 5 couches + MDC, B: kitchen/dining/sleep/hygiene/bike,
+  C: lab + docking station) in the KSP2 stock-matched look (charcoal/gunmetal, new `IVA/Interior` shader with baked
+  vertex-colour AO, warm deck lights). Check: N switches seats, the 3v view is no longer upside down, B reaches the
+  upper-deck windows, overall brightness (AO floor is `IVA_AO_FLOOR`=0.4, direct strength `_AODirect`=0.45), frame rate.
+  Then: free movement inside the cabin (PLAN.md, deferred until after the polish).
 - **Test now:** window views (B) and live instruments. Check the navball: nose on the horizon facing north should show
   N at the centre and E to its right; pitching up should bring the blue up from the bottom. If it's mirrored or rolled, say how.
 0. **Test both reworked interiors in game** (C in a 1v and a full Mk1-3): couches should sit under the kerbals, the
@@ -26,6 +31,10 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – KSP2 stock-matched art pass: `IVA/Interior` surface shader (AO from vertex colour red; dimmed indirect),
+  Cycles AO bake in `export_interior.py` (0.12 m contact distance, floor 0.4, exported as sRGB; printed faces and emissives
+  skipped), dark wall-panel / gunmetal locker textures, dark cushions, olive canvas. 3v split into three decks with
+  `extra_lights`. 3v `eye_marker` now builds a full basis (fixes the upside-down seat view). All three pods re-exported, set up, built.
 - 2026-10-10 – Camera-rig crash root-caused: moving the flight camera outside the rig's view (old portrait fallback) makes
   the rig's terrain raycast crash natively. Custom IVA now uses a camera shot override (no transform moves); pods without
   an interior use Redux's own first-person camera. 3v pod plan approved; capture shows its crew live in the portrait booth.

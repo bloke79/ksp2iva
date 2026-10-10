@@ -436,6 +436,84 @@ def digits(w=512, h=256):
     _mfd_finish(img, "digits.png")
 
 
+def canvas(size=512, threads=48):
+    """Woven fabric normal map (Nomex/Beta-cloth weave) for bags, sleeping bags and towels."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size * threads
+    warp = np.sin(xx * np.pi * 2) * 0.5 + 0.5
+    weft = np.sin(yy * np.pi * 2) * 0.5 + 0.5
+    over = ((np.floor(xx) + np.floor(yy)) % 2).astype(np.float32)
+    h = over * warp + (1 - over) * weft
+    h += np.random.default_rng(7).normal(0, 0.05, h.shape)
+    gy, gx = np.gradient(h * 1.5)
+    n = np.dstack([-gx, -gy, np.ones_like(h)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "canvas_normal.png")
+
+
+def locker(size=1024, cells=4):
+    """Light grey locker/equipment finish: panel seams, rivets, worn edges and grime (tileable)."""
+    grime = 0.6 * _tile_noise(size, 5, 11) + 0.4 * _tile_noise(size, 19, 12)
+    base = np.array([0.22, 0.23, 0.24])
+    col = base[None, None, :] * (0.82 + 0.25 * grime[..., None])
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    step = size // cells
+    for i in range(cells + 1):
+        for w, c in ((3, (70, 72, 72)), (1, (165, 168, 166))):
+            d.line([(0, i * step + (w == 1) * 3), (size, i * step + (w == 1) * 3)], fill=tuple(int(v * 0.45) for v in c), width=w)
+            d.line([(i * step + (w == 1) * 3, 0), (i * step + (w == 1) * 3, size)], fill=tuple(int(v * 0.45) for v in c), width=w)
+    for i in range(cells):
+        for j in range(cells):
+            for (ox, oy) in ((12, 12), (step - 12, 12), (12, step - 12), (step - 12, step - 12)):
+                x, y = i * step + ox, j * step + oy
+                d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=(70, 72, 74))
+    rng = np.random.default_rng(13)
+    for _ in range(60):
+        x, y = rng.random(2) * size
+        a = rng.random() * math.pi
+        ln = 10 + rng.random() * 60
+        d.line([(x, y), (x + ln * math.cos(a), y + ln * math.sin(a))], fill=(80, 82, 84), width=1)
+    save(img.filter(ImageFilter.GaussianBlur(0.4)), "locker_color.png")
+
+
+def wallpanel(size=1024, cells=2):
+    """Dark blue-grey riveted wall closeout panels (the stock KSP2 cabin look): seams, bolts, brushed streaks, grime."""
+    grime = 0.6 * _tile_noise(size, 4, 21) + 0.4 * _tile_noise(size, 15, 22)
+    streak = np.asarray(Image.fromarray((np.random.default_rng(23).random((size, 8)) * 255).astype(np.uint8)).resize((size, size), Image.BICUBIC)).astype(np.float32) / 255
+    base = np.array([0.19, 0.205, 0.23])
+    col = base[None, None, :] * (0.8 + 0.3 * grime[..., None]) * (0.95 + 0.08 * streak[..., None])
+    h = np.zeros((size, size), np.float32)
+    step = size // cells
+    yy, xx = np.mgrid[0:size, 0:size]
+    for i in range(cells + 1):
+        for a in (xx, yy):
+            seam = np.abs(a - i * step) < 4
+            h[seam] -= 1.0
+            col[seam] *= 0.45
+    rng = np.random.default_rng(24)
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    hd = Image.fromarray(((h * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8))
+    dh = ImageDraw.Draw(hd)
+    for i in range(cells):
+        for j in range(cells):
+            for (ox, oy) in ((18, 18), (step - 18, 18), (18, step - 18), (step - 18, step - 18), (step // 2, 18), (step // 2, step - 18)):
+                x, y = i * step + ox, j * step + oy
+                d.ellipse([x - 7, y - 7, x + 7, y + 7], fill=(58, 62, 68))
+                d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=(30, 32, 36))
+                dh.ellipse([x - 7, y - 7, x + 7, y + 7], fill=200)
+            if rng.random() < 0.6:   # stencil placard
+                x, y = i * step + int(step * 0.15), j * step + int(step * (0.6 + 0.2 * rng.random()))
+                d.rectangle([x, y, x + int(step * 0.3), y + 14], fill=(90, 92, 88))
+                d.rectangle([x + 4, y + 4, x + int(step * 0.22), y + 9], fill=(40, 42, 44))
+    save(img.filter(ImageFilter.GaussianBlur(0.5)), "wallpanel_color.png")
+    ha = np.asarray(hd.filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32) / 255 + grime * 0.15
+    gy, gx = np.gradient(ha * 4.0)
+    n = np.dstack([-gx, -gy, np.ones_like(ha)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "wallpanel_normal.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -446,7 +524,7 @@ ALL = {
     "gauge_alt_face": lambda: gauge("gauge_alt_face.png", "ALT km", None),
     "gauge_press_face": lambda: gauge("gauge_press_face.png", "ATM kPa x10", None),
     "gauge_temp_face": lambda: gauge("gauge_temp_face.png", "TEMP K x100", None),
-    "cabin_reflection": cabin_reflection, "panel": panel,
+    "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,

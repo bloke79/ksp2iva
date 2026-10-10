@@ -31,12 +31,12 @@ import props as P  # noqa: E402
 G.materials()
 
 M = L.M
-M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.5, metal=0.35, uv_scale=(2.2, 2.2))
-M["shell"] = L.material("IVA_SeatShell", (0.86, 0.86, 0.84), rough=0.3, metal=0.05)
+M["blanket"] = L.material("IVA_WallPanel", tex="wallpanel_color.png", normal="wallpanel_normal.png", rough=0.55, metal=0.3, uv_scale=(1.0, 1.0), normal_strength=0.8)
+M["shell"] = L.material("IVA_SeatShell", (0.22, 0.23, 0.25), rough=0.4, metal=0.55)
 M["bottle"] = L.material("IVA_Bottle", (0.22, 0.42, 0.30), rough=0.35, metal=0.4)
 M["tank"] = L.material("IVA_Tank", (0.78, 0.79, 0.80), rough=0.3, metal=0.7)
 M["periscope"] = L.material("IVA_Periscope", tex="periscope.png", rough=0.1, emit=1.6, emit_tex=True)
-M["canvas"] = L.material("IVA_Canvas", (0.55, 0.52, 0.42), rough=0.92)
+M["canvas"] = L.material("IVA_Canvas", (0.27, 0.28, 0.23), rough=0.92, normal="canvas_normal.png", uv_scale=(6.0, 6.0), normal_strength=0.8)
 M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["net"] = L.material("IVA_Net", (0.30, 0.32, 0.20), rough=0.9)
 P.materials()
@@ -48,7 +48,9 @@ H = SPEC["hatch"]
 HATCH_PHI, HATCH_HALF = C.rad(-H["angle"]), C.rad(H["half_deg"])
 EYE_Z = SEATS[0]["eye"][2]
 FLOOR = C.Z_FLOOR
-DECK_Z = 2.15                     # upper deck platform
+DECK_Z = 2.0                      # deck B (habitation) floor
+DECK_C = 2.88                     # deck C (science and docking) floor
+HOLE_B = (0.15, 0.55, 0.2, 0.62)  # ladder opening B -> C: x0, x1, y0, y1
 HOLE_Y0, HOLE_Y1, HOLE_HW = 0.45, 1.0, 0.32   # ladder opening in the deck, behind the couches
 SIDE_PHI0, SIDE_PHI1, SIDE_Z0, SIDE_Z1 = 76, 118, 0.78, 1.18
 
@@ -173,11 +175,12 @@ def build_side_consoles():
         band.check()
 
 
-# ------------------------------------------------------------------ upper deck: platform, ladder, equipment ring, docking station
-def build_upper_deck():
+# ------------------------------------------------------------------ decks: platforms, openings, ladders, ceiling lights
+def platform(name, z, holes):
+    """Grated deck at height z filling the hull, with rectangular openings (x0, x1, y0, y1); rim, radial beams and
+    downlights on its underside (the ceiling of the deck below)."""
     import bmesh
-    rr = C.r_in(DECK_Z) - 0.01
-    # platform: grid of tiles skipping the ladder opening (keeps it simple and solid-looking)
+    rr = C.r_in(z) - 0.01
     tiles = bmesh.new()
     uv = tiles.loops.layers.uv.new("UVMap")
     step = 0.1
@@ -186,54 +189,111 @@ def build_upper_deck():
         for j in range(-k, k):
             x0, y0 = i * step, j * step
             cx, cy = x0 + step / 2, y0 + step / 2
-            if math.hypot(cx, cy) > rr - 0.03 or (abs(cx) < HOLE_HW and HOLE_Y0 < cy < HOLE_Y1):
+            if math.hypot(cx, cy) > rr - 0.03 or any(h[0] < cx < h[1] and h[2] < cy < h[3] for h in holes):
                 continue
-            vs = [tiles.verts.new((x, y, DECK_Z)) for x, y in ((x0, y0), (x0 + step, y0), (x0 + step, y0 + step), (x0, y0 + step))]
+            vs = [tiles.verts.new((x, y, z)) for x, y in ((x0, y0), (x0 + step, y0), (x0 + step, y0 + step), (x0, y0 + step))]
             face = tiles.faces.new(vs)
             for l in face.loops:
                 l[uv].uv = (l.vert.co.x * 1.5, l.vert.co.y * 1.5)
     bmesh.ops.remove_doubles(tiles, verts=tiles.verts, dist=1e-5)
-    L.solidify(L.mesh_obj("DeckPlatform", tiles, [M["floor"]]), 0.03)
-    L.tube("DeckRim", [C.polar(2 * math.pi * j / 96, rr - 0.015, DECK_Z - 0.015) for j in range(97)], 0.02, M["couchframe"])
-    for k2 in range(8):   # radial beams under the deck
+    L.solidify(L.mesh_obj(name, tiles, [M["floor"]]), 0.03)
+    L.tube(name + "Rim", [C.polar(2 * math.pi * j / 96, rr - 0.015, z - 0.015) for j in range(97)], 0.02, M["couchframe"])
+    for k2 in range(8):
         phi = 2 * math.pi * (k2 + 0.5) / 8
-        L.tube(f"DeckBeam{k2}", [C.polar(phi, 0.2, DECK_Z - 0.05), C.polar(phi, rr - 0.02, DECK_Z - 0.05)], 0.022, M["couchframe"])
-    # railing round the ladder opening, and the ladders (floor -> deck behind the couches, deck -> docking tunnel)
-    for x in (-HOLE_HW, HOLE_HW):
-        L.tube(f"HoleRail{x}", [Vector((x, HOLE_Y0, DECK_Z)), Vector((x, HOLE_Y0, DECK_Z + 0.5)), Vector((x, HOLE_Y1 - 0.25, DECK_Z + 0.5)), Vector((x, HOLE_Y1 - 0.25, DECK_Z))], 0.014, M["yellow"])
-    ladder(f"LadderLower", 0.0, HOLE_Y1 - 0.12, FLOOR + 0.5, DECK_Z + 0.6, 0.22)
-    ladder(f"LadderUpper", 0.0, 0.32, DECK_Z, C.Z_TOP - 0.08, 0.2)
-    # docking station: a standing console under the docking windows, facing back into the cabin
-    # facing back and up towards someone standing on the deck; screen-up runs towards the windows
-    up = Vector((0, -0.55, 1)).normalized()
-    s = C.Surface("DockStation", (0, -0.86, DECK_Z + 0.62), (-1, 0, 0), up, 0.7, 0.36, corner=0.03)
+        L.tube(f"{name}Beam{k2}", [C.polar(phi, 0.25, z - 0.05), C.polar(phi, rr - 0.02, z - 0.05)], 0.022, M["couchframe"])
+        p = C.polar(phi + math.pi / 8, rr * 0.55, z - 0.045)
+        L.cylinder(f"{name}Downlight{k2}", 0.04, 0.025, M["ring"], p, segs=20)
+        L.disc(f"{name}DownlightLens{k2}", 0.03, M["light"], p - Vector((0, 0, 0.013)), Matrix.Rotation(math.pi, 3, "X"), segs=20)
+    for h in holes:   # hazard-striped railing round each opening (open on the ladder side)
+        x0, x1, y0, y1 = h
+        P.hazard_rail(f"{name}Rail{h[0]:.2f}", [Vector((x0, y1 - 0.1, z)), Vector((x0, y1 - 0.1, z + 0.45)), Vector((x0, y0, z + 0.45)),
+                                                 Vector((x1, y0, z + 0.45)), Vector((x1, y1 - 0.1, z + 0.45)), Vector((x1, y1 - 0.1, z))], 0.009)
+
+
+def build_decks():
+    platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)])
+    platform("DeckC", DECK_C, [HOLE_B])
+    ladder("LadderAB", 0.0, HOLE_Y1 - 0.12, FLOOR + 0.5, DECK_Z + 0.55, 0.22)
+    ladder("LadderBC", (HOLE_B[0] + HOLE_B[1]) / 2, HOLE_B[3] - 0.06, DECK_Z, DECK_C + 0.5, 0.2)
+    ladder("LadderTunnel", 0.0, 0.3, DECK_C, C.Z_TOP - 0.08, 0.18)
+
+
+# ------------------------------------------------------------------ deck B: kitchen, dining, sleep stations, hygiene, exercise
+def build_hab_deck():
+    D = DECK_Z
+    # kitchen along the front wall: counter cabinets with a worktop, oven, galley, utensils, food lockers above
+    for k, deg in enumerate((-36, -24, -12, 0, 12, 24, 36)):
+        p, b = at(deg, D + 0.2, 0.0)
+        P.cabinet(f"Counter{k}", p, b, 0.28, 0.38, 0.32, doors=1 if k % 2 else 2, top=M["module"])
+    P.oven("Oven", *at(-18, D + 0.52, 0.08))
+    P.galley("Galley", *at(10, D + 0.62, 0.0), w=0.3, h=0.42)
+    P.utensil_rack("Utensils", *at(-30, D + 0.68, 0.0))
+    for k, deg in enumerate((28, 38)):
+        P.cabinet(f"FoodLocker{k}", *at(deg, D + 0.72, 0.0), 0.24, 0.16, 0.18, doors=1)
+    P.table("DiningTable", (0.0, -0.45), r=0.26, h=0.42, floor_z=D)
+    # crew quarters on the left
+    for k, deg in enumerate((-100, -128)):
+        P.sleep_station(f"SleepStation{k}", *at(deg, D + 0.43, 0.0), 0.5, 0.78, 0.3)
+    P.drawer_stack("PersonalLockers", *at(-70, D + 0.25, 0.0), 0.3, 0.4, 4)
+    P.net_with_gear("QuartersNet", *at(-70, D + 0.66, 0.0), 0.34, 0.26)
+    # hygiene on the right, exercise bike on the deck
+    P.toilet("Toilet", *at(100, D + 0.2, 0.0))
+    P.sink("Sink", *at(126, D + 0.5, 0.0))
+    P.towels("Towels", *at(70, D + 0.55))
+    P.bike("Bike", (0.82, 0.22), yaw=0.0, floor_z=D)
+    # back wall round the ladder: stowage nets, cargo, tanks, tool board
+    P.net_with_gear("BackNet", *at(165, D + 0.5, 0.0), 0.4, 0.3)
+    P.cargo_bag("BackBag", *at(196, D + 0.3, 0.0), 0.3, 0.2, 0.12)
+    P.tool_board("ToolBoard", *at(148, D + 0.52), 0.32, 0.3)
+    for side in (-1, 1):
+        p, b = at(side * 175 if side > 0 else -158, D + 0.4, 0.13)
+        L.cylinder(f"HabTank{side}", 0.1, 0.56, M["tank"], p, L.basis(b.col[0], b.col[2], -b.col[1]), segs=28, bevel=0.025)
+        for dz in (-0.18, 0.18):
+            L.torus(f"HabTankStrap{side}{dz}", 0.104, 0.006, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=28, mseg=6)
+    for side in (-1, 1):
+        P.fan(f"HabFan{side}", *at(side * 52, D + 0.72))
+    G.wall("HabPanels", [("lamps", 52, D + 0.5, 0.12, 0.05, {"n": 3}), ("knobs", -52, D + 0.5, 0.14, 0.06, {"n": 3})])
+
+
+# ------------------------------------------------------------------ deck C: science lab and docking station
+def build_lab_deck():
+    D = DECK_C
+    # docking station: a low console between the two docking windows, with a camera and binoculars
+    up = Vector((0, -0.4, 1)).normalized()
+    s = C.Surface("DockStation", (0, -0.86, D + 0.24), (-1, 0, 0), up, 0.3, 0.26, corner=0.02)
     s.build(M["console"], thick=0.03)
-    G.grid(s, "Dock", 6, 3, [
-        ("mfd", 0, 0, 2, 2, {"screen": "mfd_map"}), ("navball", 2, 0, 2, 2, {}), ("mfd", 4, 0, 2, 2, {"screen": "mfd_comms"}),
-        ("toggles", 0, 2, 2, 1, {"cols": 6}), ("dial", 2, 2, 1, 1, {"kind": "alt"}), ("knobs", 3, 2, 1, 1, {"n": 2}), ("annunciators", 4, 2, 2, 1, {"cols": 4, "rows": 2, "start": 8}),
-    ])
+    G.grid(s, "Dock", 2, 2, [("navball", 0, 0, 1, 1, {}), ("mfd", 1, 0, 1, 1, {"screen": "mfd_map"}),
+                             ("toggles", 0, 1, 1, 1, {"cols": 3}), ("annunciators", 1, 1, 1, 1, {"cols": 2, "rows": 2, "start": 8})], border=0.008)
     s.check()
-    G.prism("DockStationBase", [(-0.95, DECK_Z), (-0.7, DECK_Z), (-0.72, DECK_Z + 0.48), (-0.98, DECK_Z + 0.52)], -0.38, 0.38, M["console"])
-    # drawers in the base's back face (towards the cabin)
-    face = L.basis(Vector((-1, 0, 0)), Vector((0, 0.08, 1)).normalized(), Vector((0, 1, -0.08)).normalized())
-    for k in range(3):
-        q = Vector((0, -0.71 + 0.005, DECK_Z + 0.09 + k * 0.13))
-        L.box(f"DockDrawer{k}", (0.66, 0.11, 0.02), M["locker"], q + face.col[2] * 0.01, face, bevel=0.004)
-        L.box(f"DockDrawerHandle{k}", (0.12, 0.014, 0.016), M["handle"], q + face.col[2] * 0.025, face, bevel=0.004)
-        L.box(f"DockDrawerTag{k}", (0.07, 0.03, 0.003), M["btn_soft"], q + face.col[2] * 0.021 + face.col[0] * 0.24, face)
-    # grab handle along the console's top edge, on two posts (so it's fixed to something)
-    a, ba = s.at(-0.28, s.h / 2 - 0.01)
-    c, bc = s.at(0.28, s.h / 2 - 0.01)
-    L.tube("DockGrabBar", [a, a + ba.col[2] * 0.06, c + bc.col[2] * 0.06, c], 0.01, M["yellow"])
+    G.prism("DockStationBase", [(-0.98, D), (-0.78, D), (-0.8, D + 0.16), (-1.0, D + 0.2)], -0.16, 0.16, M["console"])
+    w = next(w for w in C.WINDOWS if w["name"] == "DockingR")
+    p, b = at(math.degrees(w["phi"]) + 14, w["z"] + 0.02, 0.02)
+    P.camera("DockCamera", p, b, lens_dir=(C.polar(w["phi"], C.r_in(w["z"]) + 0.2, w["z"]) - p))
+    P.binoculars("Binoculars", *at(-math.degrees(w["phi"]) - 15, D + 0.4))
+    # lab: glovebox, microscope bench with a laptop, freezer, goo rack, experiment racks, sample table
+    P.glovebox("Glovebox", *at(62, D + 0.25, 0.0), 0.42, 0.32, 0.28)
+    P.cabinet("MicroscopeBench", *at(-62, D + 0.16, 0.0), 0.36, 0.3, 0.28, doors=2, top=M["module"])
+    P.microscope("Microscope", *at(-58, D + 0.36, 0.06))
+    P.laptop("LabLaptop", *at(-80, D + 0.48), arm=0.24, screen="mfd_systems")
+    P.freezer("SampleFreezer", *at(100, D + 0.22, 0.0), 0.3, 0.36, 0.26)
+    P.science_rack("GooRack", *at(-104, D + 0.32), 0.3, 0.5)
+    P.drawer_stack("SampleDrawers", *at(135, D + 0.22, 0.0), 0.28, 0.36, 4)
+    P.whiteboard("LabBoard", *at(-140, D + 0.4), 0.3, 0.22)
+    G.wall("LabRacks", [("mfd", 160, D + 0.42, 0.2, 0.2, {"screen": "mfd_engine"}), ("breakers", -165, D + 0.3, 0.24, 0.11, {"cols": 8, "rows": 2}),
+                        ("annunciators", 160, D + 0.18, 0.2, 0.08, {"cols": 6, "rows": 2, "start": 4})], inset=0.04)
+    P.sample_table("SampleTable", (-0.4, -0.25), D)
+    P.headset("Headset", *at(-35, D + 0.45))
+    for side in (-1, 1):
+        P.fan(f"LabFan{side}", *at(side * 120, D + 0.62))
 
 
 def ladder(name, x, y, z0, z1, w):
     for side in (-1, 1):
-        L.tube(f"{name}Rail{side}", [Vector((x + side * w / 2, y, z0)), Vector((x + side * w / 2, y, z1))], 0.014, M["rib"])
+        L.tube(f"{name}Rail{side}", [Vector((x + side * w / 2, y, z0)), Vector((x + side * w / 2, y, z1))], 0.01, M["rib"])
     n = int((z1 - z0) / 0.25)
     for k in range(1, n + 1):
         z = z0 + k * (z1 - z0) / (n + 1)
-        L.tube(f"{name}Rung{k}", [Vector((x - w / 2, y, z)), Vector((x + w / 2, y, z))], 0.011, M["yellow"])
+        L.tube(f"{name}Rung{k}", [Vector((x - w / 2, y, z)), Vector((x + w / 2, y, z))], 0.008, M["yellow"])
 
 
 # ------------------------------------------------------------------ mission kit: what a crew of five lives and works with
@@ -244,48 +304,6 @@ def at(deg, z, inset=0.0):
 def flat(x, y, z):
     """Frame lying on a floor at (x, y, z): normal up, 'up' towards the cabin front."""
     return Vector((x, y, z)), L.basis(Vector((1, 0, 0)), Vector((0, -1, 0)), Vector((0, 0, 1)))
-
-
-def build_upper_kit():
-    D = DECK_Z
-    # living: sleeping bags either side of the docking station, galley at the back, hygiene kit
-    for side in (-1, 1):
-        P.sleeping_bag(f"SleepingBag{side}", *at(side * 50, D + 0.47))
-    P.galley("Galley", *at(180, D + 0.45))
-    P.towels("Hygiene", *at(-143, D + 0.5))
-    P.bungee("Exerciser", *at(-33, D + 0.42))
-    # work: science rack, laptop station with whiteboard and headset, tool board
-    P.science_rack("ScienceRack", *at(78, D + 0.4))
-    P.laptop("Laptop", *at(-78, D + 0.62), arm=0.28, screen="mfd_map")
-    P.whiteboard("FlightPlan", *at(-78, D + 0.92))
-    P.headset("Headset", *at(-66, D + 0.62))
-    P.tool_board("ToolBoard", *at(143, D + 0.5))
-    # supplies: lockers with cargo bags above, gas tanks, cargo bags strapped to the deck
-    for side in (-1, 1):
-        for phi in (105, 128):
-            p, b = at(side * phi, D + 0.28, 0.12)
-            G.box_unit(f"UpperLocker{side}{phi}", p, (0.3, 0.2, 0.36), L.basis(b.col[0], -b.col[2], b.col[1]), lamps_n=2)
-            P.cargo_bag(f"UpperBag{side}{phi}", *at(side * phi, D + 0.68), 0.28, 0.2, 0.14)
-        p, b = at(side * 161, D + 0.4, 0.14)
-        L.cylinder(f"UpperTank{side}", 0.12, 0.6, M["tank"], p, L.basis(b.col[0], b.col[2], -b.col[1]), segs=28, bevel=0.03)
-        for dz in (-0.2, 0.2):
-            L.torus(f"UpperTankStrap{side}{dz}", 0.125, 0.006, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=28, mseg=6)
-        for k in range(2):
-            P.cargo_bag(f"DeckBag{side}{k}", *flat(side * (0.75 + 0.02 * k), 0.15 + k * 0.32, D + 0.015), 0.34, 0.28, 0.18)
-            L.box(f"DeckBagStrap{side}{k}", (0.38, 0.03, 0.2), M["strap"], (side * (0.75 + 0.02 * k), 0.15 + k * 0.32, D + 0.11), bevel=0.004)
-    # docking: binoculars by the windows, a camera bracketed at the right docking window
-    P.binoculars("Binoculars", *at(33, D + 0.45))
-    w = next(w for w in C.WINDOWS if w["name"] == "DockingR")
-    p, b = at(math.degrees(w["phi"]) + 8, w["z"] - 0.24, 0.02)
-    P.camera("DockCamera", p, b, lens_dir=(C.polar(w["phi"], C.r_in(w["z"]) + 0.2, w["z"]) - p))
-    # high ring: avionics panels and cabin fans above everything
-    G.wall("UpperHigh", [
-        ("breakers", 62, D + 1.05, 0.26, 0.12, {"cols": 9, "rows": 2}), ("annunciators", -62, D + 1.05, 0.22, 0.09, {"cols": 6, "rows": 2, "start": 2}),
-        ("vent", 100, D + 1.0, 0.22, 0.12, {"slots": 6}), ("knobs", -100, D + 1.0, 0.22, 0.08, {"n": 4}),
-        ("lamps", 145, D + 1.0, 0.16, 0.05, {"n": 4}), ("breakers", -145, D + 1.0, 0.22, 0.11, {"cols": 8, "rows": 2}),
-    ])
-    for side in (-1, 1):
-        P.fan(f"CabinFan{side}", *at(side * 122, D + 0.98))
 
 
 def build_lower_kit():
@@ -306,7 +324,7 @@ def build_lower_kit():
         c, _ = at(side * 145, 1.3, 0.0)
         a2, _ = at(side * 145, 0.9, 0.05)
         c2, _ = at(side * 145, 1.3, 0.05)
-        L.tube(f"Handrail{side}", [a, a2, c2, c], 0.012, M["yellow"])
+        P.hazard_rail(f"Handrail{side}", [a, a2, c2, c], 0.009)
     # the zero-g indicator, hanging from the console hood where the commander can see it
     P.plush("ZeroGIndicator", Vector((0.22, MDC_Y + MDC_H / 2 + 0.02, MDC_Z - 0.06)), length=0.12)
 
@@ -351,13 +369,14 @@ build_mdc()
 build_lower_deck()
 build_side_consoles()
 C.build_hatch(HATCH_PHI, HATCH_HALF, H["z0"], H["z1"])
-build_upper_deck()
+build_decks()
 build_walls()
-build_upper_kit()
+build_hab_deck()
+build_lab_deck()
 build_lower_kit()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
-print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; deck at {DECK_Z:.2f}")
+print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; decks at {DECK_Z:.2f} and {DECK_C:.2f}")
 L.save(OUT)

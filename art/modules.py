@@ -304,7 +304,13 @@ def box_unit(name, centre, size, rot=None, vents=True, lamps_n=2):
     from mathutils import Matrix as Mx, Vector as V
     rot = rot or Mx.Identity(3)
     c = V(centre)
-    L.box(name, size, M["locker"], c, rot, bevel=0.008)
+    L.box(name, size, M["locker"], c, rot, bevel=0.003)
+    # door: a seam round the front and two hinges on the left
+    fr = rot @ V((0, -1, 0))
+    L.box(name + "Seam", (size[0] * 0.9, 0.002, size[2] * 0.88), M["ring"], c + fr * (size[1] / 2 + 0.0005), rot)
+    L.box(name + "Door", (size[0] * 0.88, 0.004, size[2] * 0.86), M["locker"], c + fr * (size[1] / 2 + 0.002), rot, bevel=0.001)
+    for sz in (-0.3, 0.3):
+        L.cylinder(f"{name}Hinge{sz}", 0.006, 0.03, M["toggle"], c + fr * (size[1] / 2 + 0.004) + (rot @ V((-size[0] * 0.45, 0, size[2] * sz))), rot, segs=10)
     front = rot @ V((0, -1, 0))
     up = rot @ V((0, 0, 1))
     right = rot @ V((1, 0, 0))
@@ -315,5 +321,5 @@ def box_unit(name, centre, size, rot=None, vents=True, lamps_n=2):
     if lamps_n:
         lamps(name + "Lamps", p - up * size[2] * 0.28, b, min(0.08, size[0] * 0.5), 0.03, lamps_n)
     for sx in (-1, 1):
-        L.tube(f"{name}Handle{sx}", [p + right * sx * size[0] * 0.42 + up * size[2] * 0.3, p + right * sx * size[0] * 0.42 + up * size[2] * 0.3 + front * 0.025,
-                                   p + right * sx * size[0] * 0.42 - up * size[2] * 0.3 + front * 0.025, p + right * sx * size[0] * 0.42 - up * size[2] * 0.3], 0.005, M["handle"])
+        L.tube(f"{name}Handle{sx}", [p + right * sx * size[0] * 0.42 + up * size[2] * 0.2, p + right * sx * size[0] * 0.42 + up * size[2] * 0.2 + front * 0.018,
+                                   p + right * sx * size[0] * 0.42 - up * size[2] * 0.2 + front * 0.018, p + right * sx * size[0] * 0.42 - up * size[2] * 0.2], 0.0035, M["handle"])

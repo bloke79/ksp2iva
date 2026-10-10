@@ -50,6 +50,7 @@ namespace IVA.EditorTools
             public string address;
             public MatInfo[] materials;
             public float[] cabinLight;   // optional: x, y, z (Unity space, metres), range, intensity
+            public float[] extraLights;  // optional: more lamps, 5 floats each as above (no shadows)
         }
 
         [MenuItem("IVA/Set Up Interiors")]
@@ -112,8 +113,9 @@ namespace IVA.EditorTools
             string matDir = dir + "/Materials";
             if (!AssetDatabase.IsValidFolder(matDir)) AssetDatabase.CreateFolder(dir, "Materials");
             var materials = new Dictionary<string, Material>();
-            Shader standard = Shader.Find("Standard");
-            if (standard == null) throw new Exception("The Standard shader isn't available in this project.");
+            // IVA/Interior: Standard lighting plus baked vertex AO and a dimmed indirect level (Assets/IVA/Shaders).
+            Shader standard = Shader.Find("IVA/Interior") ?? Shader.Find("Standard");
+            if (standard == null) throw new Exception("Neither IVA/Interior nor the Standard shader is available in this project.");
             foreach (MatInfo m in sheet.materials)
             {
                 string path = $"{matDir}/{m.name}.mat";
@@ -203,6 +205,20 @@ namespace IVA.EditorTools
                 probe.boxProjection = false;
                 probe.intensity = 1f;
             }
+
+            if (sheet.extraLights != null)
+                for (int i = 0; i + 4 < sheet.extraLights.Length; i += 5)
+                {
+                    var go = new GameObject($"IVA_DeckLight{i / 5}");
+                    go.transform.SetParent(inst.transform, false);
+                    go.transform.localPosition = new Vector3(sheet.extraLights[i], sheet.extraLights[i + 1], sheet.extraLights[i + 2]);
+                    var l = go.AddComponent<Light>();
+                    l.type = LightType.Point;
+                    l.range = sheet.extraLights[i + 3];
+                    l.intensity = Mathf.Clamp(sheet.extraLights[i + 4] * 1.6f, 0.4f, 1.4f);
+                    l.color = new Color(1f, 0.9f, 0.76f);
+                    l.shadows = LightShadows.None;
+                }
 
             string prefabPath = $"{dir}/{sheet.interior}.prefab";
             PrefabUtility.SaveAsPrefabAsset(inst, prefabPath);
@@ -311,8 +327,17 @@ namespace IVA.EditorTools
 
         private static void Configure(Material mat, MatInfo m, string texDir)
         {
-            mat.SetTexture("_OcclusionMap", DimOcclusion());
-            mat.SetFloat("_OcclusionStrength", 1f);
+            if (mat.shader.name == "IVA/Interior")
+            {
+                mat.SetFloat("_Indirect", IndirectLight);
+                mat.SetFloat("_AOStrength", 1f);
+                mat.SetFloat("_AODirect", m.emissionStrength > 0f ? 0f : 0.45f);   // screens and lamps aren't shaded
+            }
+            else
+            {
+                mat.SetTexture("_OcclusionMap", DimOcclusion());
+                mat.SetFloat("_OcclusionStrength", 1f);
+            }
             mat.SetColor("_Color", string.IsNullOrEmpty(m.texture) ? FromLinear(m.color) : Color.white);
             mat.SetFloat("_Metallic", Mathf.Clamp01(m.metallic));
             mat.SetFloat("_Glossiness", Mathf.Clamp01(1f - m.roughness));

@@ -140,17 +140,67 @@ seats = [{"name": o.name, "position": list(o.matrix_world.translation)}
          for o in sorted([o for o in scene.objects if o.name.startswith("IVA_Seat")], key=lambda o: o.name)]
 prof = sorted(SPEC["profile"])
 # cabin light in Unity space (Blender x, y, z -> Unity -x, z, -y), with range and intensity
+extra_lights = []
+for xl in SPEC.get("extra_lights", []):   # more lamps for big cabins (e.g. one per deck)
+    extra_lights += [-xl["position"][0], xl["position"][2], -xl["position"][1], xl.get("range", 2.0), xl.get("intensity", 0.8)]
 cl = SPEC.get("cabin_light")
 cabin_light = ([-cl["position"][0], cl["position"][2], -cl["position"][1], cl.get("range", 2.6), cl.get("intensity", 1.0)]
                if cl else [0.0, 1.55, 0.0, 2.6, 1.0])
 with open(os.path.join(OUT, "materials.json"), "w") as f:
     json.dump({"interior": NAME, "address": SPEC["address"],
                "design": {"part": SPEC["part"], "baseRadius": prof[0][1], "topRadius": prof[-1][1], "height": prof[-1][0], "seats": SPEC["seats"]},
-               "materials": mats, "seats_blender": seats, "cabinLight": cabin_light}, f, indent=2)
+               "materials": mats, "seats_blender": seats, "cabinLight": cabin_light, "extraLights": extra_lights}, f, indent=2)
 print("materials", len(mats))
+
+# ---------------------------------------------------------------- bake ambient occlusion into vertex colours
+# The IVA/Interior shader reads it (red channel) to darken seams, recesses and contact points. Cycles on the CPU
+# (the GPU has hard-crashed Matt's PC under long loads); IVA_SKIP_AO=1 skips it for quick exports.
+DECALS = ("GaugeFace", "Gauge_", "Plate", "Hazard", "Labels", "Keys", "Digits", "Annunciators", "MFD_", "Screen", "Navball",
+          "Periscope", "Whiteboard", "Button", "Light", "Net", "Marker")
+
+
+def bake_ao():
+    import addon_utils
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    sc.cycles.samples = int(os.environ.get("IVA_AO_SAMPLES", "48"))
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new("AOWorld")
+    sc.world.light_settings.distance = float(os.environ.get("IVA_AO_DISTANCE", "0.12"))   # contact shadows, not room-scale occlusion
+    floor = float(os.environ.get("IVA_AO_FLOOR", "0.4"))
+    meshes = [o for o in coll.objects if o.type == "MESH"]
+    for o in meshes:
+        me = o.data
+        if "AO" not in me.color_attributes:
+            me.color_attributes.new(name="AO", type="BYTE_COLOR", domain="CORNER")
+        me.color_attributes.active_color = me.color_attributes["AO"]
+    for i, o in enumerate(meshes):
+        bpy.ops.object.select_all(action="DESELECT")
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+        mat = o.data.materials[0] if o.data.materials else None
+        glow = mat is not None and mat.node_tree is not None and any(
+            n.type == "BSDF_PRINCIPLED" and n.inputs["Emission Strength"].default_value > 0 for n in mat.node_tree.nodes)
+        decal = mat is not None and any(k in mat.name for k in DECALS)
+        if glow or decal:   # screens, lamps, printed faces and thin decals: no AO
+            for d in o.data.color_attributes["AO"].data:
+                d.color = (1, 1, 1, 1)
+            continue
+        bpy.ops.object.bake(type="AO", target="VERTEX_COLORS", use_clear=True)
+        for d in o.data.color_attributes["AO"].data:   # keep it a shading accent: never darker than `floor`
+            v = floor + (1.0 - floor) * d.color[0]
+            d.color = (v, v, v, 1.0)
+    print("baked AO on", len(meshes), "meshes")
+
+
+if os.environ.get("IVA_SKIP_AO") != "1":
+    bake_ao()
 
 bpy.ops.export_scene.fbx(
     filepath=os.path.join(OUT, f"{NAME}.fbx"),
+    colors_type="SRGB",   # AO is authored perceptually; the shader reads it as-is
     use_selection=False,
     object_types={"MESH", "EMPTY"},
     axis_forward="-Z", axis_up="Y",

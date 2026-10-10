@@ -106,30 +106,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Blanket",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.3499999940395355,
-      "roughness": 0.5,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": "blanket_color.png",
-      "normal": "blanket_normal.png",
-      "normalStrength": 1.0,
-      "tiling": [
-        1.600000023841858,
-        1.600000023841858
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_Bottle",
       "color": [
         0.2199999988079071,
@@ -300,9 +276,9 @@
     {
       "name": "IVA_Canvas",
       "color": [
-        0.550000011920929,
-        0.5199999809265137,
-        0.41999998688697815
+        0.27000001072883606,
+        0.2800000011920929,
+        0.23000000417232513
       ],
       "metallic": 0.0,
       "roughness": 0.9200000166893005,
@@ -313,11 +289,11 @@
       ],
       "emissionStrength": 0.0,
       "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "normal": "canvas_normal.png",
+      "normalStrength": 0.800000011920929,
       "tiling": [
-        1.0,
-        1.0
+        6.0,
+        6.0
       ],
       "emissionFromTexture": false
     },
@@ -372,9 +348,9 @@
     {
       "name": "IVA_Cushion",
       "color": [
-        0.8799999952316284,
-        0.3400000035762787,
-        0.05000000074505806
+        0.30000001192092896,
+        0.10999999940395355,
+        0.07000000029802322
       ],
       "metallic": 0.0,
       "roughness": 0.75,
@@ -756,24 +732,24 @@
     {
       "name": "IVA_Locker",
       "color": [
-        0.550000011920929,
-        0.5600000023841858,
-        0.550000011920929
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
       ],
-      "metallic": 0.20000000298023224,
-      "roughness": 0.6000000238418579,
+      "metallic": 0.15000000596046448,
+      "roughness": 0.6200000047683716,
       "emission": [
         1.0,
         1.0,
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "locker_color.png",
+      "normal": "panel_normal.png",
+      "normalStrength": 0.5,
       "tiling": [
-        1.0,
-        1.0
+        1.5,
+        1.5
       ],
       "emissionFromTexture": false
     },
@@ -1044,12 +1020,12 @@
     {
       "name": "IVA_SeatShell",
       "color": [
-        0.8600000143051147,
-        0.8600000143051147,
-        0.8399999737739563
+        0.2199999988079071,
+        0.23000000417232513,
+        0.25
       ],
-      "metallic": 0.05000000074505806,
-      "roughness": 0.30000001192092896,
+      "metallic": 0.550000011920929,
+      "roughness": 0.4000000059604645,
       "emission": [
         1.0,
         1.0,
@@ -1184,6 +1160,30 @@
         1.0
       ],
       "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_WallPanel",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.30000001192092896,
+      "roughness": 0.550000011920929,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "wallpanel_color.png",
+      "normal": "wallpanel_normal.png",
+      "normalStrength": 0.800000011920929,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
     }
   ],
   "seats_blender": [
@@ -1218,5 +1218,6 @@
     -0.3,
     2.2,
     0.6
-  ]
+  ],
+  "extraLights": []
 }
