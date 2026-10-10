@@ -11,12 +11,11 @@ All code was written against stub DLLs in a cloud sandbox. The 10 riskiest assum
 in rough order of risk (details in `notes/2026-10-10-claude-ai-handoff.md` §4).
 
 ## Steps
-- [~] 1. **Compile.** _(2026-10-10: compiles outside Unity against the real DLLs after one fix. See
-      `notes/2026-10-10-verification.md`. It still needs to compile inside the SDK project.)_ Set up the SDK project, create mod `IVA`, copy `Unity/Assets/IVA` in, and fix API mismatches
+- [x] 1. **Compile.** _(2026-10-10: clean in the SDK project after the `ILogger` alias and the asmdef Addressables references.)_ Set up the SDK project, create mod `IVA`, copy `Unity/Assets/IVA` in, and fix API mismatches
       (`Assets.Load`, `PartBehavior.Name`, `Module_CrewedInterior.crew`/`IsProbe`,
       `ViewController.GetActiveSimVessel`/`GetBehaviorIfLoaded`, `GameState.FlightView`, `KeyboardShortcut`,
       `ConfigValue<T>`, `RangeConstraint<T>`). Log each fix in `notes/api-corrections.md` and copy fixed files back here.
-- [ ] 2. **Editor setup.** Check the asmdef references (`Unity.Addressables`, `.Editor`, `Unity.ResourceManager`).
+- [x] 2. _(2026-10-10: 35 materials, address set. Visual prefab check still open.)_ **Editor setup.** Check the asmdef references (`Unity.Addressables`, `.Editor`, `Unity.ResourceManager`).
       Run **IVA > Set Up Interiors**, expect 35 materials and address `IVA/Interior_Mk1-3`. Check the prefab
       is upright with its front facing +Z, then look from `IVA_Seat0`.
 - [ ] 3. **First flight.** Build for Player, launch, put a Mk1-3 on the pad and press C. Collect all `IVA` log lines into

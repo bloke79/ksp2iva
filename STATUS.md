@@ -5,10 +5,12 @@
 **Health:** 🟢 compiles against the real KSP2 Redux DLLs, and assets validated (`notes/2026-10-10-verification.md`). Not yet run in game.
 
 ## Next steps
-1. Set up the Redux SDK project (README › One-off setup), create the mod with ID `IVA`, then
-   `/sync-unity to iva-redux`. Expect a clean compile. Only the Addressables editor calls are unproven.
-2. Run **IVA > Set Up Interiors**, then inspect the prefab from a seat transform.
-3. Build for Player, fly a Mk1-3 and press C. Save the `IVA` log lines to `notes/`.
+1. **First in-game test (Matt):** launch KSP2 through the Redux Launcher, put a Mk1-3 on the pad, press **C**. Try V,
+   mouse look, scroll zoom, and exits (map, EVA, vessel switch). Then `/log-triage iva-redux first-test`.
+2. Tune yaw, scale and eye with the numpad (save with 5), then bake the defaults into `InteriorCatalogue`.
+
+Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then `.\scripts\build-mod.ps1 -Project iva-redux`
+(about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).
 
 ## In progress
 - Nothing yet. The project was imported from `_strip/` with the claude.ai handoff in `notes/`.
@@ -20,6 +22,9 @@
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – SDK project `C:\Games\KSP2Mods\IVA` (26w41a, Unity 6000.6.0f1) created and set up. Mod `IVA` created, source synced,
+  real Unity compile clean after adding Addressables refs to `IVA.asmdef`. Set Up Interiors: 35 materials, address `IVA/Interior_Mk1-3`.
+  Build for Player → `<KSP2>\mods\__Testing\IVA` (DLL, swinfo 0.6.0, catalogue includes the interior, 2.6 MB bundle).
 - 2026-10-10 – Verified against the installed game (26w41a): runtime and editor code compile; `Assets.Load`, `crew`,
   render pipeline and flight camera confirmed; FBX, materials and textures validated. Fixed the `ILogger` ambiguity.
 - 2026-10-10 – Pushed to https://github.com/MattAtAstralas/ksp2iva (private), on top of the existing LICENSE commit.

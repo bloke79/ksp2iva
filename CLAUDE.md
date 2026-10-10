@@ -77,6 +77,13 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
   screenshots for any visual change before calling it done.
 - Style: KSP-flavoured, Apollo-inspired.
 
+## Unity SDK project (set up 2026-10-10)
+- `C:\Games\KSP2Mods\IVA`: template 26w41a, **Unity 6000.6.0f1** (must match the game). Created with `redux-sdk-cli`
+  (`C:\Games\KSP2Mods\tools\`). Batch logs are in `C:\Games\KSP2Mods\tools\*.log`.
+- **Patched by hand:** `Assets/IVA/Code/IVA.asmdef` has `"references": ["Unity.Addressables", "Unity.ResourceManager"]` added
+  (the SDK generates it without them, and `Assets.Load` won't compile). Redo this if the asmdef is ever regenerated.
+- `Assets/Editor/ReduxModBatch.cs` (copied from the workspace `scripts/unity/`) is an editor-only batch helper and doesn't ship.
+
 ## Gotchas
 - Stock KSP2 pods have **no** modelled interiors (ADR-002).
 - The original mod's `kerbalCam` cameras are portrait-booth cameras, not cameras inside the pod.
