@@ -389,18 +389,41 @@ namespace IVA
                                        : "IVA: no usable game eye points; using the interior's seat points.");
         }
 
-        // Hides the kerbal you're looking out of (so you don't see the inside of your own head) and shows the others.
-        public void ShowSeat(int seat, bool hideOwnBody)
+        // Kerbals are assembled from separate head/hair/helmet/hat/face-decoration parts and a body. Only those
+        // head parts are hidden for the kerbal you're looking out of, so you still see your own body and hands.
+        private static readonly string[] HeadParts = { "head", "hair", "helm", "hat_", "deco_face", "glasses", "eye", "brow", "lash", "teeth", "tongue" };
+
+        private static bool IsHeadPart(Renderer r, Transform kerbalRoot)
+        {
+            for (Transform t = r.transform; t != null && t != kerbalRoot; t = t.parent)
+            {
+                string n = t.name.ToLowerInvariant();
+                if (n.Contains("body")) return false;
+                if (HeadParts.Any(h => n.Contains(h))) return true;
+            }
+            return false;
+        }
+
+        // Hides the head of the kerbal you're looking out of (so you don't see the inside of it) and shows everyone else.
+        public void ShowSeat(int seat, bool hideOwnHead, ILogger log = null)
         {
             foreach (Renderer r in _hiddenBody) if (r != null) r.enabled = true;
             _hiddenBody.Clear();
-            if (!hideOwnBody || seat < 0 || seat >= EyeKerbals.Count || EyeKerbals[seat] == null) return;
-            foreach (Renderer r in EyeKerbals[seat].GetComponentsInChildren<Renderer>(false))
+            if (!hideOwnHead || seat < 0 || seat >= EyeKerbals.Count || EyeKerbals[seat] == null) return;
+            Transform root = EyeKerbals[seat].transform;
+            Renderer[] all = root.GetComponentsInChildren<Renderer>(false);
+            foreach (Renderer r in all)
+                if (r.enabled && IsHeadPart(r, root)) _hiddenBody.Add(r);
+            if (_hiddenBody.Count == 0 && seat < Eyes.Count && Eyes[seat] != null)
             {
-                if (!r.enabled) continue;
-                r.enabled = false;
-                _hiddenBody.Add(r);
+                // fallback: anything centred close to the eye
+                foreach (Renderer r in all)
+                    if (r.enabled && Vector3.Distance(r.bounds.center, Eyes[seat].position) < 0.18f) _hiddenBody.Add(r);
             }
+            foreach (Renderer r in _hiddenBody) r.enabled = false;
+            if (log != null)
+                log.LogInfo($"IVA: hid {_hiddenBody.Count} of {all.Length} renderers for seat {seat + 1}: " +
+                            string.Join(", ", _hiddenBody.Select(r => r.name)) + ". All: " + string.Join(", ", all.Select(r => r.name)));
         }
 
         public void ApplyCamera(Camera cam, int seat, Quaternion look, Vector3 eyeOffset, float fov, float nearClip)
