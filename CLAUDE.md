@@ -8,6 +8,9 @@ Read first: `STATUS.md` (where things stand) → `PLAN.md` (current plan) →
 `notes/2026-10-10-claude-ai-handoff.md` (full design and history from the claude.ai session) →
 `README.md` (user guide) / `CHANGES.md` (version history).
 
+**Repo:** https://github.com/MattAtAstralas/ksp2iva (private, `main`, GPL-3.0). This folder is its own git
+repo, separate from the rest of the workspace.
+
 _Imported 2026-10-10 from `_strip/`. Everything before that was written in a cloud sandbox with
 **stub DLLs**: none of it has been compiled against the real game or run in game._
 
@@ -72,4 +75,5 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
 - Stock KSP2 pods have **no** modelled interiors (ADR-002).
 - The original mod's `kerbalCam` cameras are portrait-booth cameras, not cameras inside the pod.
 - The addressables group `addressables_IVA_all` only exists if the mod was created with Mod ID exactly `IVA`.
-- Licence of the original is unknown. Check it before any public release.
+- This repo is GPL-3.0, but the licence of Mudkip909's original is still unknown. Check that it's compatible
+  before making the repo public or releasing.
