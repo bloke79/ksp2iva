@@ -263,6 +263,7 @@ namespace IVA
                 _flightCam.transform.SetPositionAndRotation(pod.TransformPoint(pos), pod.rotation * rot);
                 _flightCam.fieldOfView = fov;
                 _flightCam.nearClipPlane = IvaNearClip;
+                SyncCompanions(fov, IvaNearClip);
                 return;
             }
 
@@ -494,6 +495,7 @@ namespace IVA
             _seatIndex = 0;
             _mode = Mode.CustomInterior;
             if (_hideExterior.Value) _session.HidePodExterior();
+            FindCompanionsAndReport();
             ApplyPose();
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
@@ -557,6 +559,69 @@ namespace IVA
             _fov = Mathf.Clamp(_defaultFov.Value, MinFov(), MaxFov());
         }
 
+        // Cameras that move with the flight camera (children, or siblings sitting on it). If the game draws some layers
+        // with a second camera, it must get our field of view, near clip and pose too, or what it draws won't line up.
+        private class Companion { public Camera Cam; public bool Child; public float Fov, Near; public Vector3 LocalPos; public Quaternion LocalRot; }
+        private readonly List<Companion> _companions = new List<Companion>();
+
+        private static string Layers(int mask)
+        {
+            var names = new List<string>();
+            for (int i = 0; i < 32; i++)
+                if ((mask & (1 << i)) != 0) { string n = LayerMask.LayerToName(i); names.Add(string.IsNullOrEmpty(n) ? i.ToString() : $"{i}:{n}"); }
+            return names.Count == 32 ? "everything" : string.Join(",", names);
+        }
+
+        private void FindCompanionsAndReport()
+        {
+            _companions.Clear();
+            Transform ft = _flightCam.transform;
+            var lines = new List<string>();
+            foreach (Camera c in FindObjectsByType<Camera>())
+            {
+                if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
+                bool child = c != _flightCam && c.transform.IsChildOf(ft);
+                bool onIt = c != _flightCam && !child && Vector3.Distance(c.transform.position, ft.position) < 0.05f;
+                string role = c == _flightCam ? "FLIGHT" : child ? "child" : onIt ? "co-located" : "other";
+                lines.Add($"{role} '{c.name}' depth {c.depth} clear {c.clearFlags} near {c.nearClipPlane:F2} far {c.farClipPlane:F0} fov {c.fieldOfView:F0} layers [{Layers(c.cullingMask)}]");
+                if (child || onIt)
+                    _companions.Add(new Companion { Cam = c, Child = child, Fov = c.fieldOfView, Near = c.nearClipPlane, LocalPos = c.transform.localPosition, LocalRot = c.transform.localRotation });
+            }
+            SWLogger.LogInfo("IVA: cameras: " + string.Join(" | ", lines));
+            if (_session != null && _session.PodTransform != null)
+            {
+                Vector3 c0 = _session.PodTransform.position;
+                var byLayer = FindObjectsByType<Renderer>()
+                    .Where(r => r != null && r.enabled && Vector3.Distance(r.bounds.center, c0) < 4f)
+                    .GroupBy(r => r.gameObject.layer)
+                    .Select(g => $"{g.Key}:{LayerMask.LayerToName(g.Key)} x{g.Count()} ({string.Join(", ", g.Take(6).Select(r => r.name))})");
+                SWLogger.LogInfo("IVA: renderers within 4 m of the pod by layer: " + string.Join(" | ", byLayer));
+            }
+        }
+
+        private void SyncCompanions(float fov, float near)
+        {
+            foreach (Companion c in _companions)
+            {
+                if (c.Cam == null) continue;
+                c.Cam.fieldOfView = fov;
+                c.Cam.nearClipPlane = near;
+                if (!c.Child) c.Cam.transform.SetPositionAndRotation(_flightCam.transform.position, _flightCam.transform.rotation);
+            }
+        }
+
+        private void RestoreCompanions()
+        {
+            foreach (Companion c in _companions)
+            {
+                if (c.Cam == null) continue;
+                c.Cam.fieldOfView = c.Fov;
+                c.Cam.nearClipPlane = c.Near;
+                if (!c.Child) { c.Cam.transform.localPosition = c.LocalPos; c.Cam.transform.localRotation = c.LocalRot; }
+            }
+            _companions.Clear();
+        }
+
         private void SaveFlightCamera()
         {
             Transform t = _flightCam.transform;
@@ -573,6 +638,7 @@ namespace IVA
             _loadingFor = null;
             ShowPortraitBody();
 
+            RestoreCompanions();
             _exitPod = _session != null ? _session.PodTransform : null;
             if (_session != null)
             {
