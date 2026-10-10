@@ -152,14 +152,18 @@ def module_panel(name, p, b, w, h, cols, rows, items, depth=0.03):
     return s
 
 
-def rack(room, wall, z, kind, name, w=0.9, seed=0):
-    """One equipment rack on a side wall at position z along the module. Kinds: workstation, glovebox, freezer,
-    stowage, life, comms."""
+def rack(room, wall, z, kind, name, w=None, seed=0, h=None, across=0.0):
+    """One equipment rack on any surface at position z along the module. Kinds: workstation, glovebox, freezer,
+    stowage, life, comms, experiment, tools. On a side wall it runs the room height; on the floor or ceiling it spans
+    most of the width and `h` along the module."""
     rnd = random.Random(seed)
-    W, H = room.size(wall)
-    h = H - 0.12
-    u = room.u_of_z(wall, z)
-    p, b = room.frame(wall, u, 0)
+    if wall in ("port", "stbd"):
+        w = w or 0.9
+        h = h or (room.yc - room.yf) - 0.12
+    else:
+        w = w or 2 * room.xw - 0.3
+        h = h or 0.9
+    p, b = bay_frame(room, wall, z, across)
     rack_frame(name, p, b, w, h)
     top = h / 2
 
@@ -202,6 +206,14 @@ def rack(room, wall, z, kind, name, w=0.9, seed=0):
             c = at(-h / 2 + 0.2, 0.11, du=du)
             L.cylinder(f"{name}Tank{k}", 0.09, 0.3, M["tank"], c, L.basis(b.col[0], b.col[2], -b.col[1]) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=24, bevel=0.03)
         S.grille(name + "Vent", at(top - 0.1, 0.0), b, w - 0.2, 0.12)
+    elif kind == "experiment":
+        for k, du in enumerate((-w * 0.25, w * 0.25)):
+            P.science_rack(f"{name}Goo{k}", at(0.05, 0.0, du=du), b, min(0.36, w * 0.4), h - 0.3)
+        module_panel(name + "Panel", at(top - 0.1), b, w - 0.1, 0.14, 4, 1, [
+            ("annunciators", 0, 0, 2, 1, {"cols": 4, "rows": 2, "start": 3}), ("lamps", 2, 0, 1, 1, {"n": 3}), ("toggles", 3, 0, 1, 1, {"cols": 3})])
+    elif kind == "tools":
+        P.tool_board(name + "Tools", at(0.1, 0.0, du=-w * 0.22), b, min(0.4, w * 0.45), h - 0.3)
+        P.drawer_stack(name + "Drawers", at(0.0, 0.0, du=w * 0.25), b, min(0.36, w * 0.4), h - 0.3, 3)
     else:   # stowage
         P.drawer_stack(name + "Drawers", at(0.15, 0.0), b, w - 0.16, 0.5, 5)
         P.cargo_bag(name + "Bag", at(-h / 2 + 0.22, 0.0, du=-0.18), b, 0.36, 0.26, 0.2)
@@ -502,3 +514,267 @@ def dress_room(room, seed=1):
     for wall in ("port", "stbd"):
         wall_run(room, wall, room.size(wall)[1] / 2 - 0.16, clear, f"Run_{wall}")
     return dress(room, seed=seed)
+
+
+
+# ------------------------------------------------------------------ zero g: every surface is a work surface
+def bay_frame(room, wall, z, across=0.0, lift=0.0):
+    """Point and basis at a bay on any of the four long surfaces: z along the module, `across` the surface."""
+    if wall in ("port", "stbd"):
+        return room.frame(wall, room.u_of_z(wall, z), across, lift)
+    return room.frame(wall, across, z - room.zm, lift)
+
+
+def quarters(room, wall, z, name, length=0.92, depth=0.34, inset=0.36):
+    """A crew-quarters booth on any surface (the ISS Node 2 kind): framed bunk, sleeping bag, curtain, lamp, locker.
+    Side-wall booths run the room height less the floor and ceiling booths; floor and ceiling booths span the width
+    less the side booths."""
+    p, b = bay_frame(room, wall, z)
+    if wall in ("port", "stbd"):
+        w, h = length, (room.yc - room.yf) - 2 * inset
+    else:
+        w, h = 2 * room.xw - 2 * inset, length
+    P.sleep_station(name, p, b, w, h, depth)
+    S.cbox(name + "Back", (w, h, 0.012), M["locker"], p + b.col[2] * 0.006, b, ch=0.0)
+    for sx in (-1, 1):   # handrails either side of the opening
+        q = p + b.col[0] * sx * (w / 2 + 0.05)
+        L.tube(f"{name}Rail{sx}", [q - b.col[1] * h * 0.3, q - b.col[1] * h * 0.3 + b.col[2] * 0.06, q + b.col[1] * h * 0.3 + b.col[2] * 0.06,
+                                   q + b.col[1] * h * 0.3], 0.01, M["yellow"])
+
+
+def foot_loop(name, centre, surface_n, along):
+    """A yellow foot-restraint loop on a surface (centre on the surface, normal into the room)."""
+    n, a = Vector(surface_n).normalized(), Vector(along).normalized()
+    c = Vector(centre)
+    p0, p1 = c - a * 0.17, c + a * 0.17
+    L.tube(name, [p0, p0 + n * 0.055, p1 + n * 0.055, p1], 0.01, M["yellow"])
+    for k, q in enumerate((p0, p1)):
+        L.cylinder(f"{name}Foot{k}", 0.02, 0.012, M["frame_dark"], q + n * 0.006, n.to_track_quat("Z", "Y").to_matrix(), segs=10)
+
+
+def feet_of(seat):
+    """Where a seated-pose kerbal's feet are: 0.4 m forward and 0.45 m down (along its up) from the hips."""
+    up, f = Vector(seat["up"]).normalized(), Vector(seat["fwd"]).normalized()
+    return hip_of(seat["eye"], seat["fwd"], seat["up"]) + f * 0.4 - up * 0.45, up, f
+
+
+def foot_loops(room, seats, name="FootLoop"):
+    """A foot loop on the room surface nearest each crew position's feet (when the feet are near one)."""
+    planes = [(Vector((0, 1, 0)), lambda q: q.y - room.yf), (Vector((0, -1, 0)), lambda q: room.yc - q.y),
+              (Vector((1, 0, 0)), lambda q: q.x + room.xw), (Vector((-1, 0, 0)), lambda q: room.xw - q.x),
+              (Vector((0, 0, 1)), lambda q: q.z - room.z0), (Vector((0, 0, -1)), lambda q: room.z1 - q.z)]
+    for i, s in enumerate(seats):
+        feet, up, f = feet_of(s)
+        n, dist = min(((n, d(feet)) for n, d in planes), key=lambda t: abs(t[1]))
+        if abs(dist) > 0.25:
+            continue
+        along = up.cross(f)
+        if along.length < 0.1 or abs(along.normalized().dot(n)) > 0.9:
+            along = n.cross(f)
+        foot_loop(f"{name}{i}", feet - n * dist, n, along)
+
+
+def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
+    """Hygiene compartment: an enclosed room on a surface. p, b: centre of its back on the surface and the basis
+    (right, up, normal into the cabin); w x h on the surface, d deep. Inside: toilet with thigh bars, foot loop, wash
+    station with mirror, towels and wipes, light, fan, handrail. The door leaf is a separate part pivoting on its
+    hinge (IVA_Live_Door...) so it can be made to open later; the frame, sign and vacant lamp are fixed."""
+    r, u, n = b.col[0], b.col[1], b.col[2]
+    rot = L.basis(r, u, n)
+    door_h = door_h or min(h - 0.2, 1.45)
+    for sx in (-1, 1):
+        S.cbox(f"{name}Side{sx}", (0.03, h, d + back_ext), M["locker"], p + r * sx * (w / 2 - 0.015) + n * (d - back_ext) / 2, rot, ch=0.0)
+    for sy in (-1, 1):
+        S.cbox(f"{name}Cap{sy}", (w, 0.03, d + back_ext), M["locker"], p + u * sy * (h / 2 - 0.015) + n * (d - back_ext) / 2, rot, ch=0.0)
+    S.cbox(name + "BackPanel", (w - 0.06, h - 0.06, 0.02), M["blanket"], p + n * 0.01, rot, ch=0.0)
+    # front with the door opening to one side, so the hinge has a jamb
+    fz = p + n * (d - 0.015)
+    dx = -w / 2 + 0.08 + door_w / 2
+    dy = -h / 2 + 0.08 + door_h / 2
+    right_w = w / 2 - (dx + door_w / 2)
+    S.cbox(name + "FrontR", (right_w, h, 0.03), M["locker"], fz + r * (w / 2 - right_w / 2), rot, ch=0.0)
+    S.cbox(name + "FrontL", (0.08, h, 0.03), M["locker"], fz + r * (-w / 2 + 0.04), rot, ch=0.0)
+    top_h = h / 2 - (dy + door_h / 2)
+    S.cbox(name + "FrontTop", (door_w, top_h, 0.03), M["locker"], fz + r * dx + u * (h / 2 - top_h / 2), rot, ch=0.0)
+    S.cbox(name + "FrontSill", (door_w, 0.08, 0.03), M["locker"], fz + r * dx + u * (-h / 2 + 0.04), rot, ch=0.0)
+    for k, (cx, cy, fw, fh) in enumerate(((dx - door_w / 2 - 0.02, dy, 0.04, door_h + 0.08), (dx + door_w / 2 + 0.02, dy, 0.04, door_h + 0.08),
+                                         (dx, dy + door_h / 2 + 0.02, door_w + 0.08, 0.04), (dx, dy - door_h / 2 - 0.02, door_w + 0.08, 0.04))):
+        S.cbox(f"{name}DoorFrame{k}", (fw, fh, 0.05), M["frame"], fz + r * cx + u * cy + n * 0.01, rot, ch=0.008)
+    hinge = fz + r * (dx - door_w / 2) + u * dy + n * 0.005
+    leaf = L.box(f"IVA_Live_Door{name}", (door_w - 0.01, door_h - 0.01, 0.025), M["locker"], hinge, rot, bevel=0.004, segs=1)
+    for v in leaf.data.vertices:   # origin on the hinge line
+        v.co.x += (door_w - 0.01) / 2
+    for k in range(2):
+        L.cylinder(f"{name}Hinge{k}", 0.012, 0.06, M["buckle"], hinge + u * (door_h * 0.35 * (1 if k else -1)), L.basis(r, n, u) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=10)
+    dc = fz + r * dx + u * dy + n * 0.025
+    L.box(name + "DoorPanel", (door_w - 0.12, door_h * 0.4, 0.006), M["frame_dark"], dc + u * door_h * 0.15, rot, bevel=0.002)
+    for i in range(6):
+        L.box(f"{name}Louvre{i}", (door_w - 0.16, 0.012, 0.01), M["frame_dark"], dc - u * (door_h * 0.28 + i * 0.024), rot)
+    hq = dc + r * (door_w / 2 - 0.08)
+    L.tube(name + "Handle", [hq + u * 0.08, hq + u * 0.08 + n * 0.035, hq - u * 0.08 + n * 0.035, hq - u * 0.08], 0.009, M["yellow"])
+    sign = fz + r * dx + u * (dy + door_h / 2 + 0.11) + n * 0.02
+    L.box(name + "Sign", (0.2, 0.08, 0.008), M["frame"], sign, rot, bevel=0.002)
+    L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["light"], sign + r * 0.06 + n * 0.006, rot, bevel=0.002)
+    L.box(name + "SignTag", (0.09, 0.025, 0.004), M["btn_soft"], sign - r * 0.03 + n * 0.006, rot)
+    # inside
+    tq = p + u * (-h / 2 + 0.32) + r * 0.08
+    P.toilet(name + "Toilet", tq, b)
+    for sx in (-1, 1):
+        L.tube(f"{name}ThighBar{sx}", [tq + r * sx * 0.16 + n * 0.3 + u * 0.12, tq + r * sx * 0.16 + n * 0.42 + u * 0.12,
+                                       tq + r * sx * 0.16 + n * 0.42 + u * 0.3], 0.01, M["frame"])
+    foot_loop(name + "FootLoop", p + u * (-h / 2 + 0.03) + n * (d * 0.65), u, r)
+    side_r = L.basis(n, u, -r)
+    wp = p + r * (w / 2 - 0.035) + n * (d * 0.45) + u * 0.12
+    P.sink(name + "Wash", wp, side_r)
+    L.box(name + "Wipes", (0.1, 0.06, 0.05), M["btn_soft"], wp + u * 0.3 - r * 0.03, side_r, bevel=0.01)
+    side_l = L.basis(-n, u, r)
+    P.towels(name + "Towels", p - r * (w / 2 - 0.035) + n * (d * 0.5) + u * 0.2, side_l)
+    L.tube(name + "Rail", [p - r * (w / 2 - 0.03) + n * 0.15 + u * 0.4, p - r * (w / 2 - 0.08) + n * 0.15 + u * 0.4,
+                           p - r * (w / 2 - 0.08) + n * 0.55 + u * 0.4, p - r * (w / 2 - 0.03) + n * 0.55 + u * 0.4], 0.009, M["yellow"])
+    S.light_fixture(name + "Light", p + u * (h / 2 - 0.03) + n * (d / 2), L.basis(r, n, -u), w=0.26, h=0.07)
+    P.fan(name + "Fan", p + u * (h / 2 - 0.25) - r * 0.18, b)
+
+
+def rail_table(name, p, b, w=0.5, l=0.4, stand=0.55):
+    """Zero-g table on a surface (ISS galley style): a top on a short post with a handrail round it, a strapped
+    food tray and a drink bag. p, b: point on the surface and its basis; `stand` is the top's height off the surface."""
+    r, u, n = b.col[0], b.col[1], b.col[2]
+    rot = L.basis(r, u, n)
+    top = p + n * stand
+    S.cbox(name + "Top", (w, l, 0.035), M["frame"], top, rot, ch=0.012)
+    S.cbox(name + "Inset", (w - 0.08, l - 0.08, 0.006), M["frame_dark"], top + n * 0.019, rot, ch=0.0)
+    S.cbox(name + "Post", (0.08, 0.08, stand - 0.02), M["frame"], p + n * (stand / 2), rot, ch=0.016)
+    S.cbox(name + "Base", (0.24, 0.24, 0.025), M["frame_dark"], p + n * 0.0125, rot, ch=0.008)
+    ring = [top + r * sx * (w / 2 + 0.04) + u * sy * (l / 2 + 0.04) + n * 0.03 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    S.sweep(name + "Rail", ring, [n] * 4, S.chamfer_rect(0.02, 0.02, 0.005), M["yellow"], closed=True)
+    for k, q in enumerate(ring):
+        L.cylinder(f"{name}RailPost{k}", 0.008, 0.035, M["frame"], q - n * 0.017, n.to_track_quat("Z", "Y").to_matrix(), segs=8)
+    tray_c = top + n * 0.024
+    L.box(name + "Tray", (0.3, 0.2, 0.012), M["frame_dark"], tray_c, rot, bevel=0.004, segs=1)
+    tiles = ((0, 0.5, 0.5, 1), (0.5, 0.5, 1, 1), (0, 0, 0.5, 0.5), (0.5, 0, 1, 0.5))
+    for k, (dx, dy) in enumerate(((-0.07, -0.045), (0.03, -0.045), (-0.07, 0.045), (0.03, 0.045))):
+        cq = tray_c + r * dx + u * dy + n * 0.017
+        L.box(f"{name}Cup{k}", (0.08, 0.075, 0.022), M["frame"], cq, rot, bevel=0.006, segs=1)
+        L.plane(f"{name}Food{k}", 0.068, 0.063, M["food_tex"], cq + n * 0.0115, rot, uv_rect=tiles[k])
+    for sx in (-1, 1):
+        L.box(f"{name}TrayStrap{sx}", (0.018, 0.22, 0.014), M["strap"], tray_c + r * sx * 0.14 + n * 0.002, rot, bevel=0.003)
+    L.box(name + "Drink", (0.05, 0.08, 0.015), M["canvas"], tray_c + r * 0.11 + n * 0.013, rot, bevel=0.006)
+
+
+def ergometer(name, p, b):
+    """Zero-g cycle ergometer bolted to a surface (no seat): base rails, enclosed flywheel, strapped pedals, a post
+    with a display and grab bar. p, b: point on the surface, basis (right, along the machine, normal)."""
+    r, a, n = b.col[0], b.col[1], b.col[2]
+    rot = L.basis(r, a, n)
+    for sx in (-1, 1):
+        S.cbox(f"{name}Rail{sx}", (0.05, 0.62, 0.04), M["frame_dark"], p + r * sx * 0.13 + n * 0.02, rot, ch=0.01)
+    S.cbox(name + "Housing", (0.16, 0.36, 0.3), M["frame"], p + n * 0.2, rot, ch=0.04)
+    for sx in (-1, 1):
+        L.cylinder(f"{name}Cover{sx}", 0.1, 0.012, M["frame_dark"], p + r * sx * 0.085 + n * 0.2, L.basis(a, n, r), segs=28, bevel=0.003)
+        L.box(f"{name}Pedal{sx}", (0.09, 0.05, 0.018), M["frame_dark"], p + r * sx * 0.16 + a * (0.06 * sx) + n * (0.2 + 0.08 * sx), rot, bevel=0.005, segs=1)
+        L.box(f"{name}Strap{sx}", (0.07, 0.03, 0.025), M["strap"], p + r * sx * 0.16 + a * (0.06 * sx) + n * (0.22 + 0.08 * sx), rot, bevel=0.008)
+    S.cbox(name + "Post", (0.06, 0.06, 0.42), M["frame"], p - a * 0.2 + n * 0.5, rot, ch=0.012)
+    S.cbox(name + "Console", (0.18, 0.05, 0.1), M["frame_dark"], p - a * 0.22 + n * 0.74, rot, ch=0.01)
+    L.box(name + "Display", (0.12, 0.004, 0.06), M["crt_data"], p - a * 0.195 + n * 0.75, rot)
+    L.tube(name + "Bar", [p - a * 0.2 - r * 0.18 + n * 0.68, p - a * 0.24 - r * 0.18 + n * 0.72, p - a * 0.24 + r * 0.18 + n * 0.72,
+                          p - a * 0.2 + r * 0.18 + n * 0.68], 0.012, M["handle"])
+
+
+
+# ------------------------------------------------------------------ standoffs: the volume between the flat walls and the round hull
+def hull_shell(room, holes=(), name="HullShell", seg=96):
+    """The inside of the round hull behind the rack walls (seen in the recesses), inward-facing panels, with openings
+    where windows look out. holes: (phi, z, half_angle, half_z) in capsule angle convention (phi 0 = -Y)."""
+    import bmesh
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    nz = max(4, int((room.z1 - room.z0) / 0.1))
+    zs = [room.z0 + (room.z1 - room.z0) * i / nz for i in range(nz + 1)]
+    rows = [[bm.verts.new(C.polar(2 * math.pi * j / seg, C.r_in(z), z)) for j in range(seg)] for z in zs]
+    for i in range(nz):
+        for j in range(seg):
+            phi, z = 2 * math.pi * (j + 0.5) / seg, (zs[i] + zs[i + 1]) / 2
+            if any(C.ang_dist(phi, hp) < ha and abs(z - hz) < hzh for hp, hz, ha, hzh in holes):
+                continue
+            jn = (j + 1) % seg
+            f = bm.faces.new((rows[i][j], rows[i][jn], rows[i + 1][jn], rows[i + 1][j]))
+            for l in f.loops:
+                q = l.vert.co
+                l[uv].uv = (math.atan2(q.x, -q.y) * C.r_in(q.z), q.z)
+    bm.normal_update()
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if f.normal.dot(Vector((-c.x, -c.y, 0))) < 0:
+            f.normal_flip()
+    o = L.mesh_obj(name, bm, [M["blanket"]])
+    L.solidify(o, 0.02, offset=1.0)
+    return o
+
+
+def standoff_depth(room, wall, across_lo, across_hi, samples=9):
+    """How deep the volume behind a wall is (wall plane to hull) at its shallowest over a span across the wall."""
+    best = 9.0
+    for k in range(samples):
+        t = across_lo + (across_hi - across_lo) * k / (samples - 1)
+        if wall in ("port", "stbd"):
+            x0, y = room.xw, t
+        elif wall == "ceil":
+            x0, y = room.yc, t
+        else:
+            x0, y = -room.yf, t
+        r = C.r_in((room.z0 + room.z1) / 2)
+        best = min(best, math.sqrt(max(0.0, r * r - y * y)) - x0)
+    return best
+
+
+def recess_rect(room, wall, z, w, h):
+    """(u, v) hole polygon in a wall for a recessed unit centred at bay z: w along the wall's right, h along its up."""
+    p, b = bay_frame(room, wall, z)
+    c, _ = room.frame(wall, 0, 0)
+    u0, v0 = (p - c).dot(b.col[0]), (p - c).dot(b.col[1])
+    return [(u0 - w / 2, v0 - h / 2), (u0 + w / 2, v0 - h / 2), (u0 + w / 2, v0 + h / 2), (u0 - w / 2, v0 + h / 2)]
+
+
+def opening_trim(name, p, b, w, h):
+    """Chamfered trim round a recess opening, on the wall face."""
+    r, u, n = b.col[0], b.col[1], b.col[2]
+    ring = [p + r * sx * (w / 2 + 0.02) + u * sy * (h / 2 + 0.02) + n * 0.012 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    S.sweep(name, ring, [n] * 4, S.chamfer_rect(0.05, 0.03, 0.008), M["frame"], closed=True)
+
+
+def quarters_recessed(room, wall, z, name, length=0.92, height=None):
+    """Crew quarters set into the standoff behind a surface: the booth sits behind the wall face, only its trim and
+    handrails stand proud, so the passage keeps its full width."""
+    p, b = bay_frame(room, wall, z)
+    if wall in ("port", "stbd"):
+        w, h = length, height or min(1.5, (room.yc - room.yf) - 0.5)
+    else:
+        w, h = height or min(1.2, 2 * room.xw - 0.5), length
+    v_lo, v_hi = -h / 2, h / 2
+    if wall in ("port", "stbd"):
+        ym = (room.yf + room.yc) / 2
+        d = standoff_depth(room, wall, ym + v_lo, ym + v_hi)
+    else:
+        d = standoff_depth(room, wall, -w / 2, w / 2)
+    d = max(0.22, min(0.36, d - 0.02))
+    P.sleep_station(name, p - b.col[2] * d, b, w, h, d)
+    S.cbox(name + "Back", (w, h, 0.012), M["locker"], p - b.col[2] * (d - 0.006), b, ch=0.0)
+    opening_trim(name + "Trim", p, b, w, h)
+    for sx in (-1, 1):
+        q = p + b.col[0] * sx * (w / 2 + 0.07)
+        L.tube(f"{name}Rail{sx}", [q - b.col[1] * h * 0.3, q - b.col[1] * h * 0.3 + b.col[2] * 0.06, q + b.col[1] * h * 0.3 + b.col[2] * 0.06,
+                                   q + b.col[1] * h * 0.3], 0.01, M["yellow"])
+    return w, h
+
+
+def hygiene_recessed(room, wall, z0, z1, name, out=0.26, height=None):
+    """Hygiene compartment in the standoff behind a side wall: its back is the hull (deepest at mid-height, where the
+    toilet goes), and its front stands only `out` proud of the wall."""
+    w = z1 - z0
+    h = height or (room.yc - room.yf) - 0.08
+    p, b = bay_frame(room, wall, (z0 + z1) / 2)
+    ym = (room.yf + room.yc) / 2
+    rc = standoff_depth(room, wall, ym - 0.05, ym + 0.05) - 0.02
+    back = p - b.col[2] * rc
+    hygiene_room(name, back, b, w, h, rc + out, back_ext=0.3)
+    return w, h

@@ -466,6 +466,54 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_FoodRed",
+      "color": [
+        0.6200000047683716,
+        0.1599999964237213,
+        0.10000000149011612
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_FoodYellow",
+      "color": [
+        0.800000011920929,
+        0.6200000047683716,
+        0.14000000059604645
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Frame",
       "color": [
         0.41999998688697815,
@@ -1042,6 +1090,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Net",
+      "color": [
+        0.30000001192092896,
+        0.3199999928474426,
+        0.20000000298023224
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8999999761581421,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_ScreenData",
       "color": [
         0.800000011920929,
@@ -1098,30 +1170,6 @@
       ],
       "metallic": 0.0,
       "roughness": 0.949999988079071,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_StoolPad",
-      "color": [
-        0.30000001192092896,
-        0.10999999940395355,
-        0.07000000029802322
-      ],
-      "metallic": 0.0,
-      "roughness": 0.800000011920929,
       "emission": [
         1.0,
         1.0,
@@ -1302,9 +1350,9 @@
     {
       "name": "IVA_Seat2",
       "position": [
-        -0.33000001311302185,
-        0.05000000074505806,
-        3.3499999046325684
+        0.15000000596046448,
+        0.41999998688697815,
+        2.0
       ]
     }
   ],

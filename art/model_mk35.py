@@ -42,6 +42,8 @@ M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["net"] = L.material("IVA_Net", (0.30, 0.32, 0.20), rough=0.9)
 P.materials()
 S.materials()
+import cabin as K  # noqa: E402
+K.materials()
 M["deckplate"] = L.material("IVA_DeckPlate", tex="deckplate_color.png", normal="deckplate_normal.png", rough=0.6, metal=0.35, normal_strength=0.8)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
@@ -347,11 +349,14 @@ def build_hab_deck():
     P.drawer_stack("PersonalLockers", *at(-70, D + 0.25, 0.0), 0.3, 0.4, 4)
     P.net_with_gear("QuartersNet", *at(-70, D + 0.66, 0.0), 0.34, 0.26)
     # hygiene on the right, exercise bike on the deck
-    P.toilet("Toilet", *at(100, D + 0.2, 0.0))
-    P.hygiene_booth("ToiletBooth", *at(100, D + 0.55, 0.0), w=0.62, h=1.0, d=0.6)
-    P.sink("Sink", *at(126, D + 0.5, 0.0))
-    P.towels("Towels", *at(70, D + 0.55))
-    P.bike("Bike", (0.62, 0.6), yaw=math.radians(-35), floor_z=D)
+    # hygiene compartment against the hull: a vertical back plane inside the sloping wall, its sides and roof running
+    # back to the hull; toilet, wash station and towels are inside it
+    phi = C.rad(105)
+    inward = Vector((-math.sin(phi), math.cos(phi), 0.0))
+    right = Vector((-math.cos(phi), -math.sin(phi), 0.0))
+    hh = 1.45
+    K.hygiene_room("Hygiene", C.polar(phi, 1.02, D + hh / 2), L.basis(right, Vector((0, 0, 1)), inward), 0.9, hh, 0.72, back_ext=0.45, door_h=1.3)
+    P.bike("Bike", (-0.62, 0.55), yaw=math.radians(35), floor_z=D)
     # back wall either side of the ladder: tanks, tool board, cargo
     P.tool_board("ToolBoard", *at(140, D + 0.52), 0.32, 0.3)
     P.cargo_bag("BackBag", *at(-142, D + 1.0, 0.0), 0.28, 0.2, 0.12)
@@ -388,17 +393,16 @@ def build_lab_deck():
     S.mount("MicroscopeBenchMount", *at(-62, D + 0.98, 0.0), 0.36, 0.26)
     P.microscope("Microscope", *at(-58, D + 1.18, 0.06))
     P.laptop("LabLaptop", *at(-84, D + 1.25), arm=0.2, screen="mfd_systems")
-    P.freezer("SampleFreezer", *at(96, D + 1.08, 0.0), 0.3, 0.3, 0.24)
-    S.mount("SampleFreezerMount", *at(96, D + 1.08, 0.0), 0.3, 0.3)
+    P.freezer("SampleFreezer", *at(-128, D + 1.05, 0.0), 0.3, 0.3, 0.24)
+    S.mount("SampleFreezerMount", *at(-128, D + 1.05, 0.0), 0.3, 0.3)
     P.science_rack("GooRack", *at(-106, D + 1.15), 0.28, 0.44)
-    P.drawer_stack("SampleDrawers", *at(128, D + 1.05, 0.0), 0.26, 0.32, 4)
-    S.mount("SampleDrawersMount", *at(128, D + 1.05, 0.0), 0.26, 0.32)
+    P.drawer_stack("SampleDrawers", *at(140, D + 1.05, 0.0), 0.26, 0.32, 4)
+    S.mount("SampleDrawersMount", *at(140, D + 1.05, 0.0), 0.26, 0.32)
     P.whiteboard("LabBoard", *at(-150, D + 1.25), 0.28, 0.22)
     G.wall("LabRacks", [("mfd", 158, D + 1.22, 0.2, 0.2, {"screen": "mfd_engine"}), ("breakers", -168, D + 1.25, 0.2, 0.1, {"cols": 7, "rows": 2}),
                         ("annunciators", 158, D + 0.98, 0.2, 0.08, {"cols": 6, "rows": 2, "start": 4})], inset=0.04)
-    P.sample_table("SampleTable", (-0.62, 0.45), D)
     for side in (-1, 1):
-        P.fan(f"LabFan{side}", *at(side * 118, D + 1.45))
+        P.fan(f"LabFan{side}", *at(150 if side > 0 else -118, D + 1.45))
 
 
 def ladder(name, x, y, z0, z1, w):
@@ -561,7 +565,7 @@ def build_dome(clear):
         G.box_unit(f"Cassette{n}", c, size, rot, vents=n % 2 == 0, lamps_n=2)
         n += 1
     D = DECK_Z
-    drops = [(70, 64, D + 1.29), (104, 98, D + 1.25), (166, 160, D + 1.34), (-12, -3, D + 1.24), (-114, -108, D + 1.39), (-70, -63, D + 1.14)]
+    drops = [(70, 64, D + 1.29), (-120, -127, D + 1.22), (166, 160, D + 1.34), (-12, -3, D + 1.24), (-114, -108, D + 1.39), (-70, -63, D + 1.14)]
     for k2, (a0, a1, z1) in enumerate(drops):   # each drop plugs into a junction box above its unit
         zj = z1 + 0.1
         S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, zj, inset=0.04, n=5, phi1=C.rad(a1)), n=3,

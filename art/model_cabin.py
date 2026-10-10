@@ -39,7 +39,7 @@ C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"], seg=
 LAY = SPEC["layout"]
 RM = LAY["room"]
 R = K.Room(xw=RM["xw"], yf=RM["yf"], yc=RM["yc"], z0=SPEC["floor"], z1=SPEC["ceiling"])
-SEATS = [K.seat(s["eye"], s["fwd"]) for s in LAY["seats"]]
+SEATS = [K.seat(s["eye"], s["fwd"], s.get("up", (0, 1, 0))) for s in LAY["seats"]]
 
 
 def side_holes(wall):
@@ -54,59 +54,91 @@ def side_holes(wall):
     return holes
 
 
+def recess_holes(wall):
+    """Openings in a surface for the units recessed into the standoff behind it."""
+    holes = []
+    for z in [q[1] for q in LAY.get("quarters", []) if q[0] == wall]:
+        if wall in ("port", "stbd"):
+            holes.append(K.recess_rect(R, wall, z, 0.92, min(1.5, (R.yc - R.yf) - 0.5)))
+        else:
+            holes.append(K.recess_rect(R, wall, z, min(1.2, 2 * R.xw - 0.5), 0.92))
+    for wl, z0, z1, _ in LAY.get("hygiene", []):
+        if wl == wall:
+            holes.append(K.recess_rect(R, wall, (z0 + z1) / 2, z1 - z0 - 0.06, (R.yc - R.yf) - 0.14))
+    return holes
+
+
+def window_shell_holes():
+    """Openings in the hull shell behind the window wells (capsule angle convention)."""
+    out = []
+    for w in LAY.get("windows", []):
+        phi = math.atan2(1.0 if w["wall"] == "stbd" else -1.0, -w["y"] / 1.9)
+        out.append((phi, w["z"], 0.16, 0.24))
+    for poly in LAY.get("ceiling_holes", []):
+        zc = sum(v for u, v in poly) / len(poly)
+        out.append((math.pi, zc, 0.16, 0.18))
+    return out
+
+
 def build_shell():
+    K.hull_shell(R, window_shell_holes())
     for wall in ("port", "stbd"):
-        K.panel_with_holes(R, wall, "Wall_" + wall, side_holes(wall))
+        K.panel_with_holes(R, wall, "Wall_" + wall, side_holes(wall) + recess_holes(wall))
         for k, poly in enumerate(side_holes(wall)):
             K.window_well(R, wall, f"Well_{wall}{k}", poly, LAY["window_depth"])
     ceil_holes = [[(u, v - R.zm) for u, v in poly] for poly in LAY.get("ceiling_holes", [])]
-    K.panel_with_holes(R, "ceil", "Ceiling", ceil_holes)
+    K.panel_with_holes(R, "ceil", "Ceiling", ceil_holes + recess_holes("ceil"))
     for k, poly in enumerate(ceil_holes):
         K.window_well(R, "ceil", f"Well_ceil{k}", poly, LAY["ceiling_well_depth"])
-    p, b = R.frame("floor", 0, 0)
-    S.cbox("GroundPlates", (2 * R.xw, 0.03, R.z1 - R.z0), M["deckplate"], p - Vector((0, 0.015, 0)), ch=0.0)
+    K.panel_with_holes(R, "floor", "GroundPlates", recess_holes("floor"), mat=M["deckplate"])
     K.corners(R)
     K.end_bulkhead(R, "aft", "AftEnd", hatch_r=LAY.get("hatch_r", 0.45))
     K.end_bulkhead(R, "fore", "ForeEnd", hatch_r=LAY.get("hatch_r", 0.45))
 
 
 def build_furniture():
+    """Zero g: crew quarters on any surface, galley, hygiene compartment, railed tables, ergometer, lounge consoles,
+    and a foot loop under every crew position (no chairs)."""
     ym = (R.yf + R.yc) / 2
-    for k, (wall, z) in enumerate(LAY.get("sleep", [])):
-        K.sleep_wall(R, wall, z, f"Sleep{k}")
+    for k, (wall, z) in enumerate(LAY.get("quarters", [])):
+        K.quarters_recessed(R, wall, z, f"Quarters{k}")
     for k, (wall, z0, z1) in enumerate(LAY.get("galley", [])):
         K.counter_run(R, wall, z0, z1, f"Galley{k}")
-    for k, (wall, z) in enumerate(LAY.get("toilet", [])):
-        P.toilet(f"Toilet{k}", *R.frame(wall, R.u_of_z(wall, z), R.yf + 0.2 - ym))
-        P.hygiene_booth(f"ToiletBooth{k}", *R.frame(wall, R.u_of_z(wall, z), R.yf + 0.56 - ym), w=0.64, h=1.08, d=min(0.6, R.xw - 0.42))
-    for k, (wall, z) in enumerate(LAY.get("sink", [])):
-        P.sink(f"Sink{k}", *R.frame(wall, R.u_of_z(wall, z), 0.05))
-        P.towels(f"Towels{k}", *R.frame(wall, R.u_of_z(wall, z + 0.3), 0.1))
+    for k, (wall, z0, z1, d) in enumerate(LAY.get("hygiene", [])):
+        K.hygiene_recessed(R, wall, z0, z1, f"Hygiene{k}", height=(R.yc - R.yf) - 0.14)
     for k, (wall, z, kind) in enumerate(LAY.get("racks", [])):
-        K.rack(R, wall, z, kind, f"Rack_{wall}{k}", w=LAY.get("rack_w", 0.8), seed=k + 3)
-    for k, (x, z) in enumerate(LAY.get("tables", [])):
-        K.table(f"Table{k}", x, z, R.yf, h=0.62)
-    for k, (wall, z0, z1) in enumerate(LAY.get("ledges", [])):   # window-seat ledge under a row of windows
+        K.rack(R, wall, z, kind, f"Rack_{wall}{k}", w=LAY.get("rack_w"), seed=k + 3)
+    for k, (wall, z, across) in enumerate(LAY.get("tables", [])):
+        K.rail_table(f"Table{k}", *K.bay_frame(R, wall, z, across))
+    for k, (wall, z, across, flip) in enumerate(LAY.get("ergometers", [])):
+        p, b = K.bay_frame(R, wall, z, across)
+        if flip:
+            b = L.basis(-b.col[0], -b.col[1], b.col[2])
+        K.ergometer(f"Ergometer{k}", p, b)
+    for k, (wall, z0, z1) in enumerate(LAY.get("ledges", [])):   # console under a row of windows
         u0, u1 = R.u_of_z(wall, z0), R.u_of_z(wall, z1)
         p, b = R.frame(wall, (u0 + u1) / 2, R.yf + 0.3 - ym)
         S.cbox(f"Ledge{k}", (abs(u1 - u0), 0.04, 0.22), M["module"], p + b.col[2] * 0.11, b, ch=0.008)
         S.cbox(f"LedgeFace{k}", (abs(u1 - u0), 0.26, 0.02), M["locker"], p - b.col[1] * 0.15 + b.col[2] * 0.21, b, ch=0.004)
         P.binoculars(f"LedgeBinoculars{k}", p + b.col[1] * 0.04 + b.col[2] * 0.1 + b.col[0] * 0.25, b)
         P.camera(f"LedgeCamera{k}", p + b.col[1] * 0.09 + b.col[2] * 0.12 - b.col[0] * 0.3, b)
-    for i, s in enumerate(SEATS):
-        K.stool(f"Stool{i}", K.hip_of(s["eye"], s["fwd"]), s["fwd"], R.yf)
+        L.tube(f"LedgeRail{k}", [p + b.col[1] * 0.12 + b.col[2] * 0.05 - b.col[0] * abs(u1 - u0) * 0.45, p + b.col[1] * 0.12 + b.col[2] * 0.25 - b.col[0] * abs(u1 - u0) * 0.45,
+                                 p + b.col[1] * 0.12 + b.col[2] * 0.25 + b.col[0] * abs(u1 - u0) * 0.45, p + b.col[1] * 0.12 + b.col[2] * 0.05 + b.col[0] * abs(u1 - u0) * 0.45],
+               0.011, M["yellow"])
+    K.foot_loops(R, SEATS)
 
 
 def build_ceiling():
     down = Vector((0, -1, 0))
-    n = max(2, int((R.z1 - R.z0) / 0.6))
+    clear = S.Clearance()
+    n = max(2, int((R.z1 - R.z0) / 0.5))
     for side in (-1, 1):
-        x = side * (R.xw - 0.22)
+        x = side * (R.xw - 0.24)
         for k in range(n):
             z = R.z0 + (R.z1 - R.z0) * (k + 0.5) / n
+            if any(clear.blocked(Vector((x + dx, R.yc - 0.03, z + dz)), 0.02) for dx in (-0.06, 0.06) for dz in (-0.14, 0, 0.14)):
+                continue
             S.light_fixture(f"CeilLight{side}_{k}", Vector((x, R.yc, z)), L.basis(Vector((0, 0, 1)), Vector((1, 0, 0)), down), w=0.22, h=0.07)
-        S.bundle(f"CeilRun{side}", [Vector((side * (R.xw - 0.38), R.yc - 0.04, R.z0 + 0.15)), Vector((side * (R.xw - 0.38), R.yc - 0.04, R.z1 - 0.15))], n=4,
-                 ends=(False, False))
     for k, z in enumerate(LAY.get("ceiling_vents", [])):
         p, b = R.frame("ceil", 0, z - R.zm)
         S.grille(f"CeilVent{k}", p, b, 0.42, 0.18, slats=8)

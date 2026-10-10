@@ -32,7 +32,14 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 ## 4. New interiors (renders first for each)
 - [ ] **Remaining pods and cockpits:** 1.5v, cupola, landers (1v, 2v, 3v), Mk1/Mk2/Mk3 cockpits (and inline variants).
       Enter IVA in each once so the pose dump captures the seated kerbals, then `pose_extract.py`.
-- [ ] **Crew cabins and Starlab** (`PLAN.md`, "Crew cabins and Starlab"):
+- [x] **Crew cabins and Starlab, first version** (zero-g ISS-style rack rooms, built 2026-10-11; in-game check left):
+  - OSL-25 Starlab: workstations, glovebox, freezers, floor racks, greenhouse in the ceiling (stock crops hidden inside).
+  - PPD-10 Hitchhiker: four recessed crew quarters round one bay; galley, recessed hygiene compartment, railed table, porthole.
+  - PPD-20 Wayfarer: eight recessed crew quarters in two bays; galley, hygiene, table; window lounge and ergometer.
+  - Every crew position floats with foot loops (no chairs); N moves on to the next crewed part after the last seat.
+- [ ] **Hygiene door opening** (the door leaf is already a separate hinged part, `IVA_Live_Door*`).
+- [ ] **Remaining fuselage cabins:** Mk1 Stowaway, Mk2 Tag Along, Mk3 Skybus (plane-style, gravity layouts are right there).
+- [ ] _(original plan entry)_ **Crew cabins and Starlab** (`PLAN.md`, "Crew cabins and Starlab"):
   - [ ] Generalise the pipeline: specs without a pose block, upright seated kerbals moved in by the mod,
         catalogue entries for parts with no stock interior; painted windows via `window_paint.py`.
   - [ ] Capture: enter IVA once in each cabin.

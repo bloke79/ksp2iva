@@ -329,6 +329,10 @@ def table(name, centre, r=0.28, h=0.42, floor_z=0.0):
     top = floor_z + h
     L.cylinder(name + "Top", r, 0.035, frame, (c.x, c.y, top), segs=8, bevel=0.012)
     L.cylinder(name + "Inset", r * 0.82, 0.006, dark, (c.x, c.y, top + 0.019), segs=8)
+    L.torus(name + "Rail", r + 0.05, 0.011, M["yellow"], (c.x, c.y, top + 0.04), Matrix.Identity(3), seg=40, mseg=8)
+    for k in range(6):
+        a_ = 2 * math.pi * k / 6
+        L.cylinder(f"{name}RailPost{k}", 0.008, 0.04, frame, (c.x + (r + 0.05) * math.cos(a_), c.y + (r + 0.05) * math.sin(a_), top + 0.02), segs=8)
     L.box(name + "Column", (0.09, 0.09, h - 0.04), frame, (c.x, c.y, floor_z + (h - 0.04) / 2 + 0.02), bevel=0.02, segs=1)
     L.box(name + "Base", (0.26, 0.26, 0.03), dark, (c.x, c.y, floor_z + 0.015), bevel=0.01, segs=1)
     for k in range(4):

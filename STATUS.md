@@ -21,6 +21,10 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-11 – Starlab, Hitchhiker and Wayfarer interiors (zero-g, ISS-style): rack rooms with every surface used, crew
+  quarters and hygiene compartments recessed into the standoffs behind the walls, foot loops instead of chairs, railed
+  tables, greenhouse (Starlab), window lounge and ergometer (Wayfarer). The 3v got a proper hygiene compartment and a
+  railed table. Upright crew placement for cabins; N cycles on to the next crewed part. Laptop arms no longer cross screens.
 - 2026-10-11 – 3v interior declared **v1**. Stock-style pass backported to the Mk1-3 and Mk1: ribs, ring frames, inspection
   plates, cable bundles into junction boxes, chamfered couch frames and console struts, stepped housings, deck plates,
   hatch segment ring and equipment boxes (Mk1-3). All three pods re-exported and built.

@@ -39,7 +39,8 @@ C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"], seg=
 R = K.Room(xw=0.95, yf=-0.92, yc=0.68, z0=SPEC["floor"], z1=SPEC["ceiling"])
 GH_X, GH_Z0, GH_Z1, GH_DEPTH = 0.6, 1.25, 3.45, 0.42      # greenhouse window/bay (under the real greenhouse pod)
 RACK_Z = (1.35, 2.35, 3.35)
-SEATS = [K.seat((-0.33, 0.05, RACK_Z[0]), (-1, 0, 0)), K.seat((0.33, 0.05, RACK_Z[1]), (1, 0, 0)), K.seat((-0.33, 0.05, RACK_Z[2]), (-1, 0, 0))]
+SEATS = [K.seat((-0.33, 0.05, RACK_Z[0]), (-1, 0, 0)), K.seat((0.33, 0.05, RACK_Z[1]), (1, 0, 0)),
+         K.seat((0.15, 0.42, 2.0), (0, 1, 0), (0, 0, 1))]   # C floats face-up under the greenhouse, feet on the ceiling aft of it
 
 
 def build_walls():
@@ -77,13 +78,10 @@ def build_ceiling():
 
 
 def build_floor():
-    for i, s in enumerate(SEATS):
-        K.stool(f"Stool{i}", K.hip_of(s["eye"], s["fwd"]), s["fwd"], R.yf)
-    # stowage bags strapped to the floor at the ends, a handrail down the middle
-    for k, z in enumerate((0.95, 3.75)):
-        p, b = R.frame("floor", 0.45 * (1 if k else -1), z - R.zm)
-        P.cargo_bag(f"FloorBag{k}", p, b, 0.42, 0.32, 0.22)
-    L.tube("FloorRail", [Vector((0, R.yf, 1.6)), Vector((0, R.yf + 0.05, 1.6)), Vector((0, R.yf + 0.05, 3.1)), Vector((0, R.yf, 3.1))], 0.012, M["yellow"])
+    """Zero g: no chairs. Racks down the middle of the floor (stowage, experiments, tools), foot loops for the crew."""
+    for k, (z, kind) in enumerate(((RACK_Z[0], "stowage"), (RACK_Z[1], "experiment"), (RACK_Z[2], "tools"))):
+        K.rack(R, "floor", z, kind, f"Rack_floor{k}", w=0.6, h=0.85, seed=20 + k)
+    K.foot_loops(R, SEATS)
 
 
 # ------------------------------------------------------------------ build
