@@ -34,6 +34,8 @@ M["shell"] = L.material("IVA_SeatShell", (0.86, 0.86, 0.84), rough=0.3, metal=0.
 M["bottle"] = L.material("IVA_Bottle", (0.22, 0.42, 0.30), rough=0.35, metal=0.4)
 M["tank"] = L.material("IVA_Tank", (0.78, 0.79, 0.80), rough=0.3, metal=0.7)
 M["periscope"] = L.material("IVA_Periscope", tex="periscope.png", rough=0.1, emit=1.6, emit_tex=True)
+M["canvas"] = L.material("IVA_Canvas", (0.55, 0.52, 0.42), rough=0.92)
+M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["net"] = L.material("IVA_Net", (0.30, 0.32, 0.20), rough=0.9)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=160)
@@ -110,6 +112,8 @@ def build_mdc():
     ])
     for s_ in (centre, wings[1], wings[-1]):
         s_.check()
+    for s_, nm in ((centre, "MDC_C"), (wings[1], "MDC_R"), (wings[-1], "MDC_L")):
+        G.housing(s_, nm)
     # name plate on the hood
     L.plane("NamePlate", 0.24, 0.05, M["plate"], Vector((0, MDC_Y + MDC_H / 2 + 0.006, MDC_Z + 0.02)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
 
@@ -195,6 +199,90 @@ def build_front_wall():
             L.sphere(f"NetHook_{i}_{j}", 0.01, M["buckle"], C.polar(phi, C.r_in(z) - 0.03, z), u=10, v=6)
 
 
+# ------------------------------------------------------------------ filling the cabin: pedestals, umbilicals, cables, equipment
+PED_X, PED_W, PED_Y0, PED_Y1, PED_Z0, PED_Z1 = 0.325, 0.15, -0.06, 0.32, 0.45, 0.53
+
+
+def build_fill():
+    up_dir = Vector((0, PED_Y0 - PED_Y1, PED_Z0 - PED_Z1)).normalized()
+    slope = math.hypot(PED_Y1 - PED_Y0, PED_Z1 - PED_Z0)
+    for side in (-1, 1):
+        x = side * PED_X
+        # pedestal console between the couches, at hand height, top sloping towards the crew's heads
+        G.prism(f"Pedestal{side}", [(PED_Y0, C.Z_FLOOR), (PED_Y1, C.Z_FLOOR), (PED_Y1, PED_Z1), (PED_Y0, PED_Z0)], x - PED_W / 2, x + PED_W / 2, M["console"])
+        top = C.Surface(f"PedestalTop{side}", (x, (PED_Y0 + PED_Y1) / 2, (PED_Z0 + PED_Z1) / 2 + 0.004), (-1, 0, 0), up_dir, PED_W - 0.012, slope - 0.02, corner=0.01)
+        G.grid(top, f"Ped{side}", 2, 4, [
+            ("toggles", 0, 0, 2, 1, {"cols": 4}), ("dial", 0, 1, 1, 1, {"kind": "press" if side > 0 else "temp"}), ("knobs", 1, 1, 1, 1, {"n": 1}),
+            ("lamps", 0, 2, 2, 1, {"n": 4}), ("buttons", 0, 3, 1, 1, {"n": 2}), ("toggles", 1, 3, 1, 1, {"cols": 2}),
+        ], gap=0.004, border=0.004)
+        top.check()
+        p, b = Vector((x, PED_Y0 - 0.001, (C.Z_FLOOR + PED_Z0) / 2)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
+        G.vent(f"PedestalVent{side}", p, b, PED_W * 0.7, (PED_Z0 - C.Z_FLOOR) * 0.6, slots=7)
+        # cable runs from the back of the console housing up across the ceiling to the wall (out of the crew's view)
+        G.cables(f"CeilingCables{side}", (side * 0.5, MDC_Y + MDC_H / 2 + 0.03, MDC_Z + 0.1), C.frame_at(C.rad(side * 128), 1.42, 0.01)[0], droop=0.05, n=4)
+
+    # equipment behind the feet: environmental control unit and two battery/junction boxes
+    G.box_unit("ECSUnit", (0, 0.66, C.Z_FLOOR + 0.12), (0.52, 0.22, 0.24), lamps_n=3)
+    for side in (-1, 1):
+        G.box_unit(f"PowerBox{side}", (side * 0.6, 0.6, C.Z_FLOOR + 0.1), (0.24, 0.2, 0.2), lamps_n=2)
+        G.cables(f"PowerCables{side}", (side * 0.6, 0.6, C.Z_FLOOR + 0.2), (side * 0.3, 0.66, C.Z_FLOOR + 0.24), droop=0.03, n=3)
+
+    # suit umbilicals: ribbed hoses from the ECS unit to each kerbal's suit connector (left side of the chest)
+    for i, seat in enumerate(SEATS):
+        x = seat["x"]
+        start = Vector((max(-0.22, min(0.22, x * 0.35)), 0.56, C.Z_FLOOR + 0.24))
+        pts = [start, Vector((x - 0.25, 0.38, 0.38)), Vector((x - 0.25, 0.1, 0.5)), Vector((x - 0.2, -0.1, 0.58)), Vector((x - 0.13, -0.16, 0.6))]
+        G.hose(f"Umbilical{i}", pts, r=0.018, mat=M["umbilical"])
+        L.cylinder(f"UmbilicalPlug{i}", 0.026, 0.04, M["buckle"], pts[-1], (pts[-1] - pts[-2]).normalized().to_track_quat("Z", "Y").to_matrix(), segs=16)
+
+    # handrail along the console hood and diagonal braces from the ceiling ring to the hood ends
+    hy = MDC_Y + MDC_H / 2 + 0.05
+    L.tube("HoodRail", [Vector((-0.7, hy, MDC_Z - 0.04)), Vector((-0.7, hy + 0.04, MDC_Z - 0.04)), Vector((0.7, hy + 0.04, MDC_Z - 0.04)), Vector((0.7, hy, MDC_Z - 0.04))], 0.006, M["yellow"])
+    for side in (-1, 1):
+        C.bracket(f"HoodBrace{side}", Vector((side * 0.74, MDC_Y + MDC_H / 2, MDC_Z + 0.02)), C.frame_at(C.rad(side * 150), C.Z_CEIL - 0.06, 0.01)[0], r=0.014)
+
+
+# ------------------------------------------------------------------ stowage and safety kit on the walls
+def bag(name, phi_deg, z, w, h, d):
+    """Soft stowage bag strapped to the wall."""
+    p, b = C.frame_at(C.rad(phi_deg), z, 0.01)
+    L.box(name, (w, h, d), M["canvas"], p + b.col[2] * (d / 2), b, bevel=min(d, h) * 0.35, segs=4)
+    for sx in (-0.3, 0.3):
+        L.box(f"{name}Strap{sx}", (0.018, h + 0.01, d + 0.008), M["strap"], p + b.col[2] * (d / 2) + b.col[0] * (w * sx), b, bevel=0.003)
+    L.box(f"{name}Flap", (w * 0.8, h * 0.28, 0.012), M["canvas"], p + b.col[2] * (d + 0.004) + b.col[1] * (h * 0.3), b, bevel=0.005)
+    L.box(f"{name}Tag", (0.05, 0.02, 0.003), M["btn_soft"], p + b.col[2] * (d + 0.011) + b.col[1] * (h * 0.3), b)
+
+
+def build_stowage():
+    for side in (-1, 1):
+        bag(f"BagLow{side}", side * 40, 0.34, 0.22, 0.15, 0.09)
+        bag(f"BagHigh{side}", side * 42, 0.53, 0.18, 0.13, 0.08)
+    # fire extinguisher (right) and first-aid box (left), between the side consoles and the lockers
+    p, b = C.frame_at(C.rad(141), 0.95, 0.06)
+    rot = L.basis(b.col[0], b.col[1], b.col[2])
+    L.cylinder("Extinguisher", 0.045, 0.3, M["extinguisher"], p, L.basis(b.col[0], b.col[2], -b.col[1]), segs=24, bevel=0.01)
+    L.cylinder("ExtinguisherHead", 0.02, 0.05, M["rib"], p + b.col[1] * 0.17, L.basis(b.col[0], b.col[2], -b.col[1]), segs=12)
+    for dz in (-0.08, 0.08):
+        L.torus(f"ExtinguisherClamp{dz}", 0.048, 0.005, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=24, mseg=6)
+    p, b = C.frame_at(C.rad(-141), 0.95, 0.045)
+    L.box("FirstAid", (0.16, 0.12, 0.08), M["btn_soft"], p, b, bevel=0.008)
+    L.box("FirstAidCrossH", (0.06, 0.018, 0.004), M["red"], p + b.col[2] * 0.041, b)
+    L.box("FirstAidCrossV", (0.018, 0.06, 0.004), M["red"], p + b.col[2] * 0.041, b)
+    # checklist board with clipped pages, beside the left side console
+    p, b = C.frame_at(C.rad(-80), 0.62, 0.015)
+    L.box("ChecklistBoard", (0.13, 0.18, 0.008), M["couchframe"], p, b, bevel=0.002)
+    L.box("ChecklistPages", (0.11, 0.15, 0.003), M["btn_soft"], p + b.col[2] * 0.005 - b.col[1] * 0.008, b)
+    L.box("ChecklistClip", (0.05, 0.015, 0.012), M["buckle"], p + b.col[2] * 0.008 + b.col[1] * 0.08, b, bevel=0.002)
+    # upper cone between the rendezvous windows and the hatch: avionics boxes and an air duct
+    G.wall("WallUpper", [
+        ("breakers", 75, 1.32, 0.16, 0.1, {"cols": 6, "rows": 2}), ("vent", -75, 1.32, 0.16, 0.1, {"slots": 6}),
+        ("lamps", 112, 1.4, 0.1, 0.045, {"n": 3}), ("annunciators", -112, 1.4, 0.12, 0.06, {"cols": 4, "rows": 2, "start": 8}),
+    ])
+    for side in (-1, 1):
+        G.hose(f"AirDuct{side}", [C.frame_at(C.rad(side * 95), 1.5, 0.03)[0], Vector((side * 0.62, MDC_Y + 0.05, MDC_Z + 0.16)), Vector((side * 0.6, MDC_Y, MDC_Z + 0.06))],
+               r=0.028, mat=M["umbilical"])
+
+
 # ------------------------------------------------------------------ wall equipment: junction boxes, breaker boxes, conduits
 def build_wall_equipment():
     G.wall("WallBack", [
@@ -211,7 +299,10 @@ def build_wall_equipment():
         G.conduit(f"ConduitRiser{side}", [C.polar(C.rad(side * 135), C.r_in(z) - 0.012, z) for z in (C.Z_FLOOR + 0.02, 0.5, 0.9, 1.3, C.Z_CEIL - 0.02)])
     G.conduit("ConduitBack", [C.polar(C.rad(a), C.r_in(1.15) - 0.012, 1.15) for a in range(135, 226, 15)], r=0.007)
     G.conduit("ConduitBack2", [C.polar(C.rad(a), C.r_in(1.17) - 0.014, 1.17) for a in range(135, 226, 15)], r=0.005, clamps=False)
-    G.wall("WallFront", [("lamps", 0, 1.37, 0.12, 0.05, {"n": 3}), ("dial", 0, 1.27, 0.08, 0.08, {"kind": "press"})])
+    G.wall("WallFront", [("lamps", 0, 1.37, 0.12, 0.05, {"n": 3}), ("dial", 0, 1.27, 0.08, 0.08, {"kind": "press"}),
+                         ("breakers", 0, 1.12, 0.2, 0.1, {"cols": 7, "rows": 2}), ("knobs", 0, 0.99, 0.2, 0.07, {"n": 4}),
+                         ("toggles", -11, 0.91, 0.1, 0.06, {"cols": 3}), ("lamps", 11, 0.91, 0.1, 0.05, {"n": 3})])
+    G.conduit("ConduitFront", [C.polar(0.0, C.r_in(z) - 0.012, z) for z in (C.Z_FLOOR + 0.02, 0.3, 0.6, 0.86)], r=0.007)
 
 
 # ------------------------------------------------------------------ ceiling: docking hatch with a wheel
@@ -239,6 +330,8 @@ C.build_hatch(HATCH_PHI, HATCH_HALF, H["z0"], H["z1"])
 build_back_wall()
 build_front_wall()
 build_wall_equipment()
+build_fill()
+build_stowage()
 build_ceiling()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)

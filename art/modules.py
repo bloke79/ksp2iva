@@ -38,11 +38,19 @@ def tag(name, q, b, w, h=0.007):
     L.box(name, (w, h, 0.0008), M["btn_soft"], q + b.col[2] * 0.0004, b)
 
 
-def plate(name, p, b, w, h, depth=0.008, screws=True):
+FRAME_H = 0.016     # recess wall round every module: modules sit in pockets, not on the surface
+
+
+def plate(name, p, b, w, h, depth=0.008, screws=True, frame=True):
+    if frame:
+        t = 0.005
+        for i, (cx, cy, fw, fh) in enumerate(((0, h / 2 - t / 2, w, t), (0, -h / 2 + t / 2, w, t),
+                                              (w / 2 - t / 2, 0, t, h - 2 * t), (-w / 2 + t / 2, 0, t, h - 2 * t))):
+            L.box(f"{name}Frame{i}", (fw, fh, FRAME_H), M["bezel"], _at(p, b, cx, cy, FRAME_H / 2), b, bevel=0.0012)
     L.box(name, (w, h, depth), M["module"], _at(p, b, 0, 0, depth / 2), b, bevel=min(0.003, depth * 0.4))
     if screws:
         for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
-            L.cylinder(f"{name}Screw{i}", 0.0028, 0.002, M["buckle"], _at(p, b, sx * (w / 2 - 0.007), sy * (h / 2 - 0.007), depth + 0.001), b, segs=8)
+            L.cylinder(f"{name}Screw{i}", 0.0028, 0.002, M["buckle"], _at(p, b, sx * (w / 2 - 0.011), sy * (h / 2 - 0.011), depth + 0.001), b, segs=8)
     return depth
 
 
@@ -220,3 +228,92 @@ def conduit(name, pts, r=0.008, clamps=True):
     if clamps:
         for k, q in enumerate(pts[1:-1]):
             L.sphere(f"{name}Clamp{k}", r * 1.6, M["rib"], q, u=10, v=6)
+
+
+# ------------------------------------------------------------------ bulk: housings, pedestals, hoses, cables, boxes
+def prism(name, profile, x0, x1, mat, bevel=0.006):
+    """Solid extruded along X from a (y, z) outline (anticlockwise seen from +X)."""
+    import bmesh
+    bm = bmesh.new()
+    bm.loops.layers.uv.new("UVMap")
+    a = [bm.verts.new((x0, y, z)) for y, z in profile]
+    c = [bm.verts.new((x1, y, z)) for y, z in profile]
+    bm.faces.new(a[::-1])
+    bm.faces.new(c)
+    n = len(profile)
+    for i in range(n):
+        bm.faces.new((a[i], a[(i + 1) % n], c[(i + 1) % n], c[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    uvl = bm.loops.layers.uv.active
+    for f in bm.faces:
+        for l in f.loops:
+            l[uvl].uv = (l.vert.co.x * 2 + l.vert.co.y * 2, l.vert.co.z * 2)
+    obj = L.mesh_obj(name, bm, [mat])
+    if bevel:
+        L.add_bevel(obj, bevel, 2)
+    return obj
+
+
+def housing(surface, name, depth=0.09, lip=0.012):
+    """Deep box behind a console Surface, with a stepped lip, so the panel reads as an instrument housing."""
+    s = surface
+    back = s.c - s.n * (depth / 2 + 0.02)
+    rot = L.basis(s.right, s.up, s.n)
+    L.box(name + "Housing", (s.w + 2 * lip, s.h + 2 * lip, depth), M["module"], back, rot, bevel=0.01)
+    L.box(name + "Lip", (s.w + 2 * lip + 0.016, s.h + 2 * lip + 0.016, 0.014), M["couchframe"], s.c - s.n * (depth + 0.02), rot, bevel=0.005)
+
+
+def hose(name, pts, r=0.022, ribs=True, mat=None, rib_mat=None):
+    """Flexible ribbed hose (suit umbilical) through the given points."""
+    from mathutils import Vector as V
+    obj = L.tube(name, pts, r, mat or M["strap"])
+    if ribs:
+        dense = []
+        for a, b2 in zip(pts, pts[1:]):
+            a, b2 = V(a), V(b2)
+            n = max(1, int((b2 - a).length / 0.035))
+            dense += [(a + (b2 - a) * (k / n), (b2 - a).normalized()) for k in range(n)]
+        for k, (q, d) in enumerate(dense):
+            L.torus(f"{name}Rib{k}", r * 1.05, r * 0.16, rib_mat or M["ring"], q, d.to_track_quat("Z", "Y").to_matrix(), seg=16, mseg=4)
+    return obj
+
+
+def sag(a, b2, droop, n=10):
+    """Points along a cable hanging between a and b2 (parabolic droop, metres, downwards)."""
+    from mathutils import Vector as V
+    a, b2 = V(a), V(b2)
+    return [a + (b2 - a) * (k / n) - V((0, 0, droop * 4 * (k / n) * (1 - k / n))) for k in range(n + 1)]
+
+
+def cables(name, a, b2, droop=0.06, n=4, spread=0.012):
+    """A loose bundle of n cables between two points."""
+    from mathutils import Vector as V
+    mats = [M["cable"], M["ring"], M["red"], M["cable"], M["strap"]]
+    d = (V(b2) - V(a)).normalized()
+    side = d.cross(V((0, 0, 1)))
+    if side.length < 1e-3:
+        side = V((1, 0, 0))
+    side.normalize()
+    for i in range(n):
+        o = side * (i - (n - 1) / 2) * spread + V((0, 0, (i % 2) * spread * 0.6))
+        L.tube(f"{name}_{i}", sag(V(a) + o, V(b2) + o, droop * (0.85 + 0.1 * i)), 0.0045 + 0.001 * (i % 2), mats[i % len(mats)], bevel_res=1)
+
+
+def box_unit(name, centre, size, rot=None, vents=True, lamps_n=2):
+    """Equipment box (ECS unit, battery, junction box) with vents, a status lamp row and handles."""
+    from mathutils import Matrix as Mx, Vector as V
+    rot = rot or Mx.Identity(3)
+    c = V(centre)
+    L.box(name, size, M["locker"], c, rot, bevel=0.008)
+    front = rot @ V((0, -1, 0))
+    up = rot @ V((0, 0, 1))
+    right = rot @ V((1, 0, 0))
+    b = L.basis(-right, up, front)
+    p = c + front * (size[1] / 2)
+    if vents:
+        vent(name + "Vent", p + up * size[2] * 0.15, b, size[0] * 0.6, size[2] * 0.35, slots=5)
+    if lamps_n:
+        lamps(name + "Lamps", p - up * size[2] * 0.28, b, min(0.08, size[0] * 0.5), 0.03, lamps_n)
+    for sx in (-1, 1):
+        L.tube(f"{name}Handle{sx}", [p + right * sx * size[0] * 0.42 + up * size[2] * 0.3, p + right * sx * size[0] * 0.42 + up * size[2] * 0.3 + front * 0.025,
+                                   p + right * sx * size[0] * 0.42 - up * size[2] * 0.3 + front * 0.025, p + right * sx * size[0] * 0.42 - up * size[2] * 0.3], 0.005, M["handle"])

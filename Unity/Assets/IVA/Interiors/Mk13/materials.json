@@ -274,6 +274,54 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Cable",
+      "color": [
+        0.05000000074505806,
+        0.05000000074505806,
+        0.05000000074505806
+      ],
+      "metallic": 0.0,
+      "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Canvas",
+      "color": [
+        0.550000011920929,
+        0.5199999809265137,
+        0.41999998688697815
+      ],
+      "metallic": 0.0,
+      "roughness": 0.9200000166893005,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Console",
       "color": [
         0.800000011920929,
@@ -368,6 +416,30 @@
         1.0
       ],
       "emissionFromTexture": true
+    },
+    {
+      "name": "IVA_Extinguisher",
+      "color": [
+        0.75,
+        0.05000000074505806,
+        0.03999999910593033
+      ],
+      "metallic": 0.20000000298023224,
+      "roughness": 0.30000001192092896,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
     },
     {
       "name": "IVA_FloorGrate",
@@ -1074,6 +1146,30 @@
       ],
       "metallic": 1.0,
       "roughness": 0.20000000298023224,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Umbilical",
+      "color": [
+        0.3199999928474426,
+        0.36000001430511475,
+        0.41999998688697815
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
       "emission": [
         1.0,
         1.0,
