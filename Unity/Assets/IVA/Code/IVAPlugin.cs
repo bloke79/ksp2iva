@@ -576,13 +576,15 @@ namespace IVA
         // Entering, leaving and switching seats
         // ------------------------------------------------------------------
 
-        private void EnterIva()
+        private void EnterIva() => EnterIva(null);
+
+        private void EnterIva(PodInfo forced)
         {
             if (!FindFlightCamera()) return;
 
             if (_useCustomInterior.Value)
             {
-                PodInfo pod = PodLocator.FindPod(Game, (_podNameFilter.Value ?? "").Trim(), SWLogger);
+                PodInfo pod = forced ?? PodLocator.FindPod(Game, (_podNameFilter.Value ?? "").Trim(), SWLogger);
                 if (pod != null)
                 {
                     InteriorDesign design = InteriorCatalogue.ForPod(pod.Name, pod.Seats, _anyPod.Value);
@@ -1016,6 +1018,20 @@ namespace IVA
             }
             if (_mode == Mode.CustomInterior)
             {
+                // after the last seat, on to the next crewed part with an interior (command pod, cabins, labs...)
+                if (_seatIndex >= _session.SeatCount - 1)
+                {
+                    List<PodInfo> parts = PodLocator.FindAll(Game, _anyPod.Value);
+                    if (parts.Count > 1)
+                    {
+                        int at = parts.FindIndex(p => p.Pod == _session.Pod);
+                        PodInfo next = parts[(at + 1) % parts.Count];
+                        SWLogger.LogInfo($"IVA: next part: {next.Name}.");
+                        ExitIva();
+                        EnterIva(next);
+                        return;
+                    }
+                }
                 if (_session.SeatCount < 2) { SWLogger.LogInfo($"IVA: only {_session.SeatCount} seat(s) here."); return; }
                 BeginGlide();
                 if (_viewIndex >= 0) _fov = _seatFov;

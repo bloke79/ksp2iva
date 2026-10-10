@@ -118,11 +118,14 @@ def science_rack(name, p, b, w=0.36, h=0.62):
 
 def laptop(name, p, b, arm=0.25, screen="mfd_map"):
     """Laptop on a swing arm from the wall, lid open towards the cabin."""
-    base = _a(p, b, 0, 0, 0)
-    elbow = base + b.col[2] * arm * 0.6 + b.col[1] * 0.05
-    tray = base + b.col[2] * arm - b.col[1] * 0.02
+    tray = _a(p, b, 0, -0.02, arm)
+    # the arm runs under the keyboard tray from a mount low on the wall, so it never crosses the screen
+    base = _a(p, b, 0, -0.17, 0)
+    under = tray - b.col[1] * 0.025
+    elbow = base + b.col[2] * arm * 0.55 - b.col[1] * 0.02
     L.cylinder(name + "Mount", 0.025, 0.02, M["couchframe"], base + b.col[2] * 0.01, _r(b), segs=16)
-    L.tube(name + "Arm", [base + b.col[2] * 0.02, elbow, tray], 0.012, M["couchframe"])
+    L.tube(name + "Arm", [base + b.col[2] * 0.02, elbow, under], 0.012, M["couchframe"])
+    L.cylinder(name + "Pivot", 0.02, 0.02, M["couchframe"], under + b.col[1] * 0.005, L.basis(b.col[0], b.col[2], -b.col[1]), segs=16)
     up = b.col[1]
     flat = L.basis(b.col[0], b.col[2], -up)        # keyboard lies flat
     L.box(name + "Base", (0.3, 0.21, 0.02), M["module"], tray, flat, bevel=0.005)
@@ -519,3 +522,28 @@ def net_with_gear(name, p, b, w=0.4, h=0.3):
     for sx in (-1, 1):
         for sy in (-1, 1):
             L.sphere(f"{name}Hook{sx}{sy}", 0.008, M["buckle"], _a(p, b, sx * w / 2, sy * h / 2, 0.05), u=8, v=4)
+
+
+def hygiene_booth(name, p, b, w=0.62, h=1.05, d=0.58):
+    """Private hygiene compartment round a toilet: side walls, a roof and a closed door with a handle, a vacant/engaged
+    lamp, a sign and a vent louvre. p is the middle of the booth on the wall."""
+    frame = M.get("frame", M["module"])
+    dark = M.get("frame_dark", M["module"])
+    for sx in (-1, 1):
+        L.box(f"{name}Side{sx}", (0.03, h, d), M["locker"], _a(p, b, sx * (w / 2 - 0.015), 0, d / 2), _r(b), bevel=0.004, segs=1)
+        L.box(f"{name}Post{sx}", (0.05, h + 0.02, 0.05), frame, _a(p, b, sx * (w / 2 - 0.025), 0, d - 0.01), _r(b), bevel=0.012, segs=1)
+    L.box(name + "Roof", (w, 0.03, d), M["locker"], _a(p, b, 0, h / 2 - 0.015, d / 2), _r(b), bevel=0.004, segs=1)
+    L.box(name + "Header", (w + 0.02, 0.06, 0.05), frame, _a(p, b, 0, h / 2 - 0.02, d - 0.01), _r(b), bevel=0.012, segs=1)
+    door = _a(p, b, 0, -0.015, d - 0.005)
+    L.box(name + "Door", (w - 0.1, h - 0.1, 0.03), M["locker"], door, _r(b), bevel=0.006, segs=1)
+    L.box(name + "DoorPanel", (w - 0.2, h * 0.45, 0.006), dark, door + b.col[1] * h * 0.12 + b.col[2] * 0.017, _r(b), bevel=0.002)
+    for i in range(6):   # vent louvre low in the door
+        L.box(f"{name}Louvre{i}", (w - 0.24, 0.012, 0.01), dark, door - b.col[1] * (h * 0.3 + i * 0.022) + b.col[2] * 0.018, _r(b))
+    L.tube(name + "Handle", [door + b.col[0] * (w / 2 - 0.1) + b.col[1] * 0.08 + b.col[2] * 0.015,
+                             door + b.col[0] * (w / 2 - 0.1) + b.col[1] * 0.08 + b.col[2] * 0.05,
+                             door + b.col[0] * (w / 2 - 0.1) - b.col[1] * 0.08 + b.col[2] * 0.05,
+                             door + b.col[0] * (w / 2 - 0.1) - b.col[1] * 0.08 + b.col[2] * 0.015], 0.009, M["yellow"])
+    sign = door + b.col[1] * (h / 2 - 0.15) + b.col[2] * 0.02
+    L.box(name + "Sign", (0.16, 0.07, 0.008), frame, sign, _r(b), bevel=0.002)
+    L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["lamp_green"] if "lamp_green" in M else M["light"], sign + b.col[0] * 0.045 + b.col[2] * 0.006, _r(b), bevel=0.002)
+    L.box(name + "SignTag", (0.07, 0.025, 0.004), M["btn_soft"], sign - b.col[0] * 0.03 + b.col[2] * 0.006, _r(b))

@@ -1,0 +1,213 @@
+{
+ "part": "lab_2v_science_orbital",
+ "name": "Starlab",
+ "interior": "StarlabInterior",
+ "address": "IVA/Interior_lab_2v_science_orbital",
+ "seats": 3,
+ "yaw": 180,
+ "hull_base_y": -2.352,
+ "_source": "Extracted reference: body radius ~1.48 m between the end cones (y -1.4..1.42), colony hatches at both ends, greenhouse pod set into the +Z side (x +-0.65, z 0.68..1.99) with its glass at z 1.44..1.97. Interior is an ISS-style rack room inside that.",
+ "profile": [
+  [
+   0.0,
+   1.4
+  ],
+  [
+   4.72,
+   1.4
+  ]
+ ],
+ "wall": 0.04,
+ "floor": 0.65,
+ "ceiling": 4.07,
+ "windows": [],
+ "generator": "model_starlab.py",
+ "texgen": "texgen_mk1.py",
+ "plate": {
+  "title": "OSL-25 STARLAB",
+  "subtitle": "CREW 3   |   GREENHOUSE ABOVE"
+ },
+ "cabin_light": {
+  "position": [
+   0.0,
+   0.45,
+   2.36
+  ],
+  "range": 3.0,
+  "intensity": 0.8
+ },
+ "extra_lights": [
+  {
+   "position": [
+    0.0,
+    0.4,
+    1.2
+   ],
+   "range": 2.0,
+   "intensity": 0.6
+  },
+  {
+   "position": [
+    0.0,
+    0.4,
+    3.5
+   ],
+   "range": 2.0,
+   "intensity": 0.6
+  }
+ ],
+ "preview_lights": [
+  {
+   "loc": [
+    0.0,
+    0.5,
+    1.2
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "energy": 10,
+   "size": 1.0
+  },
+  {
+   "loc": [
+    0.0,
+    0.5,
+    2.4
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "energy": 10,
+   "size": 1.0
+  },
+  {
+   "loc": [
+    0.0,
+    0.5,
+    3.6
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "energy": 10,
+   "size": 1.0
+  }
+ ],
+ "cameras": {
+  "eye": {
+   "loc": [
+    -0.33,
+    0.05,
+    1.35
+   ],
+   "target": [
+    -1.0,
+    0.0,
+    1.35
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "fov": 90
+  },
+  "aft_to_fore": {
+   "loc": [
+    0.0,
+    -0.05,
+    0.85
+   ],
+   "target": [
+    0.0,
+    -0.1,
+    4.0
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "fov": 95
+  },
+  "fore_to_aft": {
+   "loc": [
+    0.0,
+    -0.05,
+    3.9
+   ],
+   "target": [
+    0.0,
+    -0.1,
+    0.6
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "fov": 95
+  },
+  "greenhouse": {
+   "loc": [
+    -0.25,
+    -0.55,
+    2.0
+   ],
+   "target": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 95
+  },
+  "port_wall": {
+   "loc": [
+    0.55,
+    0.05,
+    2.36
+   ],
+   "target": [
+    -1.0,
+    -0.1,
+    2.36
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "fov": 100
+  },
+  "stbd_wall": {
+   "loc": [
+    -0.55,
+    0.05,
+    2.36
+   ],
+   "target": [
+    1.0,
+    -0.1,
+    2.36
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "fov": 100
+  }
+ }
+}

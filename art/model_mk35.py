@@ -348,6 +348,7 @@ def build_hab_deck():
     P.net_with_gear("QuartersNet", *at(-70, D + 0.66, 0.0), 0.34, 0.26)
     # hygiene on the right, exercise bike on the deck
     P.toilet("Toilet", *at(100, D + 0.2, 0.0))
+    P.hygiene_booth("ToiletBooth", *at(100, D + 0.55, 0.0), w=0.62, h=1.0, d=0.6)
     P.sink("Sink", *at(126, D + 0.5, 0.0))
     P.towels("Towels", *at(70, D + 0.55))
     P.bike("Bike", (0.62, 0.6), yaw=math.radians(-35), floor_z=D)

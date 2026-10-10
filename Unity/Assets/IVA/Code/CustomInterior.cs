@@ -30,6 +30,8 @@ namespace IVA
         public float Yaw;          // turns the interior so its front lines up with the part's real front (degrees)
         public bool OnHull;        // built to the real hull: place at HullBaseY with no auto-fit scaling
         public float HullBaseY;    // part-local Y of the hull's base (from the extracted reference mesh)
+        public bool UprightCrew;   // crew moved in from the portrait booth sit upright at the seat points (cabins, labs)
+        public string[] HideRenderers;   // stock meshes of the part to hide while inside (they'd show through ours)
     }
 
     public static class InteriorCatalogue
@@ -46,6 +48,15 @@ namespace IVA
             // interior's own seat points are used and the crew are moved onto the couches while in IVA.
             new InteriorDesign { Name = "Mk3-5", Address = "IVA/Interior_pod_3v_conical_crew", Parts = new[] { "pod_3v_conical_crew" },
                                  Seats = 5, BaseRadius = 1.911f, Height = 4.169f, Yaw = 180f, OnHull = true, HullBaseY = -1.641f },
+            // OSL-25 Starlab: an ISS-style rack room; the greenhouse in the ceiling replaces the stock crops while inside.
+            new InteriorDesign { Name = "Starlab", Address = "IVA/Interior_lab_2v_science_orbital", Parts = new[] { "lab_2v_science_orbital" },
+                                 Seats = 3, BaseRadius = 1.48f, Height = 4.72f, Yaw = 180f, OnHull = true, HullBaseY = -2.352f,
+                                 UprightCrew = true, HideRenderers = new[] { "plants" } },
+            // PPD-10 Hitchhiker and PPD-20 Wayfarer crew cabins: rack rooms with a wardroom table (and a window lounge).
+            new InteriorDesign { Name = "Hitchhiker", Address = "IVA/Interior_cabin_2v_crew_hitchhiker", Parts = new[] { "cabin_2v_crew_hitchhiker" },
+                                 Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true },
+            new InteriorDesign { Name = "Wayfarer", Address = "IVA/Interior_cabin_3v_crew", Parts = new[] { "cabin_3v_crew" },
+                                 Seats = 8, BaseRadius = 1.96f, Height = 5.0f, Yaw = 180f, OnHull = true, HullBaseY = -2.5f, UprightCrew = true },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
@@ -82,6 +93,26 @@ namespace IVA
         }
 
         // Picks the crew pod on the active vessel: the name filter if set, else 3-seat pods, else the biggest.
+        // Every crewed part with an interior design, command pods first (then by seats), for cycling through with N.
+        public static List<PodInfo> FindAll(GameInstance game, bool anyPod)
+        {
+            var list = new List<KeyValuePair<int, PodInfo>>();
+            VesselBehavior vessel = ActiveVessel(game);
+            if (vessel == null) return new List<PodInfo>();
+            foreach (PartBehavior pb in vessel.parts)
+            {
+                if (pb == null) continue;
+                var crewed = pb.GetComponentInChildren<Module_CrewedInterior>(true);
+                if (crewed == null || crewed.IsProbe) continue;
+                int seats = crewed.crew != null ? crewed.crew.Length : 0;
+                string name = PartName(pb);
+                if (InteriorCatalogue.ForPod(name, seats, anyPod) == null) continue;
+                bool command = pb.GetComponentInChildren<Module_Command>(true) != null;
+                list.Add(new KeyValuePair<int, PodInfo>((command ? 100000 : 0) + seats, new PodInfo { Pod = pb, Seats = seats, Name = name }));
+            }
+            return list.OrderByDescending(kv => kv.Key).Select(kv => kv.Value).ToList();
+        }
+
         public static PodInfo FindPod(GameInstance game, string nameFilter, ILogger log)
         {
             VesselBehavior vessel = ActiveVessel(game);
@@ -106,7 +137,7 @@ namespace IVA
                     if (name.IndexOf(nameFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
                     score = 10000;
                 }
-                else score = (seats == 3 ? 1000 : 0) + seats;
+                else score = (pb.GetComponentInChildren<Module_Command>(true) != null ? 100000 : 0) + (seats == 3 ? 1000 : 0) + seats;   // the command pod first
 
                 if (score > bestScore)
                 {
@@ -581,7 +612,15 @@ namespace IVA
             foreach (MovedKerbal m in _moved)
             {
                 if (m.T == null || m.Seat >= Seats.Count || Seats[m.Seat] == null) continue;
-                Vector3 eye = pod.InverseTransformPoint(Seats[m.Seat].position);
+                Transform s = Seats[m.Seat];
+                if (Design != null && Design.UprightCrew)
+                {
+                    // the booth's seated pose has the eye 0.518 m up and 0.149 m forward of the kerbal's root
+                    Vector3 f = s.forward, u = s.up;
+                    m.T.SetPositionAndRotation(s.position - u * 0.518f - f * 0.149f, Quaternion.LookRotation(f, u));
+                    continue;
+                }
+                Vector3 eye = pod.InverseTransformPoint(s.position);
                 m.T.SetPositionAndRotation(pod.TransformPoint(eye + KerbalFromEye), pod.rotation * KerbalRotation);
             }
         }
@@ -676,6 +715,14 @@ namespace IVA
             foreach (Transform root in roots)
                 foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
                     if (r.enabled && r.GetComponentInParent<Kerbal3DModel>() == null)
+                    {
+                        r.enabled = false;
+                        _hiddenStockCabin.Add(r);
+                    }
+            if (Design != null && Design.HideRenderers != null)
+                foreach (Renderer r in Pod.GetComponentsInChildren<Renderer>(false))
+                    if (r.enabled && (_instance == null || !r.transform.IsChildOf(_instance.transform)) &&
+                        Design.HideRenderers.Any(n => r.name.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0))
                     {
                         r.enabled = false;
                         _hiddenStockCabin.Add(r);
