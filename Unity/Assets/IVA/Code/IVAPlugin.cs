@@ -188,11 +188,21 @@ namespace IVA
             if (!_ready) return;
             bool inFlight = IsInFlight();
 
-            if (InIva && (!inFlight || !StillValid()))
+            // Brief state changes (saves, autosaves, the pause menu) mustn't throw you out of IVA: only leave once the
+            // game has been out of flight view for a moment, or straight away if the pod/vessel itself is gone.
+            if (InIva)
             {
-                ExitIva(); // scene change, map view, vessel switch, EVA, pod destroyed
-                return;
+                bool valid = StillValid();
+                _notFlightFor = inFlight ? 0f : _notFlightFor + Time.unscaledDeltaTime;
+                if (!valid || _notFlightFor > LeaveAfterSeconds)
+                {
+                    SWLogger.LogInfo($"IVA: leaving IVA ({(!valid ? "the pod or vessel changed" : "game state " + StateName())}).");
+                    ExitIva();
+                    return;
+                }
+                if (!inFlight) return;   // hold the view, ignore input until the state comes back
             }
+            CheckCameraAfterExit();
             if (!inFlight) { _loading = false; return; }
 
             if (_toggleKey.Value.Down)
@@ -268,6 +278,35 @@ namespace IVA
             Camera.onPreCull -= OnCameraPreCull;
             if (InIva) ExitIva();
         }
+
+        private const float LeaveAfterSeconds = 1.5f;
+        private float _notFlightFor;
+        private float _exitCheckAt = -1f;
+
+        private string StateName()
+        {
+            try { return Game.GlobalGameState.GetState().ToString(); } catch (Exception) { return "unknown"; }
+        }
+
+        // After leaving IVA the game's camera rig should take the camera back out of the pod. If it's still inside the
+        // pod half a second later, put it back to where it was before IVA again and say so in the log.
+        private void CheckCameraAfterExit()
+        {
+            if (_exitCheckAt < 0f || Time.unscaledTime < _exitCheckAt) return;
+            _exitCheckAt = -1f;
+            if (_flightCam == null || _exitPod == null) return;
+            float d = Vector3.Distance(_flightCam.transform.position, _exitPod.position);
+            if (d > 3f) return;
+            SWLogger.LogWarning($"IVA: the camera was still {d:F1} m from the pod after leaving IVA; restoring it again.");
+            Transform t = _flightCam.transform;
+            t.SetParent(_origParentAtExit, false);
+            t.localPosition = _exitLocalPos;
+            t.localRotation = _exitLocalRot;
+        }
+
+        private Transform _exitPod, _origParentAtExit;
+        private Vector3 _exitLocalPos;
+        private Quaternion _exitLocalRot;
 
         private bool IsInFlight()
         {
@@ -534,6 +573,7 @@ namespace IVA
             _loadingFor = null;
             ShowPortraitBody();
 
+            _exitPod = _session != null ? _session.PodTransform : null;
             if (_session != null)
             {
                 _session.End();
@@ -542,6 +582,10 @@ namespace IVA
 
             if (_flightCam != null && _mode != Mode.None)
             {
+                _origParentAtExit = _origParent;
+                _exitLocalPos = _origLocalPos;
+                _exitLocalRot = _origLocalRot;
+                _exitCheckAt = Time.unscaledTime + 0.5f;
                 Transform t = _flightCam.transform;
                 // If the original parent was destroyed (vessel change), leave the camera unparented
                 // and let the game's camera code pick it up again.

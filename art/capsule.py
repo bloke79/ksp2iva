@@ -37,7 +37,8 @@ def setup(spec, wall=0.04, ceil=None, top=None, seg=112):
     WALL, Z_FLOOR, SEG = wall, spec["floor"], seg
     Z_CEIL = ceil if ceil is not None else spec["ceiling"]
     Z_TOP = top if top is not None else Z_CEIL + 0.08
-    WINDOWS[:] = [dict(phi=rad(-w["angle"]), z=w["z"], hw=w["half_w"], hh=w["half_h"], c=w.get("corner", 0.03), name=w.get("name", f"W{i}"))
+    WINDOWS[:] = [dict(phi=rad(-w["angle"]), z=w["z"], hw=w["half_w"], hh=w["half_h"], c=w.get("corner", 0.03), name=w.get("name", f"W{i}"),
+                       **({"glass_r": w["glass_r"], "glass_dr": w.get("glass_dr", 0.0)} if "glass_r" in w else {}))
                   for i, w in enumerate(spec.get("windows", []))]
 
 
@@ -100,20 +101,23 @@ def window_sdf(phi, z, r_at, grow=0.0):
     return best
 
 
-def window_outline(w, inset, grow=0.0, n=48):
+def window_outline(w, inset, grow=0.0, n=48, at_glass=False):
+    """Rounded-rect outline on a surface `inset` in from the wall; at_glass puts it on the real glass instead (spec
+    glass_r/glass_dr: the pane's radius at the window centre and its change with height, from window_extract.py)."""
     pts = []
     hw, hh, c = w["hw"] + grow, w["hh"] + grow, w["c"] + grow
     for cx, cy, a0 in ((hw - c, hh - c, 0), (-(hw - c), hh - c, 90), (-(hw - c), -(hh - c), 180), (hw - c, -(hh - c), 270)):
         for i in range(n // 4 + 1):
             a = rad(a0 + 90 * i / (n // 4))
             z = w["z"] + cy + c * math.sin(a)
-            pts.append(polar(w["phi"] + (cx + c * math.cos(a)) / (r_in(z) - inset), r_in(z) - inset, z))
+            r = (w["glass_r"] + w["glass_dr"] * (z - w["z"]) - 0.004) if at_glass and "glass_r" in w else r_in(z) - inset
+            pts.append(polar(w["phi"] + (cx + c * math.cos(a)) / r, r, z))
     return pts
 
 
 def build_window(w, depth=0.035, bolts=24, frame_mat=None):
     """Sleeve from the hull opening in to `depth` inside the wall, with a bolted frame ring."""
-    outer = window_outline(w, -0.035, grow=0.004)
+    outer = window_outline(w, -0.035, grow=0.004, at_glass=True)    # runs out to the real glass, not past it
     inner = window_outline(w, depth, grow=0.012)
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
@@ -126,6 +130,20 @@ def build_window(w, depth=0.035, bolts=24, frame_mat=None):
             l[uv].uv = (i / n, 0 if l.vert in a else 1)
     bm.normal_update()
     L.smooth(L.mesh_obj(f"WindowSleeve_{w['name']}", bm, [M["bezel"]]), 40)
+    # flange on the wall round the opening: a smooth inner edge that hides the stepped cut in the shell
+    a_in = window_outline(w, 0.002, grow=0.0)
+    a_out = window_outline(w, 0.002, grow=0.05)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    vi = [bm.verts.new(p) for p in a_in]
+    vo = [bm.verts.new(p) for p in a_out]
+    for i in range(len(vi)):
+        f = bm.faces.new((vi[i], vi[(i + 1) % len(vi)], vo[(i + 1) % len(vo)], vo[i]))
+        for l in f.loops:
+            l[uv].uv = (i / len(vi), 0 if l.vert in vi else 1)
+    bm.normal_update()
+    inward(bm.faces, None)
+    L.smooth(L.solidify(L.mesh_obj(f"WindowFlange_{w['name']}", bm, [M["ring"]]), 0.004), 40)
     L.tube(f"WindowFrame_{w['name']}", window_outline(w, depth + 0.006, grow=0.016), 0.011, frame_mat or M["rib"], closed=True)
     for k, p in enumerate(window_outline(w, depth + 0.012, grow=0.03, n=bolts)[::2]):
         q, bb = frame_at(phi_of(p), p.z, depth + 0.012)

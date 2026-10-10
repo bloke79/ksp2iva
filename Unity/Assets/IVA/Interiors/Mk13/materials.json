@@ -58,6 +58,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Annunciators",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.25,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.8999999761581421,
+      "texture": "annunciators.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
       "name": "IVA_Bezel",
       "color": [
         0.029999999329447746,
@@ -88,8 +112,8 @@
         0.800000011920929,
         0.800000011920929
       ],
-      "metallic": 0.6000000238418579,
-      "roughness": 0.41999998688697815,
+      "metallic": 0.3499999940395355,
+      "roughness": 0.5,
       "emission": [
         1.0,
         1.0,
@@ -252,21 +276,21 @@
     {
       "name": "IVA_Console",
       "color": [
-        0.10000000149011612,
-        0.10499999672174454,
-        0.11500000208616257
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
       ],
-      "metallic": 0.20000000298023224,
-      "roughness": 0.550000011920929,
+      "metallic": 0.25,
+      "roughness": 0.6200000047683716,
       "emission": [
         1.0,
         1.0,
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "panel_color.png",
+      "normal": "panel_normal.png",
+      "normalStrength": 0.6000000238418579,
       "tiling": [
         1.0,
         1.0
@@ -320,6 +344,30 @@
         2.5
       ],
       "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Digits",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.15000000596046448,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.600000023841858,
+      "texture": "digits.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
     },
     {
       "name": "IVA_FloorGrate",
@@ -562,6 +610,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Keys",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "keys.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Labels",
       "color": [
         0.800000011920929,
@@ -618,6 +690,126 @@
       ],
       "metallic": 0.20000000298023224,
       "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_MFD_comms",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.11999999731779099,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.7999999523162842,
+      "texture": "mfd_comms.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
+      "name": "IVA_MFD_engine",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.11999999731779099,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.7999999523162842,
+      "texture": "mfd_engine.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
+      "name": "IVA_MFD_map",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.11999999731779099,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.7999999523162842,
+      "texture": "mfd_map.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
+      "name": "IVA_MFD_systems",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.11999999731779099,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 1.7999999523162842,
+      "texture": "mfd_systems.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": true
+    },
+    {
+      "name": "IVA_ModulePlate",
+      "color": [
+        0.054999999701976776,
+        0.057999998331069946,
+        0.06199999898672104
+      ],
+      "metallic": 0.44999998807907104,
+      "roughness": 0.5,
       "emission": [
         1.0,
         1.0,
@@ -706,30 +898,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Periscope",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.0,
-      "roughness": 0.10000000149011612,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 1.600000023841858,
-      "texture": "periscope.png",
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": true
-    },
-    {
       "name": "IVA_Plate",
       "color": [
         0.800000011920929,
@@ -752,30 +920,6 @@
         1.0
       ],
       "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_ScreenAttitude",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.0,
-      "roughness": 0.15000000596046448,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 2.200000047683716,
-      "texture": "crt_attitude.png",
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": true
     },
     {
       "name": "IVA_ScreenData",
@@ -834,6 +978,30 @@
       ],
       "metallic": 0.05000000074505806,
       "roughness": 0.30000001192092896,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_SoftKey",
+      "color": [
+        0.7799999713897705,
+        0.7799999713897705,
+        0.7400000095367432
+      ],
+      "metallic": 0.0,
+      "roughness": 0.550000011920929,
       "emission": [
         1.0,
         1.0,
@@ -950,9 +1118,9 @@
   ],
   "cabinLight": [
     -0.0,
-    0.95,
-    -0.1,
-    2.6,
-    1.0
+    0.8,
+    -0.3,
+    2.2,
+    0.6
   ]
 }

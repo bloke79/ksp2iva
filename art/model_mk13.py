@@ -25,9 +25,11 @@ TEX, OUT = ARGS[1], ARGS[2]
 
 L.begin(SPEC["interior"], TEX)
 import capsule as C  # noqa: E402  (after begin: shares L.M)
+import modules as G  # noqa: E402
+G.materials()
 
 M = L.M
-M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.42, metal=0.6, uv_scale=(1.6, 1.6))
+M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.5, metal=0.35, uv_scale=(1.6, 1.6))
 M["shell"] = L.material("IVA_SeatShell", (0.86, 0.86, 0.84), rough=0.3, metal=0.05)
 M["bottle"] = L.material("IVA_Bottle", (0.22, 0.42, 0.30), rough=0.35, metal=0.4)
 M["tank"] = L.material("IVA_Tank", (0.78, 0.79, 0.80), rough=0.3, metal=0.7)
@@ -74,10 +76,9 @@ def build_mdc():
         a = Vector((side * 0.335, MDC_Y - MDC_H / 2 - 0.01, MDC_Z + 0.01))
         b = Vector((side * 0.335, MDC_Y + MDC_H / 2 + 0.01, MDC_Z + 0.01))
         L.tube(f"MDC_Seam{side}", [a, b], 0.018, M["couchframe"])
+        # hangers straight up to the ceiling ring, clear of the windows' sight lines
         for k, y in enumerate((MDC_Y - 0.17, MDC_Y + 0.17)):
-            top = Vector((side * 0.335, y, MDC_Z + 0.03))
-            phi = math.atan2(side * 0.6, -y)
-            C.bracket(f"MDC_Hanger{side}_{k}", top, C.frame_at(phi, MDC_Z + 0.2, 0.0)[0], r=0.012)
+            C.bracket(f"MDC_Hanger{side}_{k}", Vector((side * 0.335, y, MDC_Z + 0.03)), Vector((side * 0.335, y, C.Z_CEIL + 0.03)), r=0.012)
     # back hood over the whole console
     hy = MDC_Y + MDC_H / 2 + 0.02
     L.box("MDC_Hood", (1.5, 0.03, 0.06), M["couchframe"], (0, hy, MDC_Z + 0.02), bevel=0.01)
@@ -89,82 +90,28 @@ def build_mdc():
         L.cylinder(f"Flood_{k}", 0.022, 0.03, M["ring"], p, rot, segs=20, radius2=0.017)
         L.disc(f"FloodLens_{k}", 0.014, M["light"], p + aim * 0.016, aim.to_track_quat("Z", "Y").to_matrix(), segs=20)
 
-    # --- centre (commander): flight instruments; screen-up is the head end (-Y)
-    s = centre
-    p, b = s.at(0.0, 0.0)
-    s.reserve("Navball", 0.0, 0.0, 0.07, 0.07)
-    C.navball("Navball", p, b, r=0.058)
-    for nm, u, mat in (("Attitude", -0.175, M["crt_att"]), ("Orbit", 0.175, M["crt_orbit"])):
-        p, b = s.at(u, 0.03)
-        s.reserve(nm + "CRT", u, 0.02, 0.06, 0.055)
-        C.crt(nm, p, b, mat, w=0.115, h=0.085)
-    s.reserve("Telelights", 0.0, 0.145, 0.045, 0.01)
-    C.lamps("Telelight", [s.at(-0.03 + 0.02 * k, 0.145) for k in range(4)])
-    for k, (u, g) in enumerate(((-0.13, "alt"), (0.13, "fuel"))):
-        p, b = s.at(u, 0.145)
-        s.reserve("TopGauge_" + g, u, 0.145, 0.027, 0.027)
-        C.gauge("TopGauge_" + g, p, b, g)
-    s.reserve("EventTimer", 0.0, -0.105, 0.045, 0.016)
-    p, b = s.at(0.0, -0.105)
-    L.box("EventTimer", (0.09, 0.032, 0.008), M["bezel"], p, b, bevel=0.003)
-    L.plane("EventTimerDigits", 0.08, 0.022, M["crt_data"], p + b.col[2] * 0.0045, b, (0.05, 0.62, 0.95, 0.78))
-    s.reserve("SeqButtons", 0.0, -0.155, 0.06, 0.014)
-    C.push_buttons("SeqButton", [s.at(-0.045 + 0.03 * k, -0.155) for k in range(4)])
-    s.reserve("Abort", -0.2, -0.13, 0.0375, 0.055)
-    p, b = s.at(-0.2, -0.125)
-    C.abort_handle("Abort", p, b)
-    s.reserve("NamePlate", 0.19, -0.15, 0.06, 0.015)
-    p, b = s.at(0.19, -0.15)
-    L.plane("NamePlate", 0.12, 0.03, M["plate"], p + b.col[2] * 0.002, b)
-    s.reserve("ModeToggles", 0.19, -0.1, 0.05, 0.018)
-    C.toggles("ModeToggle", [s.at(0.16 + 0.02 * k, -0.1) for k in range(4)])
-    s.reserve("EdgeHazard", 0.0, -0.19, 0.1, 0.008, margin=0.002)
-    p, b = s.at(0.0, -0.19)
-    L.plane("MDC_Hazard", 0.2, 0.016, M["hazard"], p + b.col[2] * 0.002, b, (0, 0, 1, 0.25))
-    s.check()
-
-    # --- right wing (seat over +X): systems - power, fuel, pressures
-    s = wings[1]
-    for k, g in enumerate(("press", "temp", "fuel")):
-        u = -0.13 + 0.13 * k
-        p, b = s.at(u, 0.1)
-        s.reserve("Gauge_" + g, u, 0.1, 0.03, 0.03)
-        C.gauge("WingRGauge_" + g, p, b, g, r=0.026)
-    p, b = s.at(0.0, -0.035)
-    s.reserve("DataCRT", 0.0, -0.045, 0.06, 0.055)
-    C.crt("WingRData", p, b, M["crt_data"], w=0.115, h=0.085)
-    s.reserve("Breakers", 0.0, -0.16, 0.11, 0.012)
-    C.breakers("WingRBreaker", [s.at(-0.1 + 0.025 * k, -0.16) for k in range(9)])
-    s.reserve("TogglesL", -0.16, -0.04, 0.03, 0.03)
-    C.toggles("WingRToggleA", [s.at(-0.175 + 0.017 * k, -0.035) for k in range(3)])
-    s.reserve("TogglesR", 0.16, -0.04, 0.03, 0.03)
-    C.toggles("WingRToggleB", [s.at(0.145 + 0.017 * k, -0.035) for k in range(3)])
-    s.check()
-
-    # --- left wing (seat over -X): navigation and comms
-    s = wings[-1]
-    p, b = s.at(0.0, 0.03)
-    s.reserve("Periscope", 0.0, 0.03, 0.06, 0.06)
-    C.periscope("WingLPeriscope", p, b, r=0.048)
-    for k, (u, g) in enumerate(((-0.15, "alt"), (0.15, "press"))):
-        p, b = s.at(u, 0.09)
-        s.reserve("Gauge_" + g, u, 0.09, 0.027, 0.027)
-        C.gauge("WingLGauge_" + g, p, b, g)
-    s.reserve("Comms", -0.15, -0.03, 0.04, 0.03)
-    p, b = s.at(-0.15, -0.03)
-    L.box("CommsPanel", (0.08, 0.06, 0.006), M["bezel"], p, b, bevel=0.003)
-    for k in range(2):
-        L.cylinder(f"CommsKnob_{k}", 0.011, 0.012, M["toggle"], p + b.col[0] * (-0.02 + 0.04 * k) + b.col[2] * 0.008, b, segs=16, bevel=0.002)
-    s.reserve("Lamps", 0.15, -0.03, 0.04, 0.01)
-    C.lamps("WingLLamp", [s.at(0.12 + 0.02 * k, -0.03) for k in range(4)])
-    s.reserve("Dimmers", 0.0, -0.12, 0.06, 0.016)
-    for k in range(4):
-        p, b = s.at(-0.045 + 0.03 * k, -0.12)
-        L.cylinder(f"WingLDimmer_{k}", 0.01, 0.012, M["bezel"], p + b.col[2] * 0.006, b, segs=16, bevel=0.002)
-        L.box(f"WingLDimmerPtr_{k}", (0.002, 0.01, 0.003), M["toggle"], p + b.col[2] * 0.013 + b.col[1] * 0.003, b)
-    s.reserve("Toggles", 0.0, -0.17, 0.1, 0.018)
-    C.toggles("WingLToggle", [s.at(-0.085 + 0.017 * k, -0.17) for k in range(11)])
-    s.check()
+    # Modules on a grid per section (row 0 is the head end, screen-up). Commander in the middle: flight;
+    # right wing: propulsion and systems; left wing: comms and navigation.
+    G.grid(centre, "MDC_C", 6, 4, [
+        ("dial", 0, 0, 1, 1, {"kind": "alt"}), ("annunciators", 1, 0, 4, 1, {"cols": 8, "rows": 2}), ("dial", 5, 0, 1, 1, {"kind": "fuel"}),
+        ("mfd", 0, 1, 2, 2, {"screen": "mfd_systems"}), ("navball", 2, 1, 2, 2, {}), ("mfd", 4, 1, 2, 2, {"screen": "mfd_map"}),
+        ("abort", 0, 3, 1, 1, {}), ("buttons", 1, 3, 1, 1, {"n": 3}), ("toggles", 2, 3, 2, 1, {"cols": 6}),
+        ("knobs", 4, 3, 1, 1, {"n": 2}), ("lamps", 5, 3, 1, 1, {"n": 3}),
+    ])
+    G.grid(wings[1], "MDC_R", 4, 4, [
+        ("dial", 0, 0, 1, 1, {"kind": "press"}), ("dial", 1, 0, 1, 1, {"kind": "temp"}), ("annunciators", 2, 0, 2, 1, {"cols": 4, "rows": 2, "start": 4}),
+        ("mfd", 0, 1, 2, 2, {"screen": "mfd_engine"}), ("keypad", 2, 1, 2, 2, {}),
+        ("breakers", 0, 3, 4, 1, {"cols": 12, "rows": 2}),
+    ])
+    G.grid(wings[-1], "MDC_L", 4, 4, [
+        ("knobs", 0, 0, 2, 1, {"n": 4}), ("dial", 2, 0, 1, 1, {"kind": "press"}), ("dial", 3, 0, 1, 1, {"kind": "temp"}),
+        ("mfd", 0, 1, 2, 2, {"screen": "mfd_comms"}), ("screen", 2, 1, 2, 1, {"mat": "crt_orbit"}), ("toggles", 2, 2, 2, 1, {"cols": 6}),
+        ("breakers", 0, 3, 2, 1, {"cols": 6, "rows": 2}), ("vent", 2, 3, 1, 1, {}), ("lamps", 3, 3, 1, 1, {"n": 3}),
+    ])
+    for s_ in (centre, wings[1], wings[-1]):
+        s_.check()
+    # name plate on the hood
+    L.plane("NamePlate", 0.24, 0.05, M["plate"], Vector((0, MDC_Y + MDC_H / 2 + 0.006, MDC_Z + 0.02)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
 
 
 # ------------------------------------------------------------------ side consoles beside the outer couches
@@ -174,25 +121,14 @@ def build_side_consoles():
         nm = "SideConsoleR" if side > 0 else "SideConsoleL"
         band = C.Band(nm, p0, p1, SIDE_Z0, SIDE_Z1, 0.07)
         band.build(M["console"])
-        for z in (SIDE_Z0, SIDE_Z1):     # end cheeks
-            pass
         mid = math.degrees((p0 + p1) / 2)
         zc = (SIDE_Z0 + SIDE_Z1) / 2
-        # breaker grid (upper), toggle row, a gauge pair and a placard
-        rows = [(zc + 0.11, "Breakers"), (zc + 0.05, "Breakers2")]
-        for z, key in rows:
-            band.reserve(nm + key, mid, z, 0.21, 0.012)
-            C.breakers(nm + key, [band.at(0.025 * (k - 8), z, centre_deg=mid) for k in range(17)])
-        band.reserve(nm + "Toggles", mid - side * 8, zc - 0.035, 0.1, 0.02)
-        C.toggles(nm + "Toggle", [band.at(0.018 * (k - 5), zc - 0.035, centre_deg=mid - side * 8) for k in range(11)])
-        for k, g in enumerate(("temp", "press")):
-            d = mid + side * 10 + k * 7 * side
-            p, b = C.frame_at(C.rad(d), zc - 0.035, 0.082)
-            band.reserve(nm + "Gauge" + g, d, zc - 0.035, 0.024, 0.024)
-            C.gauge(f"{nm}Gauge_{g}", p, b, g, r=0.02)
-        band.reserve(nm + "Plate", mid, zc - 0.12, 0.06, 0.015)
-        p, b = C.frame_at(C.rad(mid), zc - 0.12, 0.082)
-        L.plane(nm + "Plate", 0.12, 0.03, M["plate"], p + b.col[2] * 0.002, b)
+        G.band_grid(band, nm, mid, zc, 6, 3, 0.105, 0.105, [
+            ("breakers", 0, 0, 4, 1, {"cols": 12, "rows": 2}), ("annunciators", 4, 0, 2, 1, {"cols": 4, "rows": 2, "start": 8 if side > 0 else 12}),
+            ("dial", 0, 1, 1, 1, {"kind": "press"}), ("dial", 1, 1, 1, 1, {"kind": "temp"}), ("toggles", 2, 1, 2, 1, {"cols": 6}),
+            ("knobs", 4, 1, 2, 1, {"n": 4}),
+            ("screen", 0, 2, 2, 1, {"mat": "crt_data"}), ("toggles", 2, 2, 2, 1, {"cols": 6, "rows": 1}), ("vent", 4, 2, 2, 1, {"slots": 5}),
+        ])
         band.check()
 
 
@@ -259,6 +195,25 @@ def build_front_wall():
             L.sphere(f"NetHook_{i}_{j}", 0.01, M["buckle"], C.polar(phi, C.r_in(z) - 0.03, z), u=10, v=6)
 
 
+# ------------------------------------------------------------------ wall equipment: junction boxes, breaker boxes, conduits
+def build_wall_equipment():
+    G.wall("WallBack", [
+        ("breakers", 158, 0.98, 0.16, 0.11, {"cols": 6, "rows": 2}), ("vent", 202, 0.98, 0.14, 0.11, {"slots": 6}),
+        ("lamps", 160, 1.12, 0.1, 0.045, {"n": 3}), ("knobs", 200, 1.12, 0.1, 0.05, {"n": 2}),
+    ])
+    for side in (1, -1):
+        G.wall(f"WallSide{side}", [
+            ("breakers", side * 107, 0.33, 0.22, 0.1, {"cols": 8, "rows": 2}),
+            ("annunciators", side * 118, 1.0, 0.13, 0.07, {"cols": 4, "rows": 2, "start": 4 if side > 0 else 0}),
+            ("vent", side * 140, 0.33, 0.12, 0.1, {"slots": 5}),
+        ])
+        # conduits: one up the wall behind the side console, one round under the hatch
+        G.conduit(f"ConduitRiser{side}", [C.polar(C.rad(side * 135), C.r_in(z) - 0.012, z) for z in (C.Z_FLOOR + 0.02, 0.5, 0.9, 1.3, C.Z_CEIL - 0.02)])
+    G.conduit("ConduitBack", [C.polar(C.rad(a), C.r_in(1.15) - 0.012, 1.15) for a in range(135, 226, 15)], r=0.007)
+    G.conduit("ConduitBack2", [C.polar(C.rad(a), C.r_in(1.17) - 0.014, 1.17) for a in range(135, 226, 15)], r=0.005, clamps=False)
+    G.wall("WallFront", [("lamps", 0, 1.37, 0.12, 0.05, {"n": 3}), ("dial", 0, 1.27, 0.08, 0.08, {"kind": "press"})])
+
+
 # ------------------------------------------------------------------ ceiling: docking hatch with a wheel
 def build_ceiling():
     z = C.Z_TOP - 0.004
@@ -283,6 +238,7 @@ build_couches()
 C.build_hatch(HATCH_PHI, HATCH_HALF, H["z0"], H["z1"])
 build_back_wall()
 build_front_wall()
+build_wall_equipment()
 build_ceiling()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)

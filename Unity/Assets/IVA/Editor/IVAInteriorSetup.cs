@@ -171,9 +171,33 @@ namespace IVA.EditorTools
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
             light.range = cl[3];
-            light.intensity = cl[4];
+            light.intensity = Mathf.Min(cl[4], 0.8f);
             light.color = new Color(1f, 0.93f, 0.82f);
             light.shadows = LightShadows.None;
+
+            // Our own reflection probe: without it the shiny parts reflect the game's probes, i.e. the bright sky outside,
+            // and the whole cabin reads as white. Box-sized to the model, it wins over the game's probes inside it.
+            Cubemap env = CabinReflection();
+            if (env != null)
+            {
+                Bounds bb = new Bounds(Vector3.zero, Vector3.zero);
+                bool any = false;
+                foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    if (!any) { bb = r.bounds; any = true; } else bb.Encapsulate(r.bounds);
+                    r.reflectionProbeUsage = ReflectionProbeUsage.BlendProbes;
+                }
+                var probeGo = new GameObject("IVA_CabinReflection");
+                probeGo.transform.SetParent(inst.transform, false);
+                probeGo.transform.localPosition = inst.transform.InverseTransformPoint(bb.center);
+                var probe = probeGo.AddComponent<ReflectionProbe>();
+                probe.mode = ReflectionProbeMode.Custom;
+                probe.customBakedTexture = env;
+                probe.size = bb.size + Vector3.one * 0.2f;
+                probe.importance = 100;
+                probe.boxProjection = false;
+                probe.intensity = 1f;
+            }
 
             string prefabPath = $"{dir}/{sheet.interior}.prefab";
             PrefabUtility.SaveAsPrefabAsset(inst, prefabPath);
@@ -191,6 +215,21 @@ namespace IVA.EditorTools
 
             string note = missing > 0 ? $" ({missing} meshes without a matching material)" : "";
             return $"{sheet.interior}: {materials.Count} materials, prefab and address '{sheet.address}'{note}";
+        }
+
+        private static Cubemap CabinReflection()
+        {
+            string path = InteriorsRoot + "/Shared/Textures/cabin_reflection.png";
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti == null) { Debug.LogWarning("[IVA] cabin_reflection.png missing; interiors keep the game's reflections."); return null; }
+            if (ti.textureShape != TextureImporterShape.TextureCube)
+            {
+                ti.textureShape = TextureImporterShape.TextureCube;
+                ti.generateCubemap = TextureImporterGenerateCubemap.Cylindrical;
+                ti.mipmapEnabled = true;
+                ti.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Cubemap>(path);
         }
 
         private static string StripSuffix(string name)
@@ -254,7 +293,8 @@ namespace IVA.EditorTools
             {
                 mat.EnableKeyword("_EMISSION");
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
-                float k = Mathf.Max(0.2f, m.emissionStrength);
+                // Blender strengths (up to 6 for lamps) bloom badly in the game's post-processing: scale them down
+                float k = Mathf.Clamp(m.emissionStrength * 0.35f, 0.2f, 2f);
                 if (m.emissionFromTexture && main != null)
                 {
                     mat.SetTexture("_EmissionMap", main);

@@ -416,7 +416,10 @@ namespace IVA
             try
             {
                 string dir = System.IO.Path.Combine(Application.persistentDataPath, "IVA-pose");
-                string file = System.IO.Path.Combine(dir, Pod.name.Replace("(Clone)", "").Trim() + ".obj");
+                string part = Pod.name.Replace("(Clone)", "").Trim();
+                int cut = part.IndexOf(".prefab", StringComparison.Ordinal);   // instance names carry ".prefab_<guid>"
+                if (cut > 0) part = part.Substring(0, cut);
+                string file = System.IO.Path.Combine(dir, part + ".obj");
                 if (System.IO.File.Exists(file) || EyeKerbals.Count == 0) return;
                 System.IO.Directory.CreateDirectory(dir);
                 var sb = new System.Text.StringBuilder();

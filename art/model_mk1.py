@@ -25,9 +25,11 @@ TEX, OUT = ARGS[1], ARGS[2]
 
 L.begin(SPEC["interior"], TEX)
 import capsule as C  # noqa: E402  (after begin: shares L.M)
+import modules as G  # noqa: E402
+G.materials()
 
 M = L.M
-M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.42, metal=0.6, uv_scale=(1.1, 1.1))
+M["blanket"] = L.material("IVA_Blanket", tex="blanket_color.png", normal="blanket_normal.png", rough=0.5, metal=0.35, uv_scale=(1.1, 1.1))
 M["shell"] = L.material("IVA_SeatShell", (0.86, 0.86, 0.84), rough=0.3, metal=0.05)
 M["bottle"] = L.material("IVA_Bottle", (0.22, 0.42, 0.30), rough=0.35, metal=0.4)
 M["periscope"] = L.material("IVA_Periscope", tex="periscope.png", rough=0.1, emit=1.6, emit_tex=True)
@@ -50,49 +52,19 @@ def keep_clear(phi):
 # ------------------------------------------------------------------ ceiling console, right above the face
 def build_ceiling_console():
     # facing straight down; as seen from the couch, screen-right is +X and screen-up is the head end (-Y)
-    s = C.Surface("CeilingConsole", (0.0, 0.0, 0.772), (1, 0, 0), (0, -1, 0), 0.42, 0.37, bend=0.55, corner=0.09)
+    s = C.Surface("CeilingConsole", (0.0, 0.0, 0.772), (1, 0, 0), (0, -1, 0), 0.42, 0.37, bend=0.55, corner=0.05)
     s.build(M["console"], thick=0.025)
-    # brackets from the console back to the crown
     for k, deg in enumerate((45, 135, 225, 315)):
         a = C.rad(deg)
         p = Vector((0.17 * math.sin(a), -0.15 * math.cos(a), 0.79))
         q, _ = C.frame_at(a, 0.80, 0.0)
         C.bracket(f"CeilingBracket_{k}", p, q, r=0.009)
-
-    p, b = s.at(0.0, 0.0)
-    s.reserve("Navball", 0.0, 0.0, 0.058, 0.058)
-    C.navball("Navball", p, b, r=0.046)
-
-    p, b = s.at(0.128, 0.012)
-    s.reserve("AttitudeCRT", 0.128, 0.002, 0.045, 0.045)
-    C.crt("Attitude", p, b, M["crt_att"])
-
-    p, b = s.at(-0.128, 0.004)
-    s.reserve("Periscope", -0.128, 0.004, 0.052, 0.052)
-    C.periscope("Periscope", p, b, r=0.042)
-
-    s.reserve("Telelights", 0.0, 0.125, 0.032, 0.01)
-    C.lamps("Telelight", [s.at(-0.02 + 0.02 * k, 0.125) for k in range(3)])
-    s.reserve("Clock", -0.1, 0.105, 0.024, 0.024)
-    p, b = s.at(-0.1, 0.105)
-    C.gauge("Clock", p, b, "press", r=0.02)
-    s.reserve("EventTimer", 0.1, 0.105, 0.035, 0.014)
-    p, b = s.at(0.1, 0.105)
-    L.box("EventTimer", (0.07, 0.028, 0.008), M["bezel"], p, b, bevel=0.003)
-    L.plane("EventTimerDigits", 0.06, 0.018, M["crt_data"], p + b.col[2] * 0.0045, b, (0.05, 0.62, 0.95, 0.78))
-
-    s.reserve("SeqButtons", 0.0, -0.097, 0.044, 0.014)
-    C.push_buttons("SeqButton", [s.at(x, -0.097) for x in (-0.03, 0.0, 0.03)])
-    s.reserve("NamePlate", 0.0, -0.148, 0.06, 0.015)
-    p, b = s.at(0.0, -0.148)
-    L.plane("NamePlate", 0.12, 0.03, M["plate"], p + b.col[2] * 0.002, b)
-    s.reserve("ModeToggles", 0.125, -0.085, 0.036, 0.018)
-    C.toggles("ModeToggle", [s.at(0.1 + 0.017 * k, -0.085) for k in range(4)])
-    s.reserve("DimmerKnobs", -0.125, -0.085, 0.036, 0.016)
-    for k in range(3):
-        p, b = s.at(-0.15 + 0.025 * k, -0.085)
-        L.cylinder(f"DimmerKnob_{k}", 0.009, 0.012, M["bezel"], p + b.col[2] * 0.006, b, segs=16, bevel=0.002)
-        L.box(f"DimmerPointer_{k}", (0.002, 0.009, 0.003), M["toggle"], p + b.col[2] * 0.013 + b.col[1] * 0.003, b)
+    G.grid(s, "Ceil", 4, 4, [
+        ("dial", 0, 0, 1, 1, {"kind": "alt"}), ("annunciators", 1, 0, 2, 1, {"cols": 4, "rows": 2}), ("dial", 3, 0, 1, 1, {"kind": "press"}),
+        ("periscope", 0, 1, 1, 1, {}), ("navball", 1, 1, 2, 2, {}), ("mfd", 3, 1, 1, 1, {"screen": "mfd_systems"}),
+        ("dial", 0, 2, 1, 1, {"kind": "temp"}), ("screen", 3, 2, 1, 1, {"mat": "crt_att"}),
+        ("toggles", 0, 3, 2, 1, {"cols": 6}), ("buttons", 2, 3, 1, 1, {"n": 3}), ("knobs", 3, 3, 1, 1, {"n": 2}),
+    ], border=0.012)
     s.check()
 
 
@@ -100,51 +72,21 @@ def build_ceiling_console():
 def build_crown():
     crown = C.Band("Crown", -math.pi, math.pi, CROWN_Z0, CROWN_Z1, CROWN_INSET)
     crown.build(M["console"])
-    # under-lit lower edge
     zl = CROWN_Z0 - 0.006
-    C.L.tube("CrownLightStrip", [C.polar(2 * math.pi * j / 96, C.r_in(zl) - CROWN_INSET + 0.004, zl) for j in range(97)], 0.005, M["light"], closed=True)
+    L.tube("CrownLightStrip", [C.polar(2 * math.pi * j / 96, C.r_in(zl) - CROWN_INSET + 0.004, zl) for j in range(97)], 0.005, M["light"], closed=True)
     zm = (CROWN_Z0 + CROWN_Z1) / 2
-
-    # right of the view (+X): flight gauges in a 2x2 block
-    for g, (deg, z) in zip(("alt", "press", "temp", "fuel"), ((78, zm + 0.04), (78, zm - 0.04), (102, zm + 0.04), (102, zm - 0.04))):
-        p, b = C.frame_at(C.rad(deg), z, CROWN_INSET + 0.012)
-        crown.reserve("Gauge_" + g, deg, z, 0.026, 0.026)
-        C.gauge("Gauge_" + g, p, b, g)
-    # behind the right hand: the abort T-handle
-    deg = 140
-    p, b = C.frame_at(C.rad(deg), zm + 0.012, CROWN_INSET + 0.012)
-    crown.reserve("Abort", deg, zm, 0.0375, 0.07)
-    C.abort_handle("Abort", p, b, label=C.frame_at(C.rad(deg), zm - 0.05, CROWN_INSET + 0.012))
-    # left of the view (-X): toggle bank and breakers
-    crown.reserve("Toggles", -90, zm + 0.03, 0.05, 0.02)
-    C.toggles("Toggle", [crown.at(0.017 * (k - 2.5), zm + 0.03, centre_deg=-90) for k in range(6)])
-    crown.reserve("Breakers", -90, zm - 0.04, 0.05, 0.012)
-    C.breakers("Breaker", [crown.at(0.022 * (k - 2), zm - 0.04, centre_deg=-90) for k in range(5)])
-    # behind the left hand: the sequencer panel
-    crown.reserve("Sequencer", -140, zm, 0.045, 0.045)
-    p, b = C.frame_at(C.rad(-140), zm, CROWN_INSET + 0.012)
-    L.box("SequencerPlate", (0.09, 0.09, 0.006), M["bezel"], p, b, bevel=0.003)
-    C.lamps("SeqLamp", [(p + b.col[0] * (-0.027 + 0.018 * k) + b.col[1] * 0.025 + b.col[2] * 0.004, b) for k in range(4)])
-    C.push_buttons("SeqArm", [(p + b.col[0] * (-0.022 + 0.022 * k) - b.col[1] * 0.018 + b.col[2] * 0.003, b) for k in range(3)])
-    # above the porthole (front), and over the feet (back): placards
-    crown.reserve("CrownPlate", 0, zm, 0.06, 0.016)
-    p, b = C.frame_at(0.0, zm, CROWN_INSET + 0.012)
-    L.plane("CrownPlate", 0.12, 0.03, M["plate"], p + b.col[2] * 0.002, b)
-    crown.reserve("Hazard", 180, zm, 0.08, 0.018)
-    p, b = C.frame_at(math.pi, zm, CROWN_INSET + 0.012)
-    L.plane("CrownHazard", 0.16, 0.035, M["hazard"], p + b.col[2] * 0.002, b, (0, 0, 1, 0.5))
-    # right-front, beside the hatch: cabin pressure pair
-    for k, (deg, g) in enumerate(((37, "press"), (52, "temp"))):
-        p, b = C.frame_at(C.rad(deg), zm, CROWN_INSET + 0.012)
-        crown.reserve("Cabin_" + g, deg, zm, 0.024, 0.024)
-        C.gauge(f"CabinGauge_{k}", p, b, g, r=0.019)
-    # left-front: comms panel
-    crown.reserve("Comms", -42, zm, 0.04, 0.03)
-    p, b = C.frame_at(C.rad(-42), zm, CROWN_INSET + 0.012)
-    L.box("CommsPanel", (0.08, 0.06, 0.006), M["bezel"], p, b, bevel=0.003)
-    for k in range(2):
-        L.cylinder(f"CommsKnob_{k}", 0.011, 0.012, M["toggle"], p + b.col[0] * (-0.02 + 0.04 * k) + b.col[2] * 0.008, b, segs=16, bevel=0.002)
-    L.plane("CommsLabel", 0.06, 0.012, M["labels"], p - b.col[1] * 0.02 + b.col[2] * 0.004, b, (0.02, 0.81, 0.23, 0.94))
+    cw, ch = 0.088, 0.088
+    groups = [   # centre angle, columns, modules (row 0 = top)
+        (0, 4, [("annunciators", 0, 0, 4, 1, {"cols": 8, "rows": 2}), ("lamps", 0, 1, 1, 1, {"n": 3}), ("knobs", 1, 1, 2, 1, {"n": 3}), ("lamps", 3, 1, 1, 1, {"n": 3})]),
+        (76, 3, [("dial", 0, 0, 1, 1, {"kind": "alt"}), ("dial", 1, 0, 1, 1, {"kind": "press"}), ("dial", 2, 0, 1, 1, {"kind": "fuel"}),
+                 ("dial", 0, 1, 1, 1, {"kind": "temp"}), ("toggles", 1, 1, 2, 1, {"cols": 5})]),
+        (136, 2, [("abort", 0, 0, 1, 2, {}), ("buttons", 1, 0, 1, 1, {"n": 3}), ("lamps", 1, 1, 1, 1, {"n": 3})]),
+        (180, 2, [("breakers", 0, 0, 2, 1, {"cols": 7, "rows": 2}), ("vent", 0, 1, 1, 1, {"slots": 5}), ("knobs", 1, 1, 1, 1, {"n": 2})]),
+        (-136, 2, [("keypad", 0, 0, 2, 2, {})]),
+        (-76, 3, [("breakers", 0, 0, 3, 1, {"cols": 10, "rows": 2}), ("toggles", 0, 1, 2, 1, {"cols": 6}), ("knobs", 2, 1, 1, 1, {"n": 2})]),
+    ]
+    for k, (deg, cols, items) in enumerate(groups):
+        G.band_grid(crown, f"Crown{k}", deg, zm, cols, 2, cw, ch, items, gap=0.005)
     crown.check()
 
 

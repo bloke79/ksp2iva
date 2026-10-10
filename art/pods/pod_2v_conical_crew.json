@@ -60,34 +60,42 @@
   {
    "name": "SideR",
    "angle": -61.9,
-   "z": 0.872,
-   "half_w": 0.235,
-   "half_h": 0.17,
-   "corner": 0.07
+   "z": 0.873,
+   "half_w": 0.257,
+   "half_h": 0.198,
+   "corner": 0.07,
+   "glass_r": 0.927,
+   "glass_dr": -0.411
   },
   {
    "name": "SideL",
    "angle": 61.9,
-   "z": 0.872,
-   "half_w": 0.235,
-   "half_h": 0.17,
-   "corner": 0.07
+   "z": 0.873,
+   "half_w": 0.257,
+   "half_h": 0.198,
+   "corner": 0.07,
+   "glass_r": 0.927,
+   "glass_dr": -0.411
   },
   {
    "name": "RendezvousR",
    "angle": -30.9,
    "z": 1.367,
-   "half_w": 0.14,
-   "half_h": 0.1,
-   "corner": 0.05
+   "half_w": 0.158,
+   "half_h": 0.125,
+   "corner": 0.05,
+   "glass_r": 0.711,
+   "glass_dr": -0.725
   },
   {
    "name": "RendezvousL",
    "angle": 30.9,
    "z": 1.367,
-   "half_w": 0.14,
-   "half_h": 0.1,
-   "corner": 0.05
+   "half_w": 0.158,
+   "half_h": 0.125,
+   "corner": 0.05,
+   "glass_r": 0.711,
+   "glass_dr": -0.725
   }
  ],
  "hatch": {
@@ -104,11 +112,11 @@
  "cabin_light": {
   "position": [
    0.0,
-   0.1,
-   0.95
+   0.3,
+   0.8
   ],
-  "range": 2.6,
-  "intensity": 1.0
+  "range": 2.2,
+  "intensity": 0.6
  },
  "pose": {
   "_source": "pose capture (mod pose dump) + stock interior anchors; regenerate with pose_extract.py",
@@ -529,5 +537,6 @@
    "energy": 2,
    "size": 0.6
   }
- ]
+ ],
+ "_windows_source": "window_extract.py on the extracted hull glass (+0.012 m margin)"
 }

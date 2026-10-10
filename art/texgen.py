@@ -270,6 +270,172 @@ def plate(w=1024, h=256):
     save(img, "plate.png")
 
 
+def cabin_reflection(w=512, h=256):
+    """Lat-long environment for the interiors' own reflection probe: a dim cabin (warm lamp glow overhead, darker
+    walls, near-black floor), so shiny surfaces reflect the cabin instead of the bright sky outside."""
+    v = np.linspace(0, 1, h)[:, None, None]            # 0 = straight up
+    u = np.linspace(0, 1, w)[None, :, None]
+    top = np.array([0.36, 0.33, 0.29]); wall = np.array([0.10, 0.105, 0.115]); floor = np.array([0.025, 0.025, 0.03])
+    col = np.where(v < 0.5, top * (1 - v / 0.5) + wall * (v / 0.5), wall * (1 - (v - 0.5) / 0.5) + floor * ((v - 0.5) / 0.5))
+    bands = 1 + 0.08 * np.cos(u * 2 * np.pi * 8)       # stringers/panels round the walls
+    px = np.clip(col * bands, 0, 1)
+    px = np.broadcast_to(px, (h, w, 3))
+    save(Image.fromarray((px * 255).astype(np.uint8)), "cabin_reflection.png")
+
+
+# ---------------------------------------------------------------- console panel finish (colour + normal), tileable
+def _tile_noise(size, scale, seed):
+    """Tileable value noise: random grid upsampled with wrap-around."""
+    rng = np.random.default_rng(seed)
+    g = rng.random((scale, scale)).astype(np.float32)
+    g = np.tile(g, (3, 3))
+    big = Image.fromarray((g * 255).astype(np.uint8)).resize((size * 3, size * 3), Image.BICUBIC)
+    a = np.asarray(big).astype(np.float32)[size:2 * size, size:2 * size] / 255
+    return a
+
+
+def panel(size=1024):
+    """Dark, slightly worn console finish: low-frequency grime, fine powder-coat speckle, faint scratches."""
+    grime = 0.6 * _tile_noise(size, 6, 2) + 0.4 * _tile_noise(size, 17, 3)
+    speck = np.random.default_rng(4).normal(0, 1, (size, size)).astype(np.float32)
+    speck = np.asarray(Image.fromarray(((speck * 0.5 + 0.5).clip(0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))).astype(np.float32) / 255
+    base = np.array([0.15, 0.155, 0.16])
+    col = base[None, None, :] * (0.72 + 0.4 * grime[..., None]) * (0.92 + 0.14 * speck[..., None])
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(5)
+    for _ in range(90):                      # light scratches
+        x, y = rng.random(2) * size
+        a = rng.random() * math.pi
+        ln = 20 + rng.random() * 90
+        d.line([(x, y), (x + ln * math.cos(a), y + ln * math.sin(a))], fill=(72, 74, 77), width=1)
+    save(img, "panel_color.png")
+    h = 0.5 * speck + 0.5 * grime
+    gy, gx = np.gradient(h * 3.0)
+    n = np.dstack([-gx, -gy, np.ones_like(h)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "panel_normal.png")
+
+
+# ---------------------------------------------------------------- KSP2-style multi-function display pages (cyan on deep blue)
+MFD_BG, MFD_FG, MFD_DIM = (6, 22, 48), (110, 235, 255), (40, 120, 160)
+
+
+def _mfd(w=512, h=512):
+    img = Image.new("RGB", (w, h), MFD_BG)
+    d = ImageDraw.Draw(img)
+    d.rectangle([6, 6, w - 7, h - 7], outline=MFD_DIM, width=3)
+    return img, d
+
+
+def _mfd_finish(img, name):
+    glow = img.filter(ImageFilter.GaussianBlur(4))
+    a = np.clip(np.asarray(img).astype(np.float32) + np.asarray(glow).astype(np.float32) * 0.5, 0, 255)
+    save(Image.fromarray(a.astype(np.uint8)), name)
+
+
+def mfd_systems():
+    img, d = _mfd()
+    f = font(FONT_MONO, 26)
+    d.text((24, 18), "SYS  PWR / LS", fill=MFD_FG, font=f)
+    for i, (k, v) in enumerate([("EC", 0.82), ("O2", 0.97), ("H2O", 0.74), ("CO2", 0.12), ("FUEL", 0.63), ("OX", 0.61)]):
+        y = 70 + i * 66
+        d.text((24, y), k, fill=MFD_FG, font=f)
+        d.rectangle([120, y + 4, 470, y + 34], outline=MFD_DIM, width=2)
+        d.rectangle([124, y + 8, 124 + int(342 * v), y + 30], fill=MFD_FG if v > 0.2 else (255, 120, 60))
+    d.text((24, 470), "BUS A NOMINAL", fill=MFD_DIM, font=font(FONT_MONO, 20))
+    _mfd_finish(img, "mfd_systems.png")
+
+
+def mfd_map():
+    img, d = _mfd()
+    for x in range(16, 512, 40):
+        d.line([(x, 60), (x, 460)], fill=(20, 60, 90), width=1)
+    for y in range(60, 461, 40):
+        d.line([(16, y), (496, y)], fill=(20, 60, 90), width=1)
+    pts = [(16 + i * 4, 265 + 120 * math.sin(i * 4 / 480 * 2 * math.pi * 1.3)) for i in range(121)]
+    d.line(pts, fill=MFD_FG, width=3)
+    d.ellipse([300, 160, 316, 176], fill=(255, 210, 90))
+    for cx, cy, r in ((120, 360, 40), (380, 330, 30), (210, 150, 22)):
+        d.ellipse([cx - r, cy - r * 0.6, cx + r, cy + r * 0.6], outline=MFD_DIM, width=2)
+    d.text((24, 18), "MAP  GROUND TRACK", fill=MFD_FG, font=font(FONT_MONO, 24))
+    d.text((24, 470), "LAT -0.10  LON 74.6", fill=MFD_DIM, font=font(FONT_MONO, 20))
+    _mfd_finish(img, "mfd_map.png")
+
+
+def mfd_engine():
+    img, d = _mfd()
+    d.text((24, 18), "PROP  STAGE 3", fill=MFD_FG, font=font(FONT_MONO, 24))
+    d.polygon([(180, 90), (330, 90), (360, 300), (150, 300)], outline=MFD_FG, width=3)
+    d.line([(255, 300), (255, 340)], fill=MFD_FG, width=3)
+    d.polygon([(215, 340), (295, 340), (330, 450), (180, 450)], outline=MFD_FG, width=3)
+    for k, (x, v) in enumerate(((70, 0.7), (440, 0.45))):
+        d.arc([x - 40, 160, x + 40, 240], 135, 135 + int(270 * v), fill=MFD_FG, width=8)
+        d.text((x, 262), ("THR", "TWR")[k], fill=MFD_FG, font=font(FONT_MONO, 20), anchor="mm")
+    d.text((24, 470), "ISP 285  dV 1384", fill=MFD_DIM, font=font(FONT_MONO, 20))
+    _mfd_finish(img, "mfd_engine.png")
+
+
+def mfd_comms():
+    img, d = _mfd()
+    d.text((24, 18), "COMM  LINK", fill=MFD_FG, font=font(FONT_MONO, 24))
+    cx, cy = 256, 260
+    for r in (60, 120, 180):
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(20, 60, 90), width=2)
+    for a in range(0, 360, 45):
+        d.line([(cx, cy), (cx + 180 * math.cos(math.radians(a)), cy + 180 * math.sin(math.radians(a)))], fill=(20, 60, 90), width=1)
+    d.line([(cx, cy), (cx + 150, cy - 90)], fill=MFD_FG, width=4)
+    d.ellipse([cx + 140, cy - 100, cx + 160, cy - 80], fill=(255, 210, 90))
+    for i in range(10):
+        hgt = 10 + i * 6
+        d.rectangle([40 + i * 14, 480 - hgt, 50 + i * 14, 480], fill=MFD_FG if i < 7 else MFD_DIM)
+    d.text((300, 455), "KSC 4.2 Mm", fill=MFD_FG, font=font(FONT_MONO, 22))
+    _mfd_finish(img, "mfd_comms.png")
+
+
+# ---------------------------------------------------------------- annunciator lenses (4x4 atlas), keypad keys (4x4), digit readout
+ANNUNC = [("MASTER\nCAUTION", (255, 170, 40)), ("ABORT", (255, 60, 40)), ("SAS", (90, 255, 140)), ("RCS", (90, 255, 140)),
+          ("GEAR", (90, 255, 140)), ("O2 LOW", (255, 170, 40)), ("EC LOW", (255, 170, 40)), ("COMM", (240, 240, 230)),
+          ("STAGE\nARMED", (255, 60, 40)), ("CHUTE", (240, 240, 230)), ("DOCK", (120, 200, 255)), ("HEAT", (255, 60, 40)),
+          ("FUEL\nCELL", (240, 240, 230)), ("CABIN\nPRESS", (255, 170, 40)), ("G-LIM", (255, 170, 40)), ("TGT", (120, 200, 255))]
+
+
+def annunciators(cell=128):
+    n = 4
+    img = Image.new("RGB", (cell * n, cell * n), (8, 8, 9))
+    d = ImageDraw.Draw(img)
+    f = font(FONT_COND, 24)
+    for i, (text, c) in enumerate(ANNUNC):
+        x, y = (i % n) * cell, (i // n) * cell
+        d.rectangle([x + 4, y + 4, x + cell - 5, y + cell - 5], fill=tuple(int(v * 0.18) for v in c))
+        d.multiline_text((x + cell / 2, y + cell / 2), text, fill=tuple(int(v * 0.55) for v in c), font=f, anchor="mm", align="center", spacing=2)
+    save(img.filter(ImageFilter.GaussianBlur(0.5)), "annunciators.png")
+
+
+KEYS = ["7", "8", "9", "VERB", "4", "5", "6", "NOUN", "1", "2", "3", "+", "CLR", "0", "ENTR", "-"]
+
+
+def keys(cell=128):
+    n = 4
+    img = Image.new("RGB", (cell * n, cell * n), (40, 40, 42))
+    d = ImageDraw.Draw(img)
+    for i, k in enumerate(KEYS):
+        x, y = (i % n) * cell, (i // n) * cell
+        d.rectangle([x + 6, y + 6, x + cell - 7, y + cell - 7], fill=(205, 203, 196))
+        d.text((x + cell / 2, y + cell / 2), k, fill=(25, 25, 25), font=font(FONT_BOLD, 44 if len(k) == 1 else 26), anchor="mm")
+    save(img, "keys.png")
+
+
+def digits(w=512, h=256):
+    img = Image.new("RGB", (w, h), (3, 12, 6))
+    d = ImageDraw.Draw(img)
+    for i, t in enumerate(("+00841", "-00126", "+12460")):
+        d.text((w - 24, 14 + i * 80), t, fill=(100, 255, 150), font=font(FONT_MONO, 56), anchor="ra")
+    for i, t in enumerate(("PROG", "VERB", "NOUN")):
+        d.text((20, 30 + i * 80), t, fill=(40, 140, 80), font=font(FONT_MONO, 26))
+    _mfd_finish(img, "digits.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -280,6 +446,9 @@ ALL = {
     "gauge_alt_face": lambda: gauge("gauge_alt_face.png", "ALT km", None),
     "gauge_press_face": lambda: gauge("gauge_press_face.png", "ATM kPa x10", None),
     "gauge_temp_face": lambda: gauge("gauge_temp_face.png", "TEMP K x100", None),
+    "cabin_reflection": cabin_reflection, "panel": panel,
+    "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
+    "annunciators": annunciators, "keys": keys, "digits": digits,
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
 }
 # python texgen.py <out> [name ...]: only the named textures (default: all)
