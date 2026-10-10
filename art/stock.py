@@ -98,6 +98,8 @@ class Clearance:
         import numpy as np
         self.np = np
         self.zones = list(zones)   # callables p -> True where nothing should be built (e.g. hidden behind a bulkhead)
+        import bpy
+        bpy.context.view_layer.update()   # curves (rungs, rails, hoses) have no bounding box until the scene is evaluated
         lo, hi = [], []
         for o in L.COLL.objects:
             if o.type not in ("MESH", "CURVE") or o.name.startswith(self.SKIP + tuple(extra_skip)):
@@ -218,8 +220,10 @@ def wall_plates(name, clear, bays, zs, size=(0.17, 0.13), chance=0.5, seed=7, in
                 continue
             w, h = size[0] * rnd.uniform(0.8, 1.3), size[1] * rnd.uniform(0.8, 1.4)
             p, b = C.frame_at(phi, z, inset)
-            corners = [p + b.col[0] * sx * w / 2 + b.col[1] * sy * h / 2 + b.col[2] * 0.01 for sx in (-1, 1) for sy in (-1, 1)]
-            if any(in_window(phi, z, 0.1) for _ in (0,)) or any(clear.blocked(q, 0.015) for q in corners + [p + b.col[2] * 0.01]):
+            # a grid over the plate at two depths, so thin things in front of the wall (rungs, rails, cables) are caught too
+            probe = [p + b.col[0] * sx * w / 2 + b.col[1] * sy * h / 2 + b.col[2] * dz
+                     for sx in (-1, -0.5, 0, 0.5, 1) for sy in (-1, -0.5, 0, 0.5, 1) for dz in (0.01, 0.06)]
+            if in_window(phi, z, 0.1) or any(clear.blocked(q, 0.015) for q in probe):
                 continue
             inspection_plate(f"Plate_{name}{k}", p, b, w, h)
             k += 1
