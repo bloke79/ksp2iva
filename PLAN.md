@@ -101,3 +101,65 @@ equipment rather than toy blocks.
 - You can unbuckle, move anywhere in the 3v (both decks, up the ladder) without passing through walls or equipment, and
   buckle back in; no crashes, camera restored on exit.
 - The upper deck screenshot angle looks like real kit.
+
+---
+
+# Plan: Stock-level detail pass (all pods)
+
+_Written 2026-10-10 after rendering the stock Mk1-3 interior (`interior_2v_m1_pod_crew`) from inside, for reference only._
+
+## What the stock cabin does that ours doesn't
+- **Detail is modelled, not painted.** Stock textures are mostly flat greys with grime; the Mk1-3 console alone is
+  about 91k vertices. Every unit is a chamfered, stepped housing (45° bevels, plates on plates, inset doors with latches).
+- **Fat colour-coded cables** (black, red, green, yellow) loop across the ceiling and between units, entering
+  sockets through grommets and collars. They give the cabin its "lived-in machine" look.
+- **No bare surface.** The ceiling has a segmented ring frame round the hatch, the floor has vent grilles and a hatch
+  with chamfered frame and latches, the walls have bolted inspection plates. Seat frames are chunky chamfered struts.
+- **Lighter walls than ours:** light-to-mid grey walls with rust/wear at edges, dark charcoal console faces, red cushions.
+
+## Steps
+1. New building blocks in `modules.py`: chamfered stepped housing (profile extrude), cable bundle (3 to 5 coloured
+   cables with collars, clamps and socket ends), inspection plate, ring frame, latch, vent grille. Wear/grime texture.
+2. Wall palette: mid-grey panels with edge wear (closer to stock), keep the dark consoles.
+3. 3v first: dome and ceiling of the living deck (ring frame round the tunnel, equipment cassettes, light housings,
+   ducts, cable runs), deck undersides on the flight deck, floor detail (foot restraints, under-floor stowage hatches),
+   cable bundles linking the bulkhead, consoles and ceiling.
+4. Then bring the Mk1-3 and 1v up to the same density. Keep an eye on the triangle budget (3v ~600k now).
+
+---
+
+# Plan: Crew cabins and Starlab
+
+_Thinking only; nothing built yet. Data from the game's part definitions and extracted hulls (reference/, not in repo)._
+
+| Part | Name | Crew | Size | Length x radius | Windows (painted) |
+|---|---|---|---|---|---|
+| `cabin_1v_m1_crew` | Mk1 "Stowaway" | 2 | S | 1.94 x 0.63 m | two ovals, one side |
+| `cabin_2v_m2_crew` | Mk2 "Tag Along" | 4 | M (Mk2 profile) | 1.88 x 1.26 m | pairs on each side |
+| `cabin_3v_m3_crew` | Mk3 "Skybus" | 16 | L (Mk3 profile) | 3.75 x 1.89 m | strip along the side |
+| `cabin_2v_crew_hitchhiker` | PPD-10 "Hitchhiker" | 4 | M | 2.71 x 1.38 m | one porthole |
+| `cabin_3v_crew` | PPD-20 "Wayfarer" | 8 | L | 5.0 x 1.96 m | triangle row |
+| `lab_2v_science_orbital` | OSL-25 "Starlab" | 3 | M | 4.7 m long | one large window |
+
+## Differences from pods
+- **No stock interiors or seat poses.** Only pods and cockpits have `interior_*` prefabs; cabins seat their crew in the
+  portrait booth. So we choose the seats and eye points ourselves (no `pose_extract` step), and move the crew's
+  kerbals in as we do for the 3v (`MoveCrewIntoSeats`), seated upright or at stations rather than lying on their backs.
+- **Orientation:** the Mk1/Mk2/Mk3 cabins are fuselage parts (plane-style: floor along the axis, seats facing the nose).
+  The PPD cabins and Starlab are station modules (zero-g layouts: crew stations round the wall, "up" towards one end).
+- **Windows are painted** on the hull texture: find them with `window_paint.py` as for the 3v.
+
+## Proposed designs
+- **Stowaway (2):** tandem airline seats, overhead lockers, a small bulkhead console at the front, the windows at seat height.
+- **Tag Along (4):** two rows of two with a narrow aisle, overhead bins, galley cart and a crew panel at the front bulkhead.
+- **Skybus (16):** an airliner cabin: four rows of four with a centre aisle, overhead bins, a galley and toilet at one end.
+- **Hitchhiker (4):** a station crew module: four sleep stations round the wall, a fold-out table, galley, stowage.
+- **Wayfarer (8):** a two-level hab along its 5 m: eight sleep stations, wardroom table, galley, hygiene, exercise.
+- **Starlab (3):** three lab workstations along the walls, experiment racks, glovebox, the large window as an
+  observation station, and a ceiling of cable trays and equipment (stock-level detail from the start).
+
+## Steps
+1. Generalise the pipeline: a spec format without a pose block (seats by position and facing), upright seated kerbal
+   placement in the mod, catalogue entries for parts with no stock interior.
+2. Capture: enter IVA (portrait) in each cabin once so the mod logs its hull and crew setup.
+3. Build in order: Starlab, Hitchhiker, Wayfarer, then the fuselage cabins. Renders first for each.
