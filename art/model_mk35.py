@@ -28,6 +28,7 @@ L.begin(SPEC["interior"], TEX)
 import capsule as C  # noqa: E402  (after begin: shares L.M)
 import modules as G  # noqa: E402
 import props as P  # noqa: E402
+import stock as S  # noqa: E402
 G.materials()
 
 M = L.M
@@ -40,6 +41,7 @@ M["canvas"] = L.material("IVA_Canvas", (0.27, 0.28, 0.23), rough=0.92, normal="c
 M["umbilical"] = L.material("IVA_Umbilical", (0.32, 0.36, 0.42), rough=0.7)
 M["net"] = L.material("IVA_Net", (0.30, 0.32, 0.20), rough=0.9)
 P.materials()
+S.materials()
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
 POSE = SPEC["pose"]
@@ -103,11 +105,13 @@ def build_mdc():
     # structure: seams between sections, hangers up to the deck, hood with floodlights and a handrail
     for x in (-0.93, -0.31, 0.31, 0.93):
         z = MDC_Z - abs(x) * 0.07 + 0.01
-        L.tube(f"MDC_Seam{x}", [Vector((x, MDC_Y - MDC_H / 2 - 0.01, z)), Vector((x, MDC_Y + MDC_H / 2 + 0.01, z))], 0.018, M["couchframe"])
+        S.beam(f"MDC_Seam{x}", Vector((x, MDC_Y - MDC_H / 2 - 0.02, z)), Vector((x, MDC_Y + MDC_H / 2 + 0.02, z)), 0.05, 0.05, M["frame"], up=(0, 0, 1))
         for k, y in enumerate((MDC_Y - 0.17, MDC_Y + 0.17)):
-            C.bracket(f"MDC_Hanger{x}_{k}", Vector((x, y, z + 0.03)), Vector((x, y, DECK_Z - 0.06)), r=0.012)
+            S.beam(f"MDC_Hanger{x}_{k}", Vector((x, y, z + 0.02)), Vector((x, y, DECK_Z - 0.08)), 0.038, 0.038, M["frame"], up=(0, 1, 0))
+            for zz in (z + 0.16, DECK_Z - 0.16):
+                S.cbox(f"MDC_Collar{x}_{k}_{zz:.2f}", (0.054, 0.054, 0.035), M["frame_dark"], (x, y, zz), ch=0.006)
     hy = MDC_Y + MDC_H / 2 + 0.02
-    L.box("MDC_Hood", (3.0, 0.03, 0.06), M["couchframe"], (0, hy, MDC_Z - 0.03), bevel=0.01)
+    S.cbox("MDC_Hood", (3.0, 0.04, 0.08), M["frame"], (0, hy, MDC_Z - 0.03), ch=0.012)
     aim = Vector((0, 0.45, -1)).normalized()
     for k, x in enumerate((-1.24, -0.62, 0.0, 0.62, 1.24)):
         p = Vector((x, hy + 0.01, MDC_Z - 0.08 - abs(x) * 0.07))
@@ -127,10 +131,12 @@ def build_lower_deck():
     prof = POSE["couch"]
     for k, y in enumerate((prof[len(prof) // 4][0], prof[(3 * len(prof)) // 4][0])):
         z = min(zz for yy, zz, ww in prof if abs(yy - y) < 0.04) - 0.1
-        L.tube(f"CouchFrameBeam_{k}", [Vector((xs[0] - 0.14, y, z)), Vector((xs[-1] + 0.14, y, z))], 0.018, M["couchframe"])
+        S.beam(f"CouchFrameBeam_{k}", Vector((xs[0] - 0.16, y, z)), Vector((xs[-1] + 0.16, y, z)), 0.05, 0.06, M["frame"])
         for x in (xs[0] - 0.14, -0.31, 0.31, xs[-1] + 0.14):
-            L.tube(f"CouchFrameLeg_{k}_{x:.2f}", [Vector((x, y, z)), Vector((x * 1.04, y, FLOOR + 0.005))], 0.018, M["couchframe"])
-            L.cylinder(f"CouchFrameFoot_{k}_{x:.2f}", 0.032, 0.014, M["couchframe"], (x * 1.04, y, FLOOR + 0.007))
+            S.beam(f"CouchFrameLeg_{k}_{x:.2f}", Vector((x, y, z)), Vector((x * 1.04, y, FLOOR + 0.02)), 0.045, 0.045, M["frame"], up=(0, 1, 0))
+            S.cbox(f"CouchFrameFoot_{k}_{x:.2f}", (0.09, 0.09, 0.025), M["frame_dark"], (x * 1.04, y, FLOOR + 0.0125), ch=0.008)
+            for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
+                L.cylinder(f"CouchFrameFootBolt_{k}_{x:.2f}_{i}", 0.006, 0.008, M["buckle"], (x * 1.04 + sx * 0.032, y + sy * 0.032, FLOOR + 0.028), segs=6)
     z0p, z1p = 0.45 + (EYE_Z - 0.718), 0.53 + (EYE_Z - 0.718)
     up_dir = Vector((0, PED_Y0 - PED_Y1, z0p - z1p)).normalized()
     slope = math.hypot(PED_Y1 - PED_Y0, z1p - z0p)
@@ -281,7 +287,7 @@ def build_side_consoles():
 
 
 # ------------------------------------------------------------------ decks: platforms, openings, ladders, ceiling lights
-def platform(name, z, holes):
+def platform(name, z, holes, ceiling=False):
     """Grated deck at height z filling the hull, with rectangular openings (x0, x1, y0, y1); rim, radial beams and
     downlights on its underside (the ceiling of the deck below)."""
     import bmesh
@@ -303,7 +309,7 @@ def platform(name, z, holes):
     bmesh.ops.remove_doubles(tiles, verts=tiles.verts, dist=1e-5)
     L.solidify(L.mesh_obj(name, tiles, [M["floor"]]), 0.03)
     L.tube(name + "Rim", [C.polar(2 * math.pi * j / 96, rr - 0.015, z - 0.015) for j in range(97)], 0.02, M["couchframe"])
-    for k2 in range(8):
+    for k2 in range(0 if ceiling else 8):
         phi = 2 * math.pi * (k2 + 0.5) / 8
         L.tube(f"{name}Beam{k2}", [C.polar(phi, 0.25, z - 0.05), C.polar(phi, rr - 0.02, z - 0.05)], 0.022, M["couchframe"])
         p = C.polar(phi + math.pi / 8, rr * 0.55, z - 0.045)
@@ -316,7 +322,7 @@ def platform(name, z, holes):
 
 
 def build_decks():
-    platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)])
+    platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)], ceiling=True)
     ladder("LadderAft", 0.0, 1.3, FLOOR, DECK_Z + 0.55, 0.22)
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
 
@@ -439,9 +445,170 @@ def build_walls():
         L.cylinder(f"FrontTank_{k2}", 0.09, 0.34, M["tank"], p, rot, segs=28, bevel=0.012)
 
 
+# ------------------------------------------------------------------ stock-style structure and dressing (built last, fits round everything)
+def dome_z(r):
+    """Height of the ceiling dome at radius r (inverse of capsule.build_shell's dome)."""
+    R = C.r_in(C.Z_CEIL)
+    c = max(-1.0, min(1.0, r / R))
+    t = math.acos(c) / (math.pi / 2 * 0.92)
+    return C.Z_CEIL + (C.Z_TOP - C.Z_CEIL) * math.sin(min(1.0, t) * math.pi / 2)
+
+
+def build_ceiling_below_deck(clear):
+    """Flight-deck ceiling: solid panelled underside of the deck, box beams, ring beam, light fixtures, cable bundles."""
+    import bmesh
+    D = DECK_Z
+    zc = D - 0.035
+    rr = C.r_in(zc) - 0.012
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    step = 0.1
+    k = int(rr / step) + 1
+    for i in range(-k, k):
+        for j in range(-k, k):
+            x0, y0 = i * step, j * step
+            cx, cy = x0 + step / 2, y0 + step / 2
+            if math.hypot(cx, cy) > rr - 0.03 or (-HOLE_HW < cx < HOLE_HW and HOLE_Y0 < cy < HOLE_Y1):
+                continue
+            vs = [bm.verts.new((x, y, zc)) for x, y in ((x0, y0), (x0, y0 + step), (x0 + step, y0 + step), (x0 + step, y0))]
+            f = bm.faces.new(vs)
+            for l in f.loops:
+                l[uv].uv = (l.vert.co.x, l.vert.co.y)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    L.mesh_obj("DeckCeiling", bm, [M["blanket"]])
+    S.beam("DeckCeilingHoleTrim", Vector((-HOLE_HW, HOLE_Y0, zc - 0.03)), Vector((HOLE_HW, HOLE_Y0, zc - 0.03)), 0.05, 0.06, M["frame_dark"])
+    bz = zc - 0.045
+    for k2 in range(8):
+        phi = 2 * math.pi * (k2 + 0.5) / 8
+        S.beam(f"CeilBeam{k2}", C.polar(phi, 0.3, bz), C.polar(phi, rr - 0.02, bz), 0.07, 0.09, M["frame"])
+        for t in (0.45, 0.8):
+            q = C.polar(phi, 0.3 + (rr - 0.32) * t, bz - 0.0)
+            S.cbox(f"CeilBeamClamp{k2}_{t}", (0.1, 0.1, 0.06), M["frame_dark"], q, Matrix.Rotation(-phi, 3, "Z"), ch=0.01)
+    ring = [C.polar(2 * math.pi * j / 72, 0.62, bz) for j in range(72)]
+    S.sweep("CeilRingBeam", ring, [(0, 0, 1)] * 72, S.chamfer_rect(0.07, 0.08), M["frame"], closed=True)
+    S.sweep("CeilHub", [C.polar(2 * math.pi * j / 48, 0.3, bz) for j in range(48)], [(0, 0, 1)] * 48, S.chamfer_rect(0.08, 0.1), M["frame_dark"], closed=True)
+    down = Vector((0, 0, -1))
+    n = 0
+    for k2 in range(8):
+        phi = 2 * math.pi * k2 / 8
+        for r in (0.46, 1.12):
+            p = C.polar(phi, r, zc)
+            if -HOLE_HW - 0.2 < p.x < HOLE_HW + 0.2 and HOLE_Y0 - 0.15 < p.y < HOLE_Y1 + 0.15:
+                continue
+            tang = Vector((math.cos(phi), math.sin(phi), 0))
+            S.light_fixture(f"CeilLight{n}", p, L.basis(tang, tang.cross(down), down), w=0.28 if r > 1 else 0.2, h=0.08)
+            n += 1
+    # duct round the outer ceiling edge, broken where windows, hatch and equipment are
+    for side in (-1, 1):
+        phis = [side * math.radians(a) for a in range(30, 150, 3)]
+        zd = zc - 0.16
+
+        def ok(phi):
+            return not clear.blocked(C.polar(phi, C.r_in(zd) - 0.07, zd), 0.05)
+
+        for r_, seg in enumerate(S.runs(phis, ok, 6)):
+            G.hose(f"Duct{side}_{r_}", [C.polar(p, C.r_in(zd) - 0.075, zd) for p in seg], r=0.045, mat=M["frame"], rib_mat=M["frame_dark"])
+    # cable bundles from the top of each console section up into the ceiling
+    for k2, x in enumerate((-1.24, -0.62, 0.0, 0.62, 1.24)):
+        z0 = MDC_Z - abs(x) * 0.07 + 0.115
+        sx = 0.14 if x >= 0 else -0.14
+        pts = [Vector((x + sx, MDC_Y + 0.08, z0)), Vector((x + sx * 1.1, MDC_Y + 0.12, z0 + 0.12)),
+               Vector((x * 0.95 + sx * 1.3, MDC_Y + 0.4, bz - 0.12)), Vector((x * 0.9 + sx * 1.4, MDC_Y + 0.62, bz - 0.06))]
+        S.bundle(f"MDC{k2}", pts, n=3 + (k2 % 2), colours=[S.CABLES[(k2 + i) % 4] for i in range(4)])
+    # risers from the side consoles up the wall into the ceiling
+    for side in (-1, 1):
+        for k2, deg in enumerate((86, 108)):
+            phi = C.rad(side * deg)
+            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.02, bz - 0.04, inset=0.06, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"])
+
+
+def build_dome(clear):
+    """Living-deck ceiling: docking hatch with handwheel and latches in a segmented ring, equipment cassettes round the
+    upper wall, cable drops to the lab tier."""
+    zh = dome_z(0.32) - 0.025
+    S.sweep("TunnelRing", [Vector((0.33 * math.cos(a), 0.33 * math.sin(a), zh)) for a in [2 * math.pi * j / 64 for j in range(64)]],
+            [(0, 0, 1)] * 64, S.chamfer_rect(0.07, 0.06), M["frame_dark"], closed=True)
+    L.cylinder("TunnelHatch", 0.29, 0.03, M["frame"], (0, 0, zh + 0.005), segs=48, bevel=0.006)
+    L.torus("TunnelHandwheel", 0.11, 0.012, M["frame_dark"], (0, 0, zh - 0.05), Matrix.Identity(3), seg=32, mseg=8)
+    for k2 in range(4):
+        a = k2 * math.pi / 2
+        L.tube(f"TunnelSpoke{k2}", [Vector((0, 0, zh - 0.012)), Vector((0.11 * math.cos(a), 0.11 * math.sin(a), zh - 0.05))], 0.008, M["frame_dark"])
+        S.cbox(f"TunnelLatch{k2}", (0.06, 0.03, 0.025), M["yellow"], Vector((0.27 * math.cos(a + 0.4), 0.27 * math.sin(a + 0.4), zh - 0.02)),
+               Matrix.Rotation(a + 0.4, 3, "Z"), ch=0.004)
+    for k2 in range(16):
+        a = 2 * math.pi * (k2 + 0.5) / 16
+        r = 0.5
+        S.cbox(f"TunnelSegment{k2}", (0.2, 0.13, 0.025), M["frame"] if k2 % 2 else M["frame_dark"],
+               Vector((r * math.cos(a), r * math.sin(a), dome_z(r) - 0.015)), Matrix.Rotation(a + math.pi / 2, 3, "Z"), ch=0.006)
+    n = 0
+    for deg in range(-165, 180, 30):
+        phi = C.rad(deg)
+        p, b = at(deg, C.Z_CEIL - 0.2, 0.0)
+        size = (0.24, 0.12, 0.16)
+        rot = L.basis(b.col[0], -b.col[2], b.col[1])
+        c = p + b.col[2] * (size[1] / 2 + 0.005)
+        corners = [c + b.col[0] * sx * size[0] / 2 + b.col[1] * sz * size[2] / 2 for sx in (-1, 1) for sz in (-1, 1)]
+        if S.in_window(phi, C.Z_CEIL - 0.2, 0.08) or any(clear.blocked(q, 0.01) for q in corners + [c]):
+            continue
+        G.box_unit(f"Cassette{n}", c, size, rot, vents=n % 2 == 0, lamps_n=2)
+        n += 1
+    D = DECK_Z
+    drops = [(70, 64, D + 1.29), (104, 98, D + 1.25), (166, 160, D + 1.34), (-12, -3, D + 1.24), (-114, -108, D + 1.39), (-70, -63, D + 1.14)]
+    for k2, (a0, a1, z1) in enumerate(drops):
+        S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, z1, inset=0.055, n=5, phi1=C.rad(a1)), n=3,
+                 colours=[S.CABLES[(k2 + i) % 4] for i in range(3)])
+
+
+def build_floors():
+    D = DECK_Z
+    for k2, x in enumerate((-0.62, 0.62)):
+        S.floor_hatch(f"FlightHatch{k2}", (x, 0.6), FLOOR, 0.36, 0.28)
+    S.foot_restraint("FootAisle", (-0.18, 0.5), (0.18, 0.5), FLOOR)
+    S.foot_restraint("FootDesk", (0.55, 0.62), (0.9, 0.62), FLOOR)
+    S.floor_hatch("HabHatch0", (-0.55, -0.15), D, 0.36, 0.28, yaw=0.4)
+    S.floor_hatch("HabHatch1", (0.45, -0.85), D, 0.3, 0.24, yaw=-0.5)
+    S.foot_restraint("FootGalley", (-0.28, -0.98), (0.28, -0.98), D)
+    for k2, deg in enumerate((62, 96, -62)):
+        a = C.polar(C.rad(deg - 7), 0.86, D)
+        b2 = C.polar(C.rad(deg + 7), 0.86, D)
+        S.foot_restraint(f"FootLab{k2}", a, b2, D)
+
+
+def hidden(p):
+    """Behind the aft bulkhead (out of sight): build no structure there."""
+    return p.y > BULK_Y + 0.02 and abs(p.x) > AISLE + 0.02 and p.z < BULK_TOP + 0.02
+
+
+def build_structure():
+    clear = S.Clearance(zones=[hidden])
+    build_ceiling_below_deck(clear)
+    build_floors()
+    clear = S.Clearance(zones=[hidden])
+    build_dome(clear)
+    clear = S.Clearance(zones=[hidden])
+    D = DECK_Z
+    bays = [2 * math.pi * k2 / 16 for k2 in range(16)]
+    S.wall_racks("Hab", clear, bays, D + 0.5, 0.36, 0.62, seed=5)
+    S.wall_racks("Flight", clear, bays, 1.5, 0.34, 0.44, seed=6, chance=0.7)
+    clear = S.Clearance(zones=[hidden])
+    S.cable_run("RunHabTop", C.Z_CEIL - 0.17, clear, seed=3)
+    S.cable_run("RunHabMid", D + 0.95, clear, seed=4, n=3)
+    S.cable_run("RunFlightTop", D - 0.2, clear, seed=5)
+    clear = S.Clearance(zones=[hidden])
+    S.ring_frame("Skirt", FLOOR + 0.05, clear, h=0.07, d=0.04)
+    S.ring_frame("Cornice", D - 0.07, clear, h=0.09, d=0.05)
+    S.ring_frame("HabSkirt", D + 0.05, clear, h=0.07, d=0.04)
+    S.ring_frame("HabCornice", C.Z_CEIL - 0.05, clear, h=0.08, d=0.05)
+    clear = S.Clearance(zones=[hidden])
+    S.wall_ribs("Flight", 16, FLOOR + 0.1, D - 0.12, clear)
+    S.wall_ribs("Hab", 16, D + 0.1, C.Z_CEIL - 0.1, clear)
+    clear = S.Clearance(zones=[hidden])
+    S.wall_plates("Flight", clear, bays, (0.35, 0.7, 1.3, 1.72), chance=0.55, seed=11)
+    S.wall_plates("Hab", clear, bays, (D + 0.32, D + 0.8, D + 1.35), chance=0.5, seed=12)
+
+
 # ------------------------------------------------------------------ build
 C.build_shell(dome=True, ring_light=True)
-C.build_stringers(20, keep_clear, z1=C.Z_CEIL)
 for w in C.WINDOWS:
     C.build_window(w, depth=0.05, bolts=32)
     C.view_markers(w, standoff=0.35)
@@ -455,6 +622,7 @@ build_walls()
 build_hab_deck()
 build_lab_deck()
 build_lower_kit()
+build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")

@@ -32,6 +32,11 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-10 – 3v stock-style detail pass (from rendering the stock Mk1-3 interior): new `art/stock.py` (chamfered ribs,
+  ring frames and beams, colour-coded cable bundles with ties and sockets, inspection plates, light fixtures, floor
+  hatches, foot restraints, wall racks, and a clearance check so structure fits round equipment). Solid panelled ceiling
+  under the upper deck with box beams, lights, ducts and cables; tunnel hatch and equipment cassettes in the dome;
+  chamfered couch frames, console struts and stepped console housings; lighter worn wall panels. ~750k triangles.
 - 2026-10-10 – KSP2 stock-matched art pass: `IVA/Interior` surface shader (AO from vertex colour red; dimmed indirect),
   Cycles AO bake in `export_interior.py` (0.12 m contact distance, floor 0.4, exported as sRGB; printed faces and emissives
   skipped), dark wall-panel / gunmetal locker textures, dark cushions, olive canvas. 3v split into decks with `extra_lights`; then

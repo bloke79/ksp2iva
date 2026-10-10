@@ -259,8 +259,23 @@ def housing(surface, name, depth=0.09, lip=0.012):
     s = surface
     back = s.c - s.n * (depth / 2 + 0.02)
     rot = L.basis(s.right, s.up, s.n)
-    L.box(name + "Housing", (s.w + 2 * lip, s.h + 2 * lip, depth), M["module"], back, rot, bevel=0.01)
-    L.box(name + "Lip", (s.w + 2 * lip + 0.016, s.h + 2 * lip + 0.016, 0.014), M["couchframe"], s.c - s.n * (depth + 0.02), rot, bevel=0.005)
+    if "frame" not in M:   # plain housing (interiors built before the stock-style pass)
+        L.box(name + "Housing", (s.w + 2 * lip, s.h + 2 * lip, depth), M["module"], back, rot, bevel=0.01)
+        L.box(name + "Lip", (s.w + 2 * lip + 0.016, s.h + 2 * lip + 0.016, 0.014), M["couchframe"], s.c - s.n * (depth + 0.02), rot, bevel=0.005)
+        return
+    # stock style: chamfered housing in the frame grey, a stepped block behind it, stiffening ribs and a vent grille
+    L.box(name + "Housing", (s.w + 2 * lip, s.h + 2 * lip, depth), M["frame"], back, rot, bevel=0.016, segs=1)
+    sd = depth * 0.55
+    step_c = s.c - s.n * (depth + 0.02 + sd / 2)
+    L.box(name + "HousingStep", (s.w * 0.78, s.h * 0.66, sd), M["frame"], step_c, rot, bevel=0.012, segs=1)
+    for k, u in enumerate((-0.42, 0.42)):
+        L.box(f"{name}HousingRib{k}", (0.03, s.h + 2 * lip + 0.01, depth + 0.012), M["frame_dark"], back + s.right * (s.w * u), rot, bevel=0.006, segs=1)
+    gb = L.basis(s.right, s.up, -s.n)
+    gp = s.c - s.n * (depth + 0.02 + sd + 0.001)
+    L.box(name + "HousingGrille", (s.w * 0.5, s.h * 0.36, 0.01), M["frame_dark"], gp - s.n * 0.005, gb, bevel=0.002, segs=1)
+    for i in range(6):
+        L.box(f"{name}HousingSlat{i}", (s.w * 0.44, 0.008, 0.006), M["frame"], gp - s.n * 0.011 + s.up * (s.h * 0.36 * ((i + 0.5) / 6 - 0.5)), gb)
+    L.box(name + "Lip", (s.w + 2 * lip + 0.016, s.h + 2 * lip + 0.016, 0.014), M["frame_dark"], s.c - s.n * (depth + 0.02), rot, bevel=0.005, segs=1)
 
 
 def hose(name, pts, r=0.022, ribs=True, mat=None, rib_mat=None):

@@ -453,7 +453,7 @@ def canvas(size=512, threads=48):
 def locker(size=1024, cells=4):
     """Light grey locker/equipment finish: panel seams, rivets, worn edges and grime (tileable)."""
     grime = 0.6 * _tile_noise(size, 5, 11) + 0.4 * _tile_noise(size, 19, 12)
-    base = np.array([0.22, 0.23, 0.24])
+    base = np.array([0.36, 0.37, 0.38])
     col = base[None, None, :] * (0.82 + 0.25 * grime[..., None])
     img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
     d = ImageDraw.Draw(img)
@@ -480,7 +480,7 @@ def wallpanel(size=1024, cells=2):
     """Dark blue-grey riveted wall closeout panels (the stock KSP2 cabin look): seams, bolts, brushed streaks, grime."""
     grime = 0.6 * _tile_noise(size, 4, 21) + 0.4 * _tile_noise(size, 15, 22)
     streak = np.asarray(Image.fromarray((np.random.default_rng(23).random((size, 8)) * 255).astype(np.uint8)).resize((size, size), Image.BICUBIC)).astype(np.float32) / 255
-    base = np.array([0.19, 0.205, 0.23])
+    base = np.array([0.40, 0.41, 0.43])
     col = base[None, None, :] * (0.8 + 0.3 * grime[..., None]) * (0.95 + 0.08 * streak[..., None])
     h = np.zeros((size, size), np.float32)
     step = size // cells
@@ -490,6 +490,9 @@ def wallpanel(size=1024, cells=2):
             seam = np.abs(a - i * step) < 4
             h[seam] -= 1.0
             col[seam] *= 0.45
+            near = (np.abs(a - i * step) < 26) & ~seam   # grime and a little rust along panel edges, as on the stock walls
+            wear = near * (0.55 + 0.45 * grime) * (1.0 - np.abs(a - i * step) / 26.0)
+            col -= (wear * 0.13)[..., None] * np.array([0.8, 1.0, 1.25])
     rng = np.random.default_rng(24)
     img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
     d = ImageDraw.Draw(img)
