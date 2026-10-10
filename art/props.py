@@ -214,11 +214,12 @@ def towels(name, p, b):
 
 
 def bungee(name, p, b):
-    """Exercise device: bar on two bungee cords anchored to a wall plate."""
+    """Exercise device stowed on the wall: a bar held in two clips, its bungee cords running flat down to an anchor plate."""
     L.box(name + "Plate", (0.2, 0.06, 0.02), M["couchframe"], _a(p, b, 0, -0.3, 0.01), _r(b), bevel=0.004)
     for sx in (-1, 1):
-        L.tube(f"{name}Cord{sx}", [_a(p, b, sx * 0.07, -0.3, 0.02), _a(p, b, sx * 0.16, 0.05, 0.06), _a(p, b, sx * 0.17, 0.25, 0.05)], 0.006, M["bungee"])
-    L.cylinder(name + "Bar", 0.014, 0.4, M["handle"], _a(p, b, 0, 0.26, 0.05), L.basis(b.col[1], b.col[2], b.col[0]), segs=12, bevel=0.003)
+        L.tube(f"{name}Cord{sx}", [_a(p, b, sx * 0.07, -0.29, 0.022), _a(p, b, sx * 0.1, 0.0, 0.026), _a(p, b, sx * 0.12, 0.25, 0.03)], 0.006, M["bungee"])
+        L.box(f"{name}Clip{sx}", (0.03, 0.04, 0.04), M["couchframe"], _a(p, b, sx * 0.15, 0.26, 0.02), _r(b), bevel=0.004)
+    L.cylinder(name + "Bar", 0.014, 0.4, M["handle"], _a(p, b, 0, 0.26, 0.032), L.basis(b.col[1], b.col[2], b.col[0]), segs=12, bevel=0.003)
 
 
 def binoculars(name, p, b):

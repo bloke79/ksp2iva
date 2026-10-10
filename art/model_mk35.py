@@ -214,7 +214,17 @@ def build_upper_deck():
     ])
     s.check()
     G.prism("DockStationBase", [(-0.95, DECK_Z), (-0.7, DECK_Z), (-0.72, DECK_Z + 0.48), (-0.98, DECK_Z + 0.52)], -0.38, 0.38, M["console"])
-    L.tube("DockGrabBar", [Vector((-0.4, -0.72, DECK_Z + 0.85)), Vector((-0.4, -0.66, DECK_Z + 0.88)), Vector((0.4, -0.66, DECK_Z + 0.88)), Vector((0.4, -0.72, DECK_Z + 0.85))], 0.01, M["yellow"])
+    # drawers in the base's back face (towards the cabin)
+    face = L.basis(Vector((-1, 0, 0)), Vector((0, 0.08, 1)).normalized(), Vector((0, 1, -0.08)).normalized())
+    for k in range(3):
+        q = Vector((0, -0.71 + 0.005, DECK_Z + 0.09 + k * 0.13))
+        L.box(f"DockDrawer{k}", (0.66, 0.11, 0.02), M["locker"], q + face.col[2] * 0.01, face, bevel=0.004)
+        L.box(f"DockDrawerHandle{k}", (0.12, 0.014, 0.016), M["handle"], q + face.col[2] * 0.025, face, bevel=0.004)
+        L.box(f"DockDrawerTag{k}", (0.07, 0.03, 0.003), M["btn_soft"], q + face.col[2] * 0.021 + face.col[0] * 0.24, face)
+    # grab handle along the console's top edge, on two posts (so it's fixed to something)
+    a, ba = s.at(-0.28, s.h / 2 - 0.01)
+    c, bc = s.at(0.28, s.h / 2 - 0.01)
+    L.tube("DockGrabBar", [a, a + ba.col[2] * 0.06, c + bc.col[2] * 0.06, c], 0.01, M["yellow"])
 
 
 def ladder(name, x, y, z0, z1, w):
