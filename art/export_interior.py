@@ -9,6 +9,7 @@ import os
 import sys
 
 import bpy
+from mathutils import Matrix
 
 ARGS = sys.argv[sys.argv.index("--") + 1:]
 BLEND, OUT, SPEC = ARGS[0], ARGS[1], json.load(open(ARGS[2]))
@@ -22,6 +23,17 @@ depsgraph = bpy.context.evaluated_depsgraph_get()
 baked = {}
 for o in [o for o in scene.objects if o.name.startswith("REF_")]:   # preview-only stand-ins of the game's kerbals
     bpy.data.objects.remove(o, do_unlink=True)
+# moving parts (IVA_Live_<name>) stay separate objects with their pivots, named Mesh_<Material>__Live_<name>
+live = []
+for obj in [o for o in scene.objects if o.type == "MESH" and o.name.startswith("IVA_Live_")]:
+    ev = obj.evaluated_get(depsgraph)
+    me = bpy.data.meshes.new_from_object(ev, preserve_all_data_layers=True, depsgraph=depsgraph)
+    pivot = obj.matrix_world.translation.copy()
+    me.transform(obj.matrix_world)
+    me.transform(Matrix.Translation(-pivot))
+    mat = obj.material_slots[0].material if obj.material_slots else None
+    live.append((obj.name[len("IVA_Live_"):], me, mat, pivot))
+    bpy.data.objects.remove(obj, do_unlink=True)
 sources = [o for o in scene.objects if o.type in {"MESH", "CURVE"}]
 for obj in sources:
     ev = obj.evaluated_get(depsgraph)
@@ -67,13 +79,24 @@ for name, tris in sorted(joined, key=lambda x: -x[1])[:12]:
     print(f"  {name:28s} {tris:7d} tris")
 print("total triangles", tri_total)
 
+for lname, me, mat, pivot in live:
+    if not me.uv_layers:
+        me.uv_layers.new(name="UVMap")
+    mname = mat.name.replace("IVA_", "Mesh_") if mat else "Mesh_Default"
+    o = bpy.data.objects.new(f"{mname}__Live_{lname}", me)
+    o.data.materials.clear()
+    o.data.materials.append(mat)
+    o.location = pivot
+    coll.objects.link(o)
+print("live parts", len(live))
+
 root = bpy.data.objects.new(NAME, None)
 coll.objects.link(root)
 for o in list(coll.objects):
     if o is not root:
         o.parent = root
 for o in scene.objects:
-    if o.name.startswith(("IVA_Seat", "IVA_View")):   # eye points and window-view markers travel with the model
+    if o.name.startswith(("IVA_Seat", "IVA_View", "IVA_Live")):   # eye points, window views and live-part markers travel with the model
         if o.name not in coll.objects:
             for c in o.users_collection:
                 c.objects.unlink(o)

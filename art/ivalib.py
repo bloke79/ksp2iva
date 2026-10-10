@@ -121,6 +121,9 @@ def _standard_materials():
     }
     for g in ("alt", "press", "temp", "fuel"):
         d["gauge_" + g] = material("IVA_Gauge_" + g, tex=f"gauge_{g}.png", rough=0.2)
+    for g in ("alt", "press", "temp"):          # live gauges: face only, the needle is a mesh
+        d["gauge_face_" + g] = material("IVA_GaugeFace_" + g, tex=f"gauge_{g}_face.png", rough=0.2)
+    d["needle"] = material("IVA_Needle", (0.85, 0.22, 0.06), rough=0.35)
     return d
 
 

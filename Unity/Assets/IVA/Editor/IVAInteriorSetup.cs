@@ -152,8 +152,11 @@ namespace IVA.EditorTools
             int missing = 0;
             foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
             {
-                // Meshes are named Mesh_<Material>, materials IVA_<Material>.
-                string key = "IVA_" + StripSuffix(r.gameObject.name).Replace("Mesh_", "");
+                // Meshes are named Mesh_<Material>, materials IVA_<Material>. Moving parts are Mesh_<Material>__Live_<name>.
+                string baseName = r.gameObject.name;
+                int live = baseName.IndexOf("__", StringComparison.Ordinal);
+                if (live > 0) baseName = baseName.Substring(0, live);
+                string key = "IVA_" + StripSuffix(baseName).Replace("Mesh_", "");
                 Material mat;
                 if (materials.TryGetValue(key, out mat)) r.sharedMaterial = mat;
                 else missing++;

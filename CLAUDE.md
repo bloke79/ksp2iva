@@ -63,6 +63,10 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
   couch profile, hands, head) made by `pose_extract.py` from the mod's pose capture
   (`<LocalLow>/.../IVA-pose/<part>.obj`, written once per pod type on entering IVA; reference copies in
   `C:\Games\KSP2Mods\reference\poses`, never in the repo). Previews show the captured kerbals as `REF_*` objects, which the exporter drops.
+- **Markers and live parts** (position-only, so no axis conventions): `IVA_View_<w>`/`IVA_ViewAt_<w>` window views;
+  moving parts are `IVA_Live_<name>` meshes (exported unmerged as `Mesh_<Material>__Live_<name>`, pivot at origin) with
+  `IVA_Live<Role>_<name>` markers (Axis/Zero/Mid for needles; Zenith/North/Axis/Up for the navball). `LiveInstruments.cs`
+  drives them from `VesselComponent` telemetry; horizon vectors go through `UniverseView.PhysicsSpace.VectorToPhysics`.
 - The flight camera (`FlightCameraPhysics_Main`) is **never parented** in custom mode. Its pose is set in `LateUpdate` and
   `Camera.onPreCull`. Restore the original pose, FOV and near clip on exit.
 - Blender scripts: `import bpy` must come **before** `bmesh`/`mathutils`.

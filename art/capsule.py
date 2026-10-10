@@ -414,8 +414,59 @@ class Surface:
 
 
 # ------------------------------------------------------------------ instruments (p = point on the panel, b = its basis)
+def marker(name, p):
+    e = bpy.data.objects.new(name, None)
+    e.empty_display_type = "SPHERE"
+    e.empty_display_size = 0.005
+    e.location = p
+    return L.link(e)
+
+
+def live_mesh(name, bm, mat, pivot):
+    """A moving part: its own object (IVA_Live_<name>) with its origin at the pivot, exported unmerged."""
+    obj = L.mesh_obj("IVA_Live_" + name, bm, [mat])
+    obj.location = pivot
+    return obj
+
+
 def navball(name, p, b, r=0.04):
-    L.sphere(name, r, M["navball"], p + b.col[2] * r * 0.3, b @ Matrix.Rotation(rad(25), 3, "Z"), u=40, v=20)
+    """Live navball. Texture is equirectangular (u = heading from north, v = pitch); the ball is authored with zenith
+    towards the viewer and north towards the panel's up. IVA_LiveZenith/North give those directions, IVA_LiveAxis/Up the
+    panel's facing and up, so the mod can turn it to the real attitude whatever the import axes."""
+    centre = p + b.col[2] * r * 0.3
+    zen, north = b.col[2].normalized(), b.col[1].normalized()
+    east = north.cross(zen)          # proper frame: looking north with zenith up, east = north x zenith (Blender)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    nu, nv = 48, 24
+    rows = []
+    for i in range(nv + 1):
+        lat = -math.pi / 2 + math.pi * i / nv
+        row = []
+        for j in range(nu + 1):
+            lon = 2 * math.pi * j / nu
+            d = (north * math.cos(lon) + east * math.sin(lon)) * math.cos(lat) + zen * math.sin(lat)
+            row.append((bm.verts.new(d * r), (j / nu, i / nv)))
+        rows.append(row)
+    for i in range(nv):
+        for j in range(nu):
+            q = (rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j])
+            try:
+                f = bm.faces.new([v for v, _ in q])
+            except ValueError:
+                continue
+            for l, (_, t) in zip(f.loops, q):
+                l[uv].uv = t
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-7)
+    bm.normal_update()
+    for f in bm.faces:
+        if f.normal.dot(f.calc_center_median()) < 0:
+            f.normal_flip()
+    L.smooth(live_mesh(name, bm, M["navball"], centre), 90)
+    marker(f"IVA_LiveZenith_{name}", centre + zen * 0.05)
+    marker(f"IVA_LiveNorth_{name}", centre + north * 0.05)
+    marker(f"IVA_LiveAxis_{name}", centre + b.col[2] * 0.05)
+    marker(f"IVA_LiveUp_{name}", centre + b.col[1] * 0.05)
     L.torus(name + "Bezel", r * 1.12, r * 0.2, M["bezel"], p + b.col[2] * r * 0.35, b, seg=40)
     for side in (-1, 1):
         L.box(f"{name}Chevron{side}", (r * 0.45, r * 0.1, r * 0.075), M["btn_amber"], p + b.col[2] * r * 1.3 + b.col[0] * side * r * 0.17 - b.col[1] * r * 0.1,
@@ -423,9 +474,46 @@ def navball(name, p, b, r=0.04):
                       (b.col[1] * math.cos(rad(35)) - b.col[0] * side * math.sin(rad(35))).normalized(), b.col[2]))
 
 
+DIAL_START, DIAL_SWEEP = 225.0, 270.0     # as drawn by texgen.gauge(): value 0 at 225 deg, full scale 270 deg clockwise
+
+
+def needle(name, p, b, length, width, lift):
+    """Live gauge needle, pivoting at the dial centre, authored at zero. Markers give its axis, zero and half-scale directions."""
+    a0, a5 = rad(DIAL_START), rad(DIAL_START - DIAL_SWEEP / 2)
+    d0 = b.col[0] * math.cos(a0) + b.col[1] * math.sin(a0)
+    side = b.col[2].cross(d0).normalized()
+    pivot = p + b.col[2] * lift
+    bm = bmesh.new()
+    bm.loops.layers.uv.new("UVMap")
+    pts = [-d0 * length * 0.18 - side * width * 0.8, d0 * length - side * width * 0.25, d0 * length + side * width * 0.25, -d0 * length * 0.18 + side * width * 0.8]
+    top = [bm.verts.new(q + b.col[2] * 0.0015) for q in pts]
+    bot = [bm.verts.new(q) for q in pts]
+    bm.faces.new(top)
+    bm.faces.new(bot[::-1])
+    for i in range(4):
+        bm.faces.new((bot[i], bot[(i + 1) % 4], top[(i + 1) % 4], top[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    live_mesh(name, bm, M["needle"], pivot)
+    marker(f"IVA_LiveAxis_{name}", pivot + b.col[2] * 0.03)
+    marker(f"IVA_LiveZero_{name}", pivot + d0 * 0.03)
+    marker(f"IVA_LiveMid_{name}", pivot + (b.col[0] * math.cos(a5) + b.col[1] * math.sin(a5)) * 0.03)
+
+
+_live_count = {}
+
+
 def gauge(name, p, b, kind, r=0.022):
-    L.disc(name, r, M["gauge_" + kind], p + b.col[2] * 0.003, b)
+    """Dial gauge. alt, press and temp are live (needle meshes the mod turns: alt has a long km hand and a short
+    tens-of-km hand); fuel keeps its printed needle."""
+    live = "gauge_face_" + kind in M
+    L.disc(name, r, M["gauge_face_" + kind] if live else M["gauge_" + kind], p + b.col[2] * 0.003, b)
     L.torus(name + "Bezel", r * 1.09, r * 0.18, M["bezel"], p + b.col[2] * 0.003, b, seg=32, mseg=8)
+    if live:
+        k = _live_count[kind] = _live_count.get(kind, -1) + 1
+        needle(f"Needle_{kind}_{k}", p, b, r * 0.72, r * 0.09, 0.0045)
+        if kind == "alt":
+            needle(f"Needle_alt10_{k}", p, b, r * 0.45, r * 0.13, 0.0065)
+        L.cylinder(name + "Hub", r * 0.12, 0.006, M["bezel"], p + b.col[2] * 0.006, b, segs=12)
 
 
 def crt(name, p, b, mat, w=0.09, h=0.066, keys=4):

@@ -17,11 +17,18 @@ FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 FONT_COND = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf"
 
 
+# Windows stand-ins for the DejaVu fonts (the originals were drawn on Linux)
+WIN_FONTS = {"DejaVuSans-Bold.ttf": "arialbd.ttf", "DejaVuSansMono-Bold.ttf": "consolab.ttf", "DejaVuSansCondensed-Bold.ttf": "arialnb.ttf"}
+
+
 def font(path, size):
-    try:
-        return ImageFont.truetype(path, size)
-    except OSError:
-        return ImageFont.load_default()
+    base = os.path.basename(path)
+    for p in (path, os.path.join("C:/Windows/Fonts", base), os.path.join("C:/Windows/Fonts", WIN_FONTS.get(base, "arialbd.ttf")), "C:/Windows/Fonts/arialbd.ttf"):
+        try:
+            return ImageFont.truetype(p, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
 
 def save(img, name):
@@ -169,6 +176,9 @@ def gauge(name, label, frac, w=512):
         r = c - 130
         d.text((c + r * math.cos(a), c - r * math.sin(a)), str(i * 2), fill=(20, 20, 20), font=fn, anchor="mm")
     d.text((c, c + 62), label, fill=(30, 30, 30), font=font(FONT_BOLD, 34), anchor="mm")
+    if frac is None:          # live gauge: the needle is a separate mesh the mod turns
+        save(img, name)
+        return
     a = math.radians(start - sweep * frac)
     d.line([(c - 30 * math.cos(a), c + 30 * math.sin(a)), (c + (c - 80) * math.cos(a), c - (c - 80) * math.sin(a))], fill=(220, 60, 20), width=12)
     d.ellipse([c - 26, c - 26, c + 26, c + 26], fill=(30, 30, 30))
@@ -260,16 +270,18 @@ def plate(w=1024, h=256):
     save(img, "plate.png")
 
 
-navball()
-crt_orbit()
-crt_data()
-crt_attitude()
-gauge("gauge_alt.png", "ALT km", 0.62)
-gauge("gauge_press.png", "CABIN kPa", 0.48)
-gauge("gauge_temp.png", "TEMP x100", 0.35)
-gauge("gauge_fuel.png", "FUEL", 0.71)
-labels()
-quilt()
-hazard()
-grate()
-plate()
+ALL = {
+    "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
+    "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
+    "gauge_press": lambda: gauge("gauge_press.png", "CABIN kPa", 0.48),
+    "gauge_temp": lambda: gauge("gauge_temp.png", "TEMP x100", 0.35),
+    "gauge_fuel": lambda: gauge("gauge_fuel.png", "FUEL", 0.71),
+    # faces for the live gauges (needles are meshes): long hand km, short hand tens of km; outside pressure; outside temperature
+    "gauge_alt_face": lambda: gauge("gauge_alt_face.png", "ALT km", None),
+    "gauge_press_face": lambda: gauge("gauge_press_face.png", "ATM kPa x10", None),
+    "gauge_temp_face": lambda: gauge("gauge_temp_face.png", "TEMP K x100", None),
+    "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
+}
+# python texgen.py <out> [name ...]: only the named textures (default: all)
+for key in (sys.argv[2:] or list(ALL)):
+    ALL[key]()

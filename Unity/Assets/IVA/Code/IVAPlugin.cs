@@ -213,7 +213,13 @@ namespace IVA
 
         private void LateUpdate()
         {
-            if (InIva) ApplyPose();
+            if (!InIva) return;
+            if (_mode == Mode.CustomInterior && _session != null && _session.Live != null && _vesselAtEntry != null)
+            {
+                try { _session.Live.Update(Game, _vesselAtEntry.Model, _session.PodTransform, Time.deltaTime); }
+                catch (Exception e) { SWLogger.LogError("IVA: live instruments failed and are now off: " + e.Message); _session.DisableLive(); }
+            }
+            ApplyPose();
         }
 
         // Applied again just before the flight camera renders, in case anything moved it after LateUpdate.

@@ -186,6 +186,8 @@ namespace IVA
         public readonly List<KeyValuePair<Transform, Transform>> Views = new List<KeyValuePair<Transform, Transform>>();
         public readonly List<string> ViewNames = new List<string>();
         public Transform PodTransform => Pod != null ? Pod.transform : null;
+        public LiveInstruments Live { get; private set; }
+        public void DisableLive() => Live = null;
 
         private GameObject _instance;
         private Vector3 _fitScale = Vector3.one;
@@ -232,6 +234,7 @@ namespace IVA
                 s.ViewNames.Add(n);
             }
 
+            s.Live = LiveInstruments.Find(inst, log);
             CorrectOrientation(inst, s.Seats, log);
             s.FindGameEyes(log);
             s.HideStockCabin(log);
