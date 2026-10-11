@@ -93,7 +93,7 @@ def build_crown():
                  ("dial", 0, 1, 1, 1, {"kind": "temp"}), ("toggles", 1, 1, 2, 1, {"cols": 5})]),
         (136, 2, [("abort", 0, 0, 1, 2, {}), ("buttons", 1, 0, 1, 1, {"n": 3}), ("lamps", 1, 1, 1, 1, {"n": 3})]),
         (180, 2, [("breakers", 0, 0, 2, 1, {"cols": 7, "rows": 2}), ("vent", 0, 1, 1, 1, {"slots": 5}), ("knobs", 1, 1, 1, 1, {"n": 2})]),
-        (-136, 2, [("keypad", 0, 0, 2, 2, {})]),
+        (-136, 2, [("keypad", 0, 1, 2, 1, {})]),   # lower row: the ceiling console's corner is above the upper one
         (-76, 3, [("breakers", 0, 0, 3, 1, {"cols": 10, "rows": 2}), ("toggles", 0, 1, 2, 1, {"cols": 6}), ("knobs", 2, 1, 1, 1, {"n": 2})]),
     ]
     for k, (deg, cols, items) in enumerate(groups):

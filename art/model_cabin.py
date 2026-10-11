@@ -92,8 +92,6 @@ def build_shell():
         K.window_well(R, "ceil", f"Well_ceil{k}", poly, LAY["ceiling_well_depth"])
     K.panel_with_holes(R, "floor", "GroundPlates", recess_holes("floor"), mat=M["deckplate"])
     K.corners(R)
-    K.end_bulkhead(R, "aft", "AftEnd", hatch_r=LAY.get("hatch_r", 0.45))
-    K.end_bulkhead(R, "fore", "ForeEnd", hatch_r=LAY.get("hatch_r", 0.45))
 
 
 def build_furniture():
@@ -130,7 +128,7 @@ def build_furniture():
 
 def build_ceiling():
     down = Vector((0, -1, 0))
-    clear = S.Clearance()
+    clear = S.Clearance(zones=[K.kept_out])
     n = max(2, int((R.z1 - R.z0) / 0.5))
     for side in (-1, 1):
         x = side * (R.xw - 0.24)
@@ -153,12 +151,17 @@ def build_ceiling():
 # ------------------------------------------------------------------ build
 build_shell()
 build_furniture()
+DOORWAYS = [K.partition(R, z, f"Partition{k}", door_w=w, door_h=h) for k, (z, w, h) in enumerate(LAY.get("partitions", []))]
+_clear = S.Clearance(zones=[K.kept_out])
+K.end_bulkhead(R, "aft", "AftEnd", hatch_r=LAY.get("hatch_r", 0.45), clear=_clear)
+K.end_bulkhead(R, "fore", "ForeEnd", hatch_r=LAY.get("hatch_r", 0.45), clear=_clear)
 build_ceiling()
 K.dress_room(R, seed=len(SEATS))
 for k, v in enumerate(LAY.get("views", [])):
     K.view(v["name"], v["from"], v["at"])
 for i, s in enumerate(SEATS):
     C.eye_marker(i, s)
-S.collision_markers(hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25))])
+S.collision_markers(decks=[d[4] for d in DOORWAYS], holes=DOORWAYS,
+                    hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25))])
 print(f"{SPEC['name']}: room x +-{R.xw}, y {R.yf}..{R.yc}, z {R.z0}..{R.z1}; {len(SEATS)} seats")
 L.save(OUT)

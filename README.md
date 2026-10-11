@@ -65,6 +65,7 @@ Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** 
 | F | While floating: use what the dot in the middle of the view is on: doors, lockers, drawers, the food warmer, freezers, bunk curtains, reading lamps, screens (next page), ceiling lights (normal / night / dim), the toilet flush and the wash station |
 | F at a hatch | While floating: go through to the next crewed module (you move into one of its free seats) or, at the side hatch (or a cabin's end hatch with nothing beyond), go out on EVA |
 | [ / ] | Only with *Audition keys* on: play the previous / next candidate game sound, with its name on screen |
+| \\ | Only with *Audition keys* on: switch where cabin sounds play from (camera emitter / the pod's own audio / the listener), to find one that's audible |
 | Mouse | Look around |
 | Scroll wheel | Zoom (up zooms in) |
 

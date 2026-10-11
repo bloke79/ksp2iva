@@ -267,11 +267,12 @@ def hazard_rail(name, pts, r=0.009):
 def _shell(name, p, b, w, h, d, mat, x0=0.0, y0=0.0, t=0.01, inner=None):
     """Open-fronted box: back, sides, top and bottom, w x h x d, centred at (x0, y0) on the surface; returns the parts."""
     inner = inner or mat
+    zd = (d + t) / 2   # centre of the walls in front of the back
     return [L.box(name + "Back", (w, h, t), inner, _a(p, b, x0, y0, t / 2), _r(b)),
-            L.box(name + "SideL", (t, h, d), mat, _a(p, b, x0 - w / 2 + t / 2, y0, d / 2), _r(b)),
-            L.box(name + "SideR", (t, h, d), mat, _a(p, b, x0 + w / 2 - t / 2, y0, d / 2), _r(b)),
-            L.box(name + "Top", (w, t, d), mat, _a(p, b, x0, y0 + h / 2 - t / 2, d / 2), _r(b)),
-            L.box(name + "Bottom", (w, t, d), mat, _a(p, b, x0, y0 - h / 2 + t / 2, d / 2), _r(b))]
+            L.box(name + "SideL", (t, h, d - t), mat, _a(p, b, x0 - w / 2 + t / 2, y0, zd), _r(b)),
+            L.box(name + "SideR", (t, h, d - t), mat, _a(p, b, x0 + w / 2 - t / 2, y0, zd), _r(b)),
+            L.box(name + "Top", (w - 2 * t, t, d - t), mat, _a(p, b, x0, y0 + h / 2 - t / 2, zd), _r(b)),
+            L.box(name + "Bottom", (w - 2 * t, t, d - t), mat, _a(p, b, x0, y0 - h / 2 + t / 2, zd), _r(b))]
 
 
 def _stowed(name, p, b, w, d, y, seed, h_max=0.12):
@@ -377,7 +378,7 @@ def oven(name, p, b, w=0.2, h=0.16, d=0.18):
     """Food warmer/oven with a window, dial and status lamps; a lit cavity with a meal pouch behind the door."""
     cw = w * 0.7
     _shell(name + "Cavity", p, b, cw, h, d, M["module"], x0=-w * 0.1 - 0.0, inner=M.get("frame_dark", M["module"]))
-    L.box(name + "Controls", (w - cw - 0.0, h, d), M["module"], _a(p, b, w / 2 - (w - cw) / 2, 0, d / 2), _r(b), bevel=0.004)
+    L.box(name + "Controls", (w * 0.25 - 0.002, h, d), M["module"], _a(p, b, w * 0.375 + 0.001, 0, d / 2), _r(b), bevel=0.004)
     L.box(name + "Rack", (cw - 0.03, 0.004, d - 0.03), M["buckle"], _a(p, b, -w * 0.1, -h * 0.15, d / 2), _r(b))
     L.box(name + "Meal", (cw * 0.55, 0.025, d * 0.5), M["foil"], _a(p, b, -w * 0.1, -h * 0.15 + 0.015, d / 2), _r(b), bevel=0.008, segs=1)
     L.box(name + "CavityLamp", (0.03, 0.004, 0.02), M["light"], _a(p, b, -w * 0.1, h / 2 - 0.012, d * 0.3), _r(b))
@@ -453,7 +454,7 @@ def sleep_station(name, p, b, w=0.5, h=0.8, d=0.32):
     for sx in (-1, 1):
         L.box(f"{name}Side{sx}", (t, h, d), M["module"], _a(p, b, sx * (w / 2 - t / 2), 0, d / 2), _r(b), bevel=0.003)
     for sy in (-1, 1):
-        L.box(f"{name}Cap{sy}", (w, t, d), M["module"], _a(p, b, 0, sy * (h / 2 - t / 2), d / 2), _r(b), bevel=0.003)
+        L.box(f"{name}Cap{sy}", (w - 2 * t, t, d), M["module"], _a(p, b, 0, sy * (h / 2 - t / 2), d / 2), _r(b), bevel=0.003)
     sleeping_bag(name + "Bag", _a(p, b, 0, -0.02, 0.0), b, w * 0.75, h * 0.85, 0.11)
     L.cylinder(name + "CurtainRod", 0.006, w, M["buckle"], _a(p, b, 0, h / 2 - 0.04, d - 0.01), L.basis(b.col[1], b.col[2], b.col[0]), segs=10)
     parts = [L.box(name + "Curtain", (w * 0.38, h * 0.88, 0.01), M["towel"], _a(p, b, -w * 0.29, -0.02, d - 0.012), _r(b), bevel=0.004)]

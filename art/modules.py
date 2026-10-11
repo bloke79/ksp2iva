@@ -84,7 +84,7 @@ def annunciators(name, p, b, w, h, cols, rows, start=0):
             u0, v1 = (k % 4) / 4, 1 - (k // 4) / 4
             x, y = -w / 2 + 0.008 + cw * (c + 0.5), h / 2 - 0.008 - ch * (r + 0.5)
             L.box(f"{name}Cell{r}_{c}", (cw * 0.92, ch * 0.9, 0.004), M["bezel"], _at(p, b, x, y, d + 0.002), b, bevel=0.001)
-            L.plane(f"{name}Lens{r}_{c}", cw * 0.82, ch * 0.78, M["annunc"], _at(p, b, x, y, d + 0.0042), b, (u0 + 0.01, v1 - 0.24, u0 + 0.24, v1 - 0.01))
+            L.plane(f"{name}Lens{r}_{c}", cw * 0.82, ch * 0.78, M["annunc"], _at(p, b, x, y, d + 0.005), b, (u0 + 0.01, v1 - 0.24, u0 + 0.24, v1 - 0.01))
 
 
 def keypad(name, p, b, w, h):
@@ -92,7 +92,7 @@ def keypad(name, p, b, w, h):
     d = plate(name + "Plate", p, b, w, h, 0.01)
     dh = h * 0.3
     L.box(name + "DisplayBezel", (w - 0.016, dh, 0.005), M["bezel"], _at(p, b, 0, h / 2 - 0.008 - dh / 2, d + 0.0025), b, bevel=0.0015)
-    L.plane(name + "Display", w - 0.024, dh - 0.008, M["digits"], _at(p, b, 0, h / 2 - 0.008 - dh / 2, d + 0.0052), b)
+    L.plane(name + "Display", w - 0.024, dh - 0.008, M["digits"], _at(p, b, 0, h / 2 - 0.008 - dh / 2, d + 0.006), b)
     kh = (h - dh - 0.024) / 4
     kw = (w - 0.016) / 4
     for i in range(16):

@@ -107,7 +107,8 @@ class Clearance:
             cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
             a = Vector((min(c.x for c in cs), min(c.y for c in cs), min(c.z for c in cs)))
             b2 = Vector((max(c.x for c in cs), max(c.y for c in cs), max(c.z for c in cs)))
-            if max(b2 - a) > 1.6:
+            ext = sorted(b2 - a)
+            if ext[1] > 1.0:   # big in two directions: wall panels, rings, shells (their boxes would block everything)
                 continue
             lo.append(a[:])
             hi.append(b2[:])

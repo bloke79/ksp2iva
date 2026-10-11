@@ -129,6 +129,7 @@ namespace IVA
         private class PendingEva { public PartBehavior Part; public VesselBehavior Vessel; public KSP.Game.KerbalInfo Kerbal; public float At; }
         private PendingEva _pendingEva;
         private Sounds _sounds;
+        private Sounds.Source _soundSource = Sounds.Source.Camera;   // switched with \ while auditioning; kept for the game session
         private int _auditionIndex = -1;
 
         public override void OnInitialized()
@@ -283,6 +284,13 @@ namespace IVA
             }
             if (_audition.Value && _sounds != null)
             {
+                if (Input.GetKeyDown(KeyCode.Backslash))
+                {
+                    _sounds.SetThrust(false);
+                    _sounds.Next();
+                    _soundSource = _sounds.Current;
+                    if (_auditionIndex >= 0) _sounds.PlayAudition(Sounds.Audition[_auditionIndex]);
+                }
                 int step = Input.GetKeyDown(KeyCode.RightBracket) ? 1 : Input.GetKeyDown(KeyCode.LeftBracket) ? -1 : 0;
                 if (step != 0)
                 {
@@ -732,7 +740,7 @@ namespace IVA
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
             if (_soundOn.Value)
             {
-                _sounds = Sounds.Create(_session.Pod, SWLogger);
+                _sounds = Sounds.Create(_session.Pod, _soundSource, SWLogger);
                 if (_sounds.Valid)
                 {
                     _sounds.SetVolume(_soundVolume.Value);
@@ -1106,9 +1114,10 @@ namespace IVA
         private void OnGUI()
         {
             if (_promptStyle == null) _promptStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18 };
-            if (_audition.Value && _sounds != null && _auditionIndex >= 0)
+            if (_audition.Value && _sounds != null)
                 GUI.Label(new Rect(0f, Screen.height * 0.08f, Screen.width, 30f),
-                          $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}", _promptStyle);
+                          (_auditionIndex >= 0 ? $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}" : "[ / ]  play a sound") +
+                          $"     \\  source: {_sounds.Current}", _promptStyle);
             if (_free == null) return;
             // a small dot where you're looking
             GUI.Label(new Rect(Screen.width / 2f - 10f, Screen.height / 2f - 15f, 20f, 30f), "\u00b7", _dotStyle ?? (_dotStyle = new GUIStyle(_promptStyle) { fontSize = 28 }));

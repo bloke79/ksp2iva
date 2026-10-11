@@ -469,6 +469,13 @@
     3.95,
     "life"
    ]
+  ],
+  "partitions": [
+   [
+    2.31,
+    0.9,
+    1.45
+   ]
   ]
  },
  "preview_lights": [

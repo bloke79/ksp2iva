@@ -157,7 +157,7 @@ def build_lower_deck():
         x = seat["x"]
         dz = EYE_Z - 0.718
         start = Vector((UMB_X[i], BULK_Y - 0.03, FLOOR + 0.3))
-        pts = [start, Vector((x - 0.25, 0.38, 0.38 + dz)), Vector((x - 0.25, 0.1, 0.5 + dz)), Vector((x - 0.2, -0.1, 0.58 + dz)), Vector((x - 0.13, -0.16, 0.6 + dz))]
+        pts = [start, Vector((UMB_X[i], BULK_Y - 0.3, FLOOR + 0.34)), Vector((x - 0.25, 0.38, 0.38 + dz)), Vector((x - 0.25, 0.1, 0.5 + dz)), Vector((x - 0.2, -0.1, 0.58 + dz)), Vector((x - 0.13, -0.16, 0.6 + dz))]
         G.hose(f"Umbilical{i}", pts, r=0.018, mat=M["umbilical"])
         L.cylinder(f"UmbilicalPlug{i}", 0.026, 0.04, M["buckle"], pts[-1], (pts[-1] - pts[-2]).normalized().to_track_quat("Z", "Y").to_matrix(), segs=16)
 
@@ -255,13 +255,13 @@ def build_bulkhead():
         L.tube(f"WorkDeskStay{sx}", [Vector((0.72 + sx * 0.25, BULK_Y - 0.005, desk_z - 0.18)), Vector((0.72 + sx * 0.25, BULK_Y - 0.22, desk_z - 0.012))], 0.006, M["handle"])
     P.laptop("WorkLaptop", *bulk_frame(0.66, desk_z + 0.2), arm=0.16, screen="mfd_map")
     P.binders("WorkBinders", *bulk_frame(0.98, desk_z + 0.12), n=4)
-    for k2, x in enumerate((0.5, 0.74)):   # water and oxygen
-        c = Vector((x, BULK_Y - 0.12, FLOOR + 0.38))
-        L.cylinder(f"AftTank{k2}", 0.1, 0.62, M["tank"], c, segs=28, bevel=0.03)
-        for dz in (-0.2, 0.2):
+    for k2, x in enumerate((0.62, 0.85)):   # water and oxygen (clear of the hose port at x 0.42)
+        c = Vector((x, BULK_Y - 0.12, FLOOR + 0.33))
+        L.cylinder(f"AftTank{k2}", 0.1, 0.52, M["tank"], c, segs=28, bevel=0.03)
+        for dz in (-0.16, 0.16):
             L.torus(f"AftTankStrap{k2}{dz}", 0.103, 0.007, M["handle"], c + Vector((0, 0, dz)), Matrix.Identity(3), seg=28, mseg=6)
-        L.cylinder(f"AftTankValve{k2}", 0.018, 0.06, M["rib"], c + Vector((0, 0, 0.34)), segs=12)
-    G.cables("AftTankLines", (0.5, BULK_Y - 0.12, FLOOR + 0.72), (0.74, BULK_Y - 0.12, FLOOR + 0.72), droop=0.04, n=2)
+        L.cylinder(f"AftTankValve{k2}", 0.018, 0.06, M["rib"], c + Vector((0, 0, 0.29)), segs=12)
+    G.cables("AftTankLines", (0.62, BULK_Y - 0.12, FLOOR + 0.62), (0.85, BULK_Y - 0.12, FLOOR + 0.62), droop=0.04, n=2)
     P.drawer_stack("AftDrawers", *bulk_frame(1.12, 0.42), 0.3, 0.6, 5)
     # safety kit on the aisle side of each half
     L.cylinder("Extinguisher", 0.05, 0.34, M["extinguisher"], Vector((0.44, BULK_Y - 0.06, 1.12)), segs=24, bevel=0.01)
@@ -281,7 +281,7 @@ def build_bulkhead():
         bm = bmesh.new()
         uv = bm.loops.layers.uv.new("UVMap")
         pts = [(BULK_Y, FLOOR), (y1, FLOOR)] + [(math.sqrt(max(0.0, C.r_in(z) ** 2 - AISLE ** 2)) - 0.01, z) for z in (0.6, 1.2, BULK_TOP)] + [(BULK_Y, BULK_TOP)]
-        vs = [bm.verts.new((side * AISLE, y, z)) for y, z in pts]
+        vs = [bm.verts.new((side * (AISLE - 0.002), y, z)) for y, z in pts]   # 2 mm proud of the bulkhead slab (no z-fighting)
         face = bm.faces.new(vs if side < 0 else vs[::-1])
         for l in face.loops:
             l[uv].uv = (l.vert.co.y, l.vert.co.z)
@@ -519,6 +519,8 @@ def build_ceiling_below_deck(clear):
             p = C.polar(phi, r, zc)
             if -HOLE_HW - 0.2 < p.x < HOLE_HW + 0.2 and HOLE_Y0 - 0.15 < p.y < HOLE_Y1 + 0.15:
                 continue
+            if -HYG_X1 - 0.1 < p.x < -HYG_X0 + 0.1 and abs(p.y - BULK_Y) < 0.3:   # over the hygiene door and its sign
+                continue
             tang = Vector((math.cos(phi), math.sin(phi), 0))
             S.light_fixture(f"CeilLight{n}", p, L.basis(tang, tang.cross(down), down), w=0.28 if r > 1 else 0.2, h=0.08)
             n += 1
@@ -543,9 +545,9 @@ def build_ceiling_below_deck(clear):
     for side in (-1, 1):
         for k2, deg in enumerate((86, 108)):
             phi = C.rad(side * deg)
-            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.1, bz - 0.12, inset=0.04, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"], ends=(False, False))
+            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.1, bz - 0.29, inset=0.04, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"], ends=(False, False))
             S.junction(f"RiserBoxLo{side}{k2}", phi, SIDE_Z1 + 0.08)
-            S.junction(f"RiserBoxHi{side}{k2}", phi, bz - 0.12)
+            S.junction(f"RiserBoxHi{side}{k2}", phi, bz - 0.29)   # below the ceiling duct
 
 
 def build_dome(clear):
@@ -567,7 +569,10 @@ def build_dome(clear):
         S.cbox(f"TunnelSegment{k2}", (0.2, 0.13, 0.025), M["frame"] if k2 % 2 else M["frame_dark"],
                Vector((r * math.cos(a), r * math.sin(a), dome_z(r) - 0.015)), Matrix.Rotation(a + math.pi / 2, 3, "Z"), ch=0.006)
     n = 0
+    drops = [(70, 64, DECK_Z + 1.29), (-120, -127, DECK_Z + 1.22), (166, 160, DECK_Z + 1.34), (-12, -3, DECK_Z + 1.24), (-114, -108, DECK_Z + 1.39), (-70, -63, DECK_Z + 1.14)]
     for deg in range(-165, 180, 30):
+        if any(min(a0, a1) - 12 <= deg <= max(a0, a1) + 12 for a0, a1, _ in drops):
+            continue   # a cable drop comes down here
         phi = C.rad(deg)
         p, b = at(deg, C.Z_CEIL - 0.2, 0.0)
         size = (0.24, 0.12, 0.16)
@@ -578,8 +583,6 @@ def build_dome(clear):
             continue
         G.box_unit(f"Cassette{n}", c, size, rot, vents=n % 2 == 0, lamps_n=2)
         n += 1
-    D = DECK_Z
-    drops = [(70, 64, D + 1.29), (-120, -127, D + 1.22), (166, 160, D + 1.34), (-12, -3, D + 1.24), (-114, -108, D + 1.39), (-70, -63, D + 1.14)]
     for k2, (a0, a1, z1) in enumerate(drops):   # each drop plugs into a junction box above its unit
         zj = z1 + 0.1
         S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, zj, inset=0.04, n=5, phi1=C.rad(a1)), n=3,
@@ -612,7 +615,7 @@ def build_structure():
     clear = S.Clearance(zones=[hidden])
     S.cable_run("RunHabTop", C.Z_CEIL - 0.17, clear, seed=3)
     S.cable_run("RunHabMid", D + 0.95, clear, seed=4, n=3)
-    S.cable_run("RunFlightTop", D - 0.2, clear, seed=5)
+    S.cable_run("RunFlightTop", D - 0.31, clear, seed=5)   # below the ceiling duct (D - 0.195)
     clear = S.Clearance(zones=[hidden])
     S.ring_frame("Skirt", FLOOR + 0.05, clear, h=0.07, d=0.04)
     S.ring_frame("Cornice", D - 0.07, clear, h=0.09, d=0.05)

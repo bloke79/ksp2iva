@@ -100,7 +100,7 @@ def corners(room, name="Corner", depth=0.16):
             S.bundle(f"{name}{k}Run", [q + Vector((0, 0, 0.2)), q + Vector((0, 0, (room.z1 - room.z0) - 0.2))], n=4, ends=(False, False))
 
 
-def end_bulkhead(room, wall, name, hatch_r=0.45):
+def end_bulkhead(room, wall, name, hatch_r=0.45, clear=None):
     """End wall with a round hatch (frame, door with a small window, handle, latches) and equipment round it."""
     w, h = room.size(wall)
     p, b = room.frame(wall, 0, 0)
@@ -122,15 +122,47 @@ def end_bulkhead(room, wall, name, hatch_r=0.45):
     for side in (-1, 1):
         u = side * (hatch_r + 0.32)
         q, qb = room.frame(wall, u, 0.25)
-        G.box_unit(f"{name}Unit{side}", q + qb.col[2] * 0.06, (0.3, 0.12, 0.28), L.basis(qb.col[0], -qb.col[2], qb.col[1]), lamps_n=3)
+        if not _taken(clear, q, qb, 0.3, 0.28, 0.14):
+            G.box_unit(f"{name}Unit{side}", q + qb.col[2] * 0.06, (0.3, 0.12, 0.28), L.basis(qb.col[0], -qb.col[2], qb.col[1]), lamps_n=3)
         q, qb = room.frame(wall, u, -0.35)
-        S.grille(f"{name}Vent{side}", q, qb, 0.26, 0.16, slats=7)
+        if not _taken(clear, q, qb, 0.26, 0.16, 0.03):
+            S.grille(f"{name}Vent{side}", q, qb, 0.26, 0.16, slats=7)
     q, qb = room.frame(wall, 0, hatch_r + 0.16)
     s = C.Surface(name + "Panel", q + qb.col[2] * 0.03, qb.col[0], qb.col[1], 0.5, 0.12, corner=0.015)
     s.build(M["console"], thick=0.025)
     G.grid(s, name + "Panel", 4, 1, [("annunciators", 0, 0, 2, 1, {"cols": 4, "rows": 2, "start": 2}), ("toggles", 2, 0, 1, 1, {"cols": 3}),
                                       ("lamps", 3, 0, 1, 1, {"n": 3})], border=0.01)
     s.check()
+
+
+KEEP_OUT = []   # (lo, hi) world boxes nothing else may be built in (the insides of hygiene rooms and quarters)
+
+
+def keep_out_prefix(prefix, grow=0.02):
+    """Register the bounding box of everything named prefix* as a keep-out volume."""
+    import bpy
+    lo, hi = Vector((1e9,) * 3), Vector((-1e9,) * 3)
+    bpy.context.view_layer.update()
+    for o in L.COLL.objects:
+        if o.name.startswith(prefix) and o.type in ("MESH", "CURVE"):
+            for c in o.bound_box:
+                w = o.matrix_world @ Vector(c)
+                lo = Vector(map(min, lo, w))
+                hi = Vector(map(max, hi, w))
+    if lo.x < hi.x:
+        KEEP_OUT.append((lo - Vector((grow,) * 3), hi + Vector((grow,) * 3)))
+
+
+def kept_out(p):
+    return any(all(lo[i] <= p[i] <= hi[i] for i in range(3)) for lo, hi in KEEP_OUT)
+
+
+def _taken(clear, p, b, w, h, d):
+    """Is anything already in the w x h x d volume standing out of a wall at p (basis b)?"""
+    if clear is None:
+        return False
+    return any(clear.blocked(p + b.col[0] * su * w / 2 + b.col[1] * sv * h / 2 + b.col[2] * dz, 0.01)
+               for su in (-1, 0, 1) for sv in (-1, 0, 1) for dz in (0.02, d))
 
 
 # ------------------------------------------------------------------ racks
@@ -182,7 +214,7 @@ def rack(room, wall, z, kind, name, w=None, seed=0, h=None, across=0.0):
         S.cbox(name + "DeskEdge", (w - 0.04, 0.035, 0.03), M["frame_dark"], dq + b.col[2] * 0.18, b, ch=0.006)
         L.box(name + "Keyboard", (0.3, 0.012, 0.12), M["module"], dq + b.col[1] * 0.021 + b.col[2] * 0.06, b, bevel=0.003)
         P.laptop(name + "Laptop", at(desk_v + 0.3, 0.0, du=-0.18), b, arm=0.22, screen="mfd_map" if kind == "workstation" else "mfd_engine")
-        P.whiteboard(name + "Board", at(desk_v + 0.36, 0.0, du=0.24), b, 0.3, 0.2)
+        P.whiteboard(name + "Board", at(desk_v + 0.23, 0.004, du=0.24), b, 0.3, 0.18)
         if kind == "comms":
             P.headset(name + "Headset", at(desk_v + 0.25, 0.0, du=0.33), b)
         else:
@@ -201,8 +233,9 @@ def rack(room, wall, z, kind, name, w=None, seed=0, h=None, across=0.0):
             ("dial", 0, 0, 1, 1, {"kind": "temp"}), ("annunciators", 1, 0, 2, 1, {"cols": 4, "rows": 2, "start": 9}), ("lamps", 3, 0, 1, 1, {"n": 3})])
     elif kind == "life":
         rot = L.basis(b.col[0], -b.col[2], b.col[1])
-        G.box_unit(name + "Unit0", at(0.25, 0.1), (w - 0.14, 0.2, 0.36), rot, lamps_n=3)
-        G.box_unit(name + "Unit1", at(-0.2, 0.08), (w - 0.14, 0.16, 0.3), rot, vents=False, lamps_n=2)
+        G.box_unit(name + "Unit0", at(top - 0.33, 0.1), (w - 0.14, 0.2, 0.36), rot, lamps_n=3)   # under the vent
+        if h >= 1.2:   # room for a second unit above the tanks
+            G.box_unit(name + "Unit1", at(-0.2, 0.08), (w - 0.14, 0.16, 0.3), rot, vents=False, lamps_n=2)
         for k, du in enumerate((-0.2, 0.2)):
             c = at(-h / 2 + 0.2, 0.11, du=du)
             L.cylinder(f"{name}Tank{k}", 0.09, 0.3, M["tank"], c, L.basis(b.col[0], b.col[2], -b.col[1]) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=24, bevel=0.03)
@@ -217,7 +250,7 @@ def rack(room, wall, z, kind, name, w=None, seed=0, h=None, across=0.0):
         P.drawer_stack(name + "Drawers", at(0.0, 0.0, du=w * 0.25), b, min(0.36, w * 0.4), h - 0.3, 3)
     else:   # stowage
         P.drawer_stack(name + "Drawers", at(0.15, 0.0), b, w - 0.16, 0.5, 5)
-        P.cargo_bag(name + "Bag", at(-h / 2 + 0.22, 0.0, du=-0.18), b, 0.36, 0.26, 0.2)
+        P.cargo_bag(name + "Bag", at(-h / 2 + 0.17, 0.0, du=-0.18), b, 0.36, 0.24, 0.2)   # clear of the drawers above
         P.net_with_gear(name + "Net", at(top - 0.17, 0.0), b, w - 0.16, 0.24)
 
 
@@ -271,8 +304,8 @@ def greenhouse(room, name, x0, x1, z0, z1, depth, seed=3):
     # bay walls (inside faces), grow lights in the roof
     S.cbox(name + "Roof", (w + 0.06, 0.02, l + 0.06), M["frame"], (cx, ytop + 0.01, cz), ch=0.0)
     for k, sx in enumerate((-1, 1)):
-        S.cbox(f"{name}Side{k}", (0.02, depth, l + 0.06), M["frame"], (cx + sx * (w / 2 + 0.02), yc + depth / 2, cz), ch=0.0)
-        S.cbox(f"{name}End{k}", (w + 0.06, depth, 0.02), M["frame"], (cx, yc + depth / 2, cz + sx * (l / 2 + 0.02)), ch=0.0)
+        S.cbox(f"{name}Side{k}", (0.02, depth - 0.003, l + 0.02), M["frame"], (cx + sx * (w / 2 + 0.02), yc + 0.003 + (depth - 0.003) / 2, cz), ch=0.0)
+        S.cbox(f"{name}End{k}", (w + 0.06, depth - 0.003, 0.02), M["frame"], (cx, yc + 0.003 + (depth - 0.003) / 2, cz + sx * (l / 2 + 0.02)), ch=0.0)
     for k in range(3):
         z = z0 + l * (k + 0.5) / 3
         S.cbox(f"{name}Grow{k}", (w - 0.1, 0.012, l / 3 - 0.12), M["grow"], (cx, ytop - 0.01, z), ch=0.002)
@@ -477,7 +510,7 @@ def wall_run(room, wall, v, clear, name, inset=0.05):
 def dress(room, walls=("port", "stbd", "aft", "fore", "ceil"), cell=0.42, seed=1, name="Dress"):
     """Fill bare stretches of wall with stock-style kit: bolted plates, equipment boxes, small panels, grilles."""
     rnd = random.Random(seed)
-    clear = S.Clearance()
+    clear = S.Clearance(zones=[kept_out])
     k = 0
     for wall in walls:
         w, h = room.size(wall)
@@ -508,10 +541,10 @@ def dress(room, walls=("port", "stbd", "aft", "fore", "ceil"), cell=0.42, seed=1
 
 def dress_room(room, seed=1):
     """The full stock-style pass for a rack room: posts and cable runs on the side walls, then kit on bare wall."""
-    clear = S.Clearance()
+    clear = S.Clearance(zones=[kept_out])
     for wall in ("port", "stbd"):
         wall_posts(room, wall, clear, name="Post")
-    clear = S.Clearance()
+    clear = S.Clearance(zones=[kept_out])
     for wall in ("port", "stbd"):
         wall_run(room, wall, room.size(wall)[1] / 2 - 0.16, clear, f"Run_{wall}")
     return dress(room, seed=seed)
@@ -583,10 +616,11 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
     r, u, n = b.col[0], b.col[1], b.col[2]
     rot = L.basis(r, u, n)
     door_h = door_h or min(h - 0.2, 1.45)
+    dl = d + back_ext - 0.03   # sides and caps stop at the front panels, which cover their ends
     for sx in (-1, 1):
-        S.cbox(f"{name}Side{sx}", (0.03, h, d + back_ext), M["locker"], p + r * sx * (w / 2 - 0.015) + n * (d - back_ext) / 2, rot, ch=0.0)
+        S.cbox(f"{name}Side{sx}", (0.03, h, dl), M["locker"], p + r * sx * (w / 2 - 0.015) + n * (d - 0.03 - back_ext) / 2, rot, ch=0.0)
     for sy in (-1, 1):
-        S.cbox(f"{name}Cap{sy}", (w, 0.03, d + back_ext), M["locker"], p + u * sy * (h / 2 - 0.015) + n * (d - back_ext) / 2, rot, ch=0.0)
+        S.cbox(f"{name}Cap{sy}", (w - 0.06, 0.03, dl), M["locker"], p + u * sy * (h / 2 - 0.015) + n * (d - 0.03 - back_ext) / 2, rot, ch=0.0)
     S.cbox(name + "BackPanel", (w - 0.06, h - 0.06, 0.02), M["blanket"], p + n * 0.01, rot, ch=0.0)
     # front with the door opening to one side, so the hinge has a jamb
     fz = p + n * (d - 0.015)
@@ -600,7 +634,7 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
     S.cbox(name + "FrontSill", (door_w, 0.08, 0.03), M["locker"], fz + r * dx + u * (-h / 2 + 0.04), rot, ch=0.0)
     for k, (cx, cy, fw, fh) in enumerate(((dx - door_w / 2 - 0.02, dy, 0.04, door_h + 0.08), (dx + door_w / 2 + 0.02, dy, 0.04, door_h + 0.08),
                                          (dx, dy + door_h / 2 + 0.02, door_w + 0.08, 0.04), (dx, dy - door_h / 2 - 0.02, door_w + 0.08, 0.04))):
-        S.cbox(f"{name}DoorFrame{k}", (fw, fh, 0.05), M["frame"], fz + r * cx + u * cy + n * 0.01, rot, ch=0.008)
+        S.cbox(f"{name}DoorFrame{k}", (fw + 0.004, fh + 0.004, 0.05), M["frame"], fz + r * cx + u * cy + n * 0.01, rot, ch=0.008)
     hinge = fz + r * (dx - door_w / 2) + u * dy + n * 0.005
     # a spacecraft hatch door: chamfered leaf, raised inner panel, latch dogs on both edges, a lever on a hub and a vent
     # grille; the leaf and everything on it swing together on the hinge
@@ -644,6 +678,7 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
                            p - r * (w / 2 - 0.08) + n * 0.55 + u * 0.4, p - r * (w / 2 - 0.03) + n * 0.55 + u * 0.4], 0.009, M["yellow"])
     S.light_fixture(name + "Light", p + u * (h / 2 - 0.03) + n * (d / 2), L.basis(r, n, -u), w=0.26, h=0.07)
     P.fan(name + "Fan", p + u * (h / 2 - 0.25) - r * 0.18, b)
+    keep_out_prefix(name)
 
 
 def rail_table(name, p, b, w=0.5, l=0.4, stand=0.55):
@@ -769,6 +804,8 @@ def quarters_recessed(room, wall, z, name, length=0.92, height=None):
         d = standoff_depth(room, wall, -w / 2, w / 2)
     d = max(0.22, min(0.36, d - 0.02))
     P.sleep_station(name, p - b.col[2] * d, b, w, h, d)
+    KEEP_OUT.append((p - b.col[0] * (w / 2) - b.col[1] * (h / 2) - b.col[2] * d, p + b.col[0] * (w / 2) + b.col[1] * (h / 2) + b.col[2] * 0.06))
+    KEEP_OUT[-1] = (Vector(map(min, *KEEP_OUT[-1])), Vector(map(max, *KEEP_OUT[-1])))
     S.cbox(name + "Back", (w, h, 0.012), M["locker"], p - b.col[2] * (d - 0.006), b, ch=0.0)
     opening_trim(name + "Trim", p, b, w, h)
     for sx in (-1, 1):
@@ -789,3 +826,42 @@ def hygiene_recessed(room, wall, z0, z1, name, out=0.26, height=None):
     back = p - b.col[2] * rc
     hygiene_room(name, back, b, w, h, rc + out, back_ext=0.3)
     return w, h
+
+
+def partition(room, z, name, door_w=0.9, door_h=1.45, t=0.04):
+    """A wall across the module at z with a wide open doorway in the middle (round-cornered trim, handrails on both
+    faces, a status strip above). Returns the doorway as a collision opening (x0, x1, y0, y1, z): the mod treats the
+    wall as a deck you can only pass through there."""
+    xw, yf, yc = room.xw, room.yf, room.yc
+    ym = (yf + yc) / 2 - 0.05
+    y0, y1 = ym - door_h / 2, ym + door_h / 2
+    mat = M["blanket"]
+    rot = Matrix.Identity(3)
+    for k, (a, b2, c0, c1) in enumerate(((-xw, -door_w / 2, yf, yc), (door_w / 2, xw, yf, yc),
+                                         (-door_w / 2, door_w / 2, y1, yc), (-door_w / 2, door_w / 2, yf, y0))):
+        S.cbox(f"{name}Panel{k}", (b2 - a, c1 - c0, t), mat, Vector(((a + b2) / 2, (c0 + c1) / 2, z)), rot, ch=0.0)
+    # trim round the doorway on both faces, with rounded corners
+    import math as _m
+    r_c = 0.12
+    pts = []
+    for cx, cy, a0 in ((door_w / 2 - r_c, y1 - r_c, 0), (-door_w / 2 + r_c, y1 - r_c, 90), (-door_w / 2 + r_c, y0 + r_c, 180), (door_w / 2 - r_c, y0 + r_c, 270)):
+        for j in range(7):
+            a = _m.radians(a0 + 90 * j / 6)
+            pts.append((cx + r_c * _m.cos(a), cy + r_c * _m.sin(a)))
+    for k, (cx, cy) in enumerate(((door_w / 2, y1), (-door_w / 2, y1), (-door_w / 2, y0), (door_w / 2, y0))):
+        sx, sy = (1 if cx > 0 else -1), (1 if cy > ym else -1)   # corner fillers behind the rounded trim
+        S.cbox(f"{name}Fill{k}", (r_c, r_c, t - 0.002), mat, Vector((cx - sx * r_c / 2, cy - sy * r_c / 2, z)), rot, ch=0.0)
+    for side in (-1, 1):
+        ring = [Vector((x, y, z + side * (t / 2 + 0.012))) for x, y in pts]
+        S.sweep(f"{name}Trim{side}", ring, [Vector((0, 0, side))] * len(ring), S.chamfer_rect(0.06, 0.03, 0.008), M["frame"], closed=True)
+        for sx in (-1, 1):   # handrails beside the doorway
+            x = sx * (door_w / 2 + 0.12)
+            L.tube(f"{name}Rail{side}{sx}", [Vector((x, ym - 0.35, z + side * t / 2)), Vector((x, ym - 0.35, z + side * (t / 2 + 0.06))),
+                                             Vector((x, ym + 0.35, z + side * (t / 2 + 0.06))), Vector((x, ym + 0.35, z + side * t / 2))], 0.011, M["yellow"])
+        # status strip above the doorway
+        q = Vector((0.0, y1 + 0.12, z + side * (t / 2 + 0.006)))
+        S.cbox(f"{name}Strip{side}", (0.36, 0.06, 0.012), M["frame_dark"], q, rot, ch=0.003)
+        for i in range(3):
+            L.box(f"{name}StripLamp{side}{i}", (0.03, 0.02, 0.004), M["light"] if i == 1 else M["btn_soft"], q + Vector((-0.08 + 0.08 * i, 0, side * 0.007)), rot)
+    KEEP_OUT.append((Vector((-xw - 0.05, yf - 0.05, z - t / 2 - 0.08)), Vector((xw + 0.05, yc + 0.05, z + t / 2 + 0.08))))
+    return (-door_w / 2, door_w / 2, y0, y1, z)
