@@ -41,7 +41,8 @@ files (`Code/IVA.asmdef`, `IVA.asset`, `Pipelines/`) back here. Fixes made insid
 | Task | Command / action |
 |---|---|
 | Shared textures | `python -I art/texgen.py <textures-dir>` (into `Interiors/Shared/Textures`) |
-| Model + previews | `.\art\build_interior.ps1 -Pod <part>` (EEVEE previews in `scratch/iva-redux/<part>/renders`) |
+| Model + previews | `.\art\build_interior.ps1 -Pod <part>` (EEVEE previews in `scratch/iva-redux/<part>/renders`, review report in `review.txt`) |
+| Review only | `blender -b <part.blend> --python art/review.py -- art/pods/<part>.json <out.txt>` |
 | Export | `.\art\build_interior.ps1 -Pod <part> -Export` (FBX, materials.json, pod textures into `Interiors/<Interior>`) |
 | Pose data | `pose_extract.py <pose.obj> <stock_interior.json> <spec>` (see "Seated poses" below) |
 | Unity setup | Menu **IVA > Set Up Interiors**, or batch `ReduxModBatch.RunMenu -menu "IVA/Set Up Interiors"`. Mk1-3: 37 materials, `IVA/Interior_Mk1-3`; Mk1: 35, `IVA/Interior_pod_1v_conical_crew` |
@@ -84,6 +85,20 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
 - Visual quality matters. A code-generated cabin was rejected as "ghetto" (ADR-001). Show renders or
   screenshots for any visual change before calling it done.
 - Style: KSP-flavoured, Apollo-inspired.
+- **Review every build top to tail before showing it** (Matt, 2026-10-11), for:
+  1. cropping of parts
+  2. clipping of parts
+  3. parts hidden by other things
+  4. a sanity check that it looks useful and would work
+
+  `review.py` runs automatically in `build_interior.ps1`. It checks:
+  - clip, buried, and through-the-hull
+  - occluded from the seat, and blocked window views
+  - floating parts, z-fighting, and reach
+
+  Get it to zero, or explain each remaining line. Then look at every preview zoomed in. The script can't judge
+  sight lines (anything hanging in front of a panel) or whether a layout makes sense to use. For non-round hulls, place
+  wall fittings with `hullshell.inner()`, never at fixed offsets.
 
 ## Unity SDK project (set up 2026-10-10)
 - `C:\Games\KSP2Mods\IVA`: template 26w41a, **Unity 6000.6.0f1** (must match the game). Created with `redux-sdk-cli`

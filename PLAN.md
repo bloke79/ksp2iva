@@ -296,6 +296,14 @@ aft flight-deck station facing back through the two aft windows (the docking/rob
 aft deck), a ladder hole in the floor down to a small mid-deck (lockers, galley strip, side hatch for EVA, and the
 connecting hatch aft to the Mk3 fuselage). Windows from the extracted glass (8 panes).
 
+_Matt's reference floorplan (2026-10-11, orbiter crew-compartment cutaways):_ two levels joined by a ladder (with a
+floor-level hole/interdeck hatch on the port side). **Flight deck:** commander (port) and pilot (starboard) seats with
+their controls forward; aft controls station behind them. **Mid deck:** storage lockers in walls of drawers at the
+forward bulkhead (both sides), sleeping area (bunk stack) on the starboard side, side crew hatch (round) on the port
+side, galley on the port side next to the ladder, toilet (waste-collection) compartment on the port side aft, room for
+exercise (treadmill) in the middle. Lower deck below: stowage and equipment. Use this split for the Mk3 cockpit: flight
+deck above, mid-deck below the floor hatch, scaled to the part.
+
 **Lander cans — Apollo LM style, three sizes.** Standing/strapped-in crew facing two triangular forward windows that
 look down at the landing site (the 3v already shows that window band), with a descent panel between them: navball,
 altitude and vertical-speed tapes, a radar altimeter dial, an abort/stage pair. Overhead docking window and hatch

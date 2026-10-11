@@ -8,7 +8,8 @@
  "generator": "model_cockpit_mk1.py",
  "_source": "Shell measured from the extracted exterior (rays from the axis, hullshell.py); layout after the stock interior_1v_m1_cockpit_crew (extracted, reference only); eye is the stock IVA EyeTransform.",
  "_design": "Shuttle-era single-seat flight deck in the stock layout: glareshield and main panel with ADI and two MFDs, centre pedestal with keyboard, side consoles with throttle quadrant, centre hand controller and rudder pedals, blue-cushioned seat, cream padded walls with velcro, avionics behind the seat.",
- "hull_base_y": -0.62,
+ "shell_centre": [0.0, -0.02],
+  "hull_base_y": -0.62,
  "exterior": "C:/Games/KSP2Mods/reference/cockpit_1v_m1_crew/cockpit_1v_m1_crew.obj",
  "profile": [
   [

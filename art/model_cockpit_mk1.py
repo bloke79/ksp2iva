@@ -63,66 +63,52 @@ def build_shell():
     S.cbox("Deck", (0.80, 0.03, Z_FRONT - 0.12), M["deckplate"], Vector((0.0, FLOOR_Y + 0.015, (Z_FRONT + 0.08) / 2)), ch=0.0)
 
 
-# ------------------------------------------------------------------ glareshield, main panel, eyebrow, HUD
-PANEL_C = Vector((0.0, -0.03, 1.60))
-PANEL_UP = Vector((0.0, -1.0, 0.38))
+# ------------------------------------------------------------------ main panel, glareshield beam
+# The nose narrows fast (inner half-width ~0.30 m at the panel top), so the panel sits back at z ~1.47 with its top just
+# under eye level, and the glareshield is a beam along the panel top carrying the warning strip, facing the pilot.
+PANEL_C = Vector((0.0, -0.03, 1.47))
+PANEL_UP = Vector((0.0, -1.0, 0.35))
 
 
 def build_front():
-    s = C.Surface("MainPanel", PANEL_C, (1, 0, 0), PANEL_UP, 0.58, 0.38, corner=0.02)
+    s = C.Surface("MainPanel", PANEL_C, (1, 0, 0), PANEL_UP, 0.52, 0.30, corner=0.03)
     s.build(M["console"], thick=0.03)
-    G.grid(s, "Main", 6, 4, [
+    G.grid(s, "Main", 6, 3, [
         ("annunciators", 0, 0, 2, 1, {"cols": 4, "rows": 2}), ("dial", 2, 0, 1, 1, {"kind": "alt"}), ("dial", 3, 0, 1, 1, {"kind": "press"}),
         ("annunciators", 4, 0, 2, 1, {"cols": 4, "rows": 2, "start": 8}),
         ("mfd", 0, 1, 2, 2, {"screen": "mfd_map"}), ("navball", 2, 1, 2, 2, {}), ("mfd", 4, 1, 2, 2, {"screen": "mfd_systems"}),
-        ("toggles", 0, 3, 2, 1, {"cols": 5}), ("knobs", 2, 3, 2, 1, {"n": 4}), ("toggles", 4, 3, 2, 1, {"cols": 5}),
     ], border=0.012)
     s.check()
-    G.housing(s, "MainPanel", depth=0.1)
-    # eyebrow strip: in the panel's own plane, just above its top edge, so it sits clear of the top row rather than in
-    # front of it; the dark glareshield hoods over it from above
+    G.housing(s, "MainPanel", depth=0.05)
+    # glareshield beam: sits on the panel top and reaches back towards the pilot; its face carries the eyebrow strip
     up = s.up.normalized()
-    n = Vector((0.0, -up.z, -up.y)) if up.y < 0 else Vector((0.0, up.z, up.y))   # towards the pilot (and up)
-    if n.y > 0:
-        n = -n
     top = PANEL_C + up * (s.h / 2)
-    eb_c = top + up * 0.034
-    eb = C.Surface("Eyebrow", eb_c, (1, 0, 0), up, 0.5, 0.05, corner=0.006)
-    eb.build(M["console"], thick=0.012)
-    G.grid(eb, "Eyebrow", 6, 1, [("buttons", 0, 0, 1, 1, {"n": 1}), ("annunciators", 1, 0, 4, 1, {"cols": 8, "rows": 1, "start": 3}),
-                                 ("buttons", 5, 0, 1, 1, {"n": 1})], border=0.004, gap=0.003)
-    S.cbox("EyebrowBack", (0.62, 0.07, 0.03), M["glare"], eb_c - n * 0.03, basis((1, 0, 0), up), ch=0.006)
-    for sx in (-1, 1):   # master alarm: red push-lights in the panel plane at each end of the strip
-        L.box(f"MasterAlarm{sx}", (0.04, 0.03, 0.014), M["red"], eb_c + Vector((sx * 0.28, 0, 0)) + n * 0.004, basis((1, 0, 0), up), bevel=0.003)
-    # the hood: from above the strip, reaching back towards the pilot, high enough to clear the line of sight to the panel
-    lip = eb_c + up * 0.03                               # top edge of the strip
-    hood = Vector((0.0, lip.y - 0.015, lip.z - 0.035))
-    S.cbox("Glareshield", (0.68, 0.03, 0.13), M["glare"], hood, ch=0.012)
-    S.cbox("GlareshieldLip", (0.70, 0.04, 0.025), M["glare"], hood + Vector((0, 0.01, -0.065)), ch=0.01)
-    # HUD combiner on the hood centre
-    hq = hood + Vector((0, -0.02, -0.02))
-    for sx in (-1, 1):
-        L.tube(f"HudPost{sx}", [hq + Vector((sx * 0.065, 0.0, 0.0)), hq + Vector((sx * 0.065, -0.09, -0.03))], 0.005, M["frame_dark"])
-    L.plane("HudGlass", 0.12, 0.08, M["hud_glass"], hq + Vector((0, -0.05, -0.02)), basis((1, 0, 0), (0, -1, -0.45)))
-    S.cbox("HudBase", (0.17, 0.02, 0.06), M["glare"], hq + Vector((0, 0.005, 0.0)), ch=0.005)
-    # panel floodlights under the hood lip
-    for sx in (-1, 1):
-        L.cylinder(f"Floodlight{sx}", 0.012, 0.03, M["light"], hood + Vector((sx * 0.31, 0.03, -0.05)), basis((1, 0, 0), (0, 0, 1)), segs=10)
+    beam_c = Vector((0.0, top.y - 0.035, top.z - 0.035))
+    S.cbox("Glareshield", (0.48, 0.06, 0.11), M["glare"], beam_c, ch=0.012)
+    S.cbox("GlareshieldCap", (0.50, 0.012, 0.13), M["glare"], beam_c + Vector((0, -0.034, 0.0)), ch=0.005)
+    face = beam_c + Vector((0, 0, -0.056))
+    eb = C.Surface("Eyebrow", face, (1, 0, 0), (0, -1, 0), 0.44, 0.048, corner=0.006)
+    eb.build(M["console"], thick=0.008, rim=False)
+    G.grid(eb, "Eyebrow", 10, 1, [("buttons", 0, 0, 1, 1, {"n": 1}), ("annunciators", 1, 0, 8, 1, {"cols": 8, "rows": 1, "start": 3}),
+                                  ("buttons", 9, 0, 1, 1, {"n": 1})], border=0.004, gap=0.003)
+    eb.check()
     return s
 
 
-# ------------------------------------------------------------------ centre pedestal with the keyboard, between the knees
+# ------------------------------------------------------------------ centre pedestal below the panel, between the knees
 def build_pedestal():
-    S.cbox("Pedestal", (0.30, FLOOR_Y + 0.02, 0.26), M["frame"], Vector((0.0, (FLOOR_Y + 0.0) / 2 + 0.03, 1.60)), ch=0.015)
-    s = C.Surface("PedestalFace", (0.0, 0.10, 1.465), (1, 0, 0), (0, -1, 0.22), 0.27, 0.22, corner=0.012)
+    S.cbox("Pedestal", (0.28, 0.20, 0.16), M["frame"], Vector((0.0, FLOOR_Y - 0.10, 1.545)), ch=0.015)
+    face_up = Vector((0.0, -0.6, 0.8))
+    s = C.Surface("PedestalFace", (0.0, 0.225, 1.385), (1, 0, 0), face_up, 0.26, 0.17, corner=0.012)
     s.build(M["console"], thick=0.02)
-    G.grid(s, "Ped", 2, 2, [("keypad", 0, 0, 1, 2, {}), ("mfd", 1, 0, 1, 1, {"screen": "mfd_engine"}), ("toggles", 1, 1, 1, 1, {"cols": 3})], border=0.008)
+    G.grid(s, "Ped", 2, 1, [("keypad", 0, 0, 1, 1, {}), ("mfd", 1, 0, 1, 1, {"screen": "mfd_engine"})], border=0.008)
     s.check()
+    S.cbox("PedestalKick", (0.26, 0.06, 0.11), M["frame_dark"], Vector((0.0, FLOOR_Y - 0.03, 1.415)), ch=0.008)
 
 
 # ------------------------------------------------------------------ hand controller and rudder pedals
 def build_controls():
-    base = Vector((0.0, FLOOR_Y, 1.30))
+    base = Vector((0.0, FLOOR_Y, 1.17))
     S.cbox("RhcBox", (0.10, 0.12, 0.12), M["frame_dark"], base + Vector((0, -0.06, 0)), ch=0.01)
     L.cylinder("RhcBoot", 0.035, 0.06, M["rubber"], base + Vector((0, -0.15, 0)), basis((1, 0, 0), (0, 0, 1)), segs=16, radius2=0.025)
     grip = [base + Vector((0, -0.18, 0)), base + Vector((0, -0.28, 0.01)), base + Vector((0, -0.33, -0.01))]
@@ -136,30 +122,38 @@ def build_controls():
 
 
 # ------------------------------------------------------------------ side consoles: throttle quadrant left, comms right
+# They stop at z 1.19: further forward the hull is narrower than the consoles.
+SC_Z0, SC_Z1, SC_X, SC_W = 0.71, 1.19, 0.37, 0.15
+
+
 def build_side_consoles():
+    zc, ln = (SC_Z0 + SC_Z1) / 2, SC_Z1 - SC_Z0
     for side in (-1, 1):
-        x = side * 0.40
-        S.cbox(f"SideConsole{side}", (0.16, 0.26, 0.82), M["frame"], Vector((x, 0.20, 1.12)), ch=0.012)
-        s = C.Surface(f"SideTop{side}", (x, 0.068, 1.12), (1, 0, 0), (0, 0, 1), 0.15, 0.80, corner=0.01)
-        s.build(M["console"], thick=0.015)
-        if side < 0:
-            items = [("toggles", 0, 0, 1, 1, {"cols": 3}), ("annunciators", 0, 1, 1, 1, {"cols": 2, "rows": 3, "start": 5}),
-                     ("breakers", 0, 3, 1, 1, {"cols": 4, "rows": 2}), ("knobs", 0, 4, 1, 1, {"n": 2})]
+        x = side * SC_X
+        # upper box full width; the plinth under it is inset from the hull side, which narrows towards the floor
+        S.cbox(f"SideConsole{side}", (SC_W, 0.14, ln), M["frame"], Vector((x, 0.14, zc)), ch=0.012)
+        S.cbox(f"SideConsolePlinth{side}", (SC_W - 0.08, 0.125, ln), M["frame"], Vector((x - side * 0.04, 0.2725, zc)), ch=0.01)
+        s = C.Surface(f"SideTop{side}", (x, 0.068, zc), (1, 0, 0), (0, 0, 1), SC_W - 0.01, ln - 0.02, corner=0.01)
+        s.build(M["console"], thick=0.015, rim=False)
+        if side < 0:   # row 1 is left clear for the throttle quadrant
+            items = [("toggles", 0, 0, 1, 1, {"cols": 3}), ("annunciators", 0, 2, 1, 1, {"cols": 2, "rows": 3, "start": 5}),
+                     ("breakers", 0, 3, 1, 1, {"cols": 4, "rows": 2})]
         else:
             items = [("keypad", 0, 0, 1, 1, {}), ("toggles", 0, 1, 1, 1, {"cols": 3}), ("knobs", 0, 2, 1, 1, {"n": 2}),
-                     ("breakers", 0, 3, 1, 1, {"cols": 4, "rows": 2}), ("toggles", 0, 4, 1, 1, {"cols": 3})]
-        G.grid(s, f"Side{side}", 1, 5, items, border=0.008)
+                     ("breakers", 0, 3, 1, 1, {"cols": 4, "rows": 2})]
+        G.grid(s, f"Side{side}", 1, 4, items, border=0.008)
         s.check()
-        # the inner face, towards the pilot's legs: a second switch panel and a stowage net, like the orbiter's side walls
-        f = C.Surface(f"SideFace{side}", (x - side * 0.081, 0.20, 1.12), (0, 0, -side), (0, -1, 0), 0.74, 0.2, corner=0.01)
+        # the inner face, towards the pilot's legs: a second switch panel, like the orbiter's side walls
+        f = C.Surface(f"SideFace{side}", (x - side * (SC_W / 2 + 0.001), 0.20, zc), (0, 0, -side), (0, -1, 0), ln - 0.08, 0.2, corner=0.01)
         f.build(M["console"], thick=0.012)
-        G.grid(f, f"SideFace{side}", 4, 2, [("breakers", 0, 0, 2, 1, {"cols": 8, "rows": 2}), ("toggles", 2, 0, 2, 1, {"cols": 6}),
-                                            ("vent", 0, 1, 1, 1, {"slots": 5}), ("lamps", 1, 1, 1, 1, {"n": 3}), ("knobs", 2, 1, 2, 1, {"n": 4})],
+        G.grid(f, f"SideFace{side}", 3, 2, [("breakers", 0, 0, 2, 1, {"cols": 6, "rows": 2}), ("toggles", 2, 0, 1, 1, {"cols": 3}),
+                                            ("vent", 0, 1, 1, 1, {"slots": 4}), ("lamps", 1, 1, 1, 1, {"n": 3}), ("knobs", 2, 1, 1, 1, {"n": 2})],
                border=0.01)
         f.check()
-    # throttle quadrant in the left console's middle row
-    q = Vector((-0.40, 0.055, 1.12))
-    S.cbox("ThrottleSlot", (0.11, 0.012, 0.15), M["frame_dark"], q, ch=0.004)
+    # throttle quadrant in the left console's second row
+    rh = (ln - 0.02 - 2 * 0.008) / 4
+    q = Vector((-SC_X, 0.055, zc + (ln - 0.02) / 2 - 0.008 - rh * 1.5))
+    S.cbox("ThrottleSlot", (0.11, 0.012, 0.11), M["frame_dark"], q, ch=0.004)
     for k, dx in enumerate((-0.025, 0.025)):
         L.tube(f"ThrottleLever{k}", [q + Vector((dx, 0, -0.02)), q + Vector((dx, -0.09, 0.0))], 0.006, M["toggle"])
         L.box(f"ThrottleHandle{k}", (0.03, 0.022, 0.03), M["rubber"], q + Vector((dx, -0.1, 0.0)), bevel=0.006)
@@ -225,7 +219,7 @@ def build_aft():
                                      ("toggles", 0, 2, 1, 1, {"cols": 3})], border=0.008)
         s.check()
     for k, (x, z) in enumerate(((-0.17, 0.30), (0.17, 0.30))):   # stowage bags under and behind the seat
-        P.cargo_bag(f"StowBag{k}", Vector((x, FLOOR_Y, z)), basis((1, 0, 0), (0, 0, -1)), 0.26, 0.24, 0.16)
+        P.cargo_bag(f"StowBag{k}", Vector((x, FLOOR_Y - 0.002, z)), basis((1, 0, 0), (0, 0, 1)), 0.26, 0.24, 0.16)
     upright = Matrix.Rotation(math.pi / 2, 3, "X")   # cylinder axis along the pilot's up/down
     L.cylinder("Extinguisher", 0.04, 0.3, M["red"], Vector((0.46, 0.0, 0.42)), upright, segs=20, bevel=0.01)
     L.cylinder("O2Bottle", 0.045, 0.32, M["tank"], Vector((-0.46, 0.02, 0.42)), upright, segs=20, bevel=0.012)
@@ -233,12 +227,13 @@ def build_aft():
         zs = [0.55 + 0.75 * k / 10 for k in range(11)]
         pts = [HS.inner((0, -0.08, z), (sx, 0, 0), gap=0.045) for z in zs]
         L.tube(f"SillBar{sx}", pts, 0.012, M["yellow"])
-        for k in (0, 5, 10):
-            L.tube(f"SillBarFoot{sx}{k}", [pts[k], HS.inner((0, -0.08, zs[k]), (sx, 0, 0), gap=-0.005)], 0.008, M["frame"])
+        for k in (0, 7, 10):
+            L.tube(f"SillBarFoot{sx}{k}", [pts[k], HS.inner((0, -0.08, zs[k]), (sx, 0, 0), gap=0.002)], 0.008, M["frame"])
     # cable runs along the walls, clipped just off the shell
     for sx in (-1, 1):
-        run = [HS.inner((0, -0.03, 0.1 + 0.5 * k / 5), (sx, 0, 0), gap=0.016) for k in range(6)]
-        S.bundle(f"SillCables{sx}", run + [Vector((sx * 0.43, 0.02, 0.66)), Vector((sx * 0.42, 0.12, 0.70))], n=3, r=0.008)   # down into the side console
+        run = [HS.inner((0, -0.03, 0.22 + 0.33 * k / 4), (sx, 0, 0), gap=0.016) for k in range(5)]
+        S.bundle(f"SillCables{sx}", run + [Vector((sx * 0.43, 0.06, 0.62)), Vector((sx * 0.41, 0.12, 0.66)), Vector((sx * 0.41, 0.12, 0.69))],
+                 n=3, r=0.008)   # down into the back of the side console
 
 
 def build_lights_and_markers():

@@ -46,6 +46,12 @@ if (-not (Test-Path $blend)) { throw "Model build failed" }
 # 3. previews
 & $blender -b --python (Join-Path $art 'render_interior.py') -- $blend $specPath (Join-Path $work 'renders') $Width $Samples 2>&1 | Select-String 'rendered|Error|Traceback' | ForEach-Object { $_.Line.Trim() }
 
+# 3b. automatic review: clipping, parts through the hull, buried or occluded parts, blocked views, floating parts,
+#     z-fighting, reach. Look at the report and every preview (zoomed in) before calling a pass done.
+$review = Join-Path $work 'review.txt'
+& $blender -b $blend --python (Join-Path $art 'review.py') -- $specPath $review 2>&1 | Select-String 'REVIEW|Error|Traceback' | ForEach-Object { $_.Line.Trim() }
+Write-Host "Review: $review"
+
 # 4. export for Unity
 if ($Export) {
     $dest = Join-Path $proj "Unity\Assets\IVA\Interiors\$($spec.interior -replace 'Interior$','')"
