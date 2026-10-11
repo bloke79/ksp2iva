@@ -166,3 +166,71 @@ _Thinking only; nothing built yet. Data from the game's part definitions and ext
    placement in the mod, catalogue entries for parts with no stock interior.
 2. Capture: enter IVA (portrait) in each cabin once so the mod logs its hull and crew setup.
 3. Build in order: Starlab, Hitchhiker, Wayfarer, then the fuselage cabins. Renders first for each.
+
+---
+
+# Plan: F as the action key — hatches, modules, getting in and out, interactive kit
+
+_Written 2026-10-11 from Matt's notes. F already opens hygiene doors while floating; this grows it into one action
+system. Nothing here is built yet beyond the doors._
+
+## How interaction works (all of it)
+- **Look to target:** while floating, a small dot sits at the centre of the view. The nearest interactive thing the dot
+  is on, within about 1 m, is the target: it gets a soft outline/glow and a prompt ("F: open curtain").
+- **Markers, not physics:** each interactive thing exports a position marker `IVA_Act_<kind>_<name>` (plus helper markers
+  where it moves, like the doors' hinge markers). The mod keeps a registry of handlers by kind. No colliders.
+- **Seated:** from a couch only things in reach work (switches, MFDs, the laptop on its arm); everything else needs you
+  to unbuckle (U).
+
+## Hatches: moving between modules, and getting in and out
+- **Internal hatches (module to module):** every interior already marks its hatches (`IVA_Hatch_*`). At build time each
+  hatch gets the attach node it sits on. In flight, F at a hatch looks up the part joined at that node:
+  - if that part has an interior of ours: the hatch swings open (animated like the doors), you glide through the
+    opening, the view fades for a moment while the next interior loads, and you arrive floating just inside that part's
+    matching hatch, facing in. The kerbal's seat assignment moves with them (a real crew transfer in the game's crew
+    data, so the portraits and capacity stay right). If the part is full, the prompt says so.
+  - if it has no interior (a probe core, fuel tank, or a part we haven't built): "Nothing to go through to" / "Hatch
+    blocked", like KSP's own transfer rules (a crewable part on the other side is needed).
+- **External hatch (getting out):** F at a pod's side hatch (or a cabin's exterior hatch where it has one) opens it
+  and hands over to the game's own EVA: the kerbal appears outside on EVA and the game camera takes over. Getting back in
+  is the game's own "board" action; a toggle can drop you straight back into IVA at the hatch.
+- **Research needed first:** the game calls for a crew transfer between parts and for EVA from a given part (the
+  api-scout agent against the 26w41a DLLs), and how attach nodes map to our hatch markers on the 3v (tunnel, side
+  hatch), Starlab, Hitchhiker and Wayfarer (both ends).
+
+## Thruster sound (moving about)
+- While you thrust (WASD/Shift/Ctrl), play the game's own EVA jetpack sound: short puffs on taps, a soft continuous
+  hiss when held, quieter than outside (it's a hand-held cold-gas puffer, not the full EVA pack). Using the game's own
+  sound events means nothing new to licence or ship. Research: the event names in the game's audio banks and how mods
+  trigger them.
+
+## Interactive kit (by kind)
+| Kind | F does | Moves | Sound |
+|---|---|---|---|
+| Hygiene door (built) | open / close | door swings | latch, hinge |
+| Toilet | flush | (lid) | suction whoosh, fan spin-up |
+| Wash station | water on | — | water burst, air dryer |
+| Crew quarters curtain | open / close | curtain slides | fabric |
+| Crew quarters lamp | on / off | lamp lights | click |
+| Sleep (in your own quarters) | sleep: the view dims, and with time warp allowed, warps until morning | — | — |
+| Food warmer / oven | open, put a meal in, it hums, then dings | door, window glows | hum, ding |
+| Water dispenser | fill a drink bag | — | pump, water |
+| Food lockers, drawers, stowage | open / close | doors swing, drawers slide | latch |
+| Freezer | open | door | seal pop, cold hiss |
+| Glovebox | lights on, work at it | gloves sway | fan |
+| Experiment racks (goo, materials) | run the part's real experiment (Starlab's science) | lamps, canister glow | servo |
+| Laptops and MFDs | cycle pages (systems, map, engine, comms) | screen changes | key click |
+| Switch banks, toggles | flip (cosmetic, or tied to real actions: lights, SAS) | toggle throws | click |
+| Cabin lights | normal / night red / off for each deck | lights change | click |
+| Window shutters | close / open over a window | shutter slides | motor |
+| Binoculars, cameras | look through (zoomed view at the window) / take a screenshot | — | shutter |
+| Comms headset | listen to mission chatter | — | radio |
+| Ergometer | ride: pedal animation, your heart rate on its display | pedals spin | whirr |
+| Fans, pumps (ambient) | — | fan blades turn | quiet loops per module |
+
+## Order
+1. Look-to-target, prompt, registry, and the cheap wins: curtains, lockers/drawers, oven, lights, toilet flush,
+   laptops/MFD pages (all local: markers, a little animation, game sounds where they exist).
+2. Thruster sound and ambient module sounds.
+3. Hatches between modules (needs the crew-transfer research), then EVA out of the side hatch.
+4. Things tied to real game systems: experiments, lights/SAS switches, sleep with time warp.

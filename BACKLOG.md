@@ -37,7 +37,12 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
   - PPD-10 Hitchhiker: four recessed crew quarters round one bay; galley, recessed hygiene compartment, railed table, porthole.
   - PPD-20 Wayfarer: eight recessed crew quarters in two bays; galley, hygiene, table; window lounge and ergometer.
   - Every crew position floats with foot loops (no chairs); N moves on to the next crewed part after the last seat.
-- [ ] **Hygiene door opening** (the door leaf is already a separate hinged part, `IVA_Live_Door*`).
+- [x] **Hygiene door opening** (F while floating).
+- [ ] **F action system** (`PLAN.md`, "F as the action key"): look-to-target with a prompt, then:
+  - [ ] cheap interactive kit: curtains, lockers/drawers, oven, cabin lights, toilet flush, laptop/MFD pages
+  - [ ] thruster sound while floating (the game's EVA jetpack sound), ambient module sounds
+  - [ ] hatches between modules (glide through, real crew transfer), then EVA out of the side hatch
+  - [ ] kit tied to game systems: Starlab experiments, light/SAS switches, sleep with time warp
 - [ ] **Remaining fuselage cabins:** Mk1 Stowaway, Mk2 Tag Along, Mk3 Skybus (plane-style, gravity layouts are right there).
 - [ ] _(original plan entry)_ **Crew cabins and Starlab** (`PLAN.md`, "Crew cabins and Starlab"):
   - [ ] Generalise the pipeline: specs without a pose block, upright seated kerbals moved in by the mod,
