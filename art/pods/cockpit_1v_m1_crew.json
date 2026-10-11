@@ -1,0 +1,225 @@
+{
+ "part": "cockpit_1v_m1_crew",
+ "name": "Mk1 Cockpit",
+ "interior": "CockpitMk1Interior",
+ "address": "IVA/Interior_cockpit_1v_m1_crew",
+ "seats": 1,
+ "yaw": 180,
+ "generator": "model_cockpit_mk1.py",
+ "_source": "Shell measured from the extracted exterior (rays from the axis, hullshell.py); layout after the stock interior_1v_m1_cockpit_crew (extracted, reference only); eye is the stock IVA EyeTransform.",
+ "_design": "Shuttle-era single-seat flight deck in the stock layout: glareshield and main panel with ADI and two MFDs, centre pedestal with keyboard, side consoles with throttle quadrant, centre hand controller and rudder pedals, blue-cushioned seat, cream padded walls with velcro, avionics behind the seat.",
+ "hull_base_y": -0.62,
+ "exterior": "C:/Games/KSP2Mods/reference/cockpit_1v_m1_crew/cockpit_1v_m1_crew.obj",
+ "profile": [
+  [
+   0.02,
+   0.628
+  ],
+  [
+   0.4,
+   0.64
+  ],
+  [
+   0.82,
+   0.661
+  ],
+  [
+   1.02,
+   0.66
+  ],
+  [
+   1.22,
+   0.6
+  ],
+  [
+   1.52,
+   0.426
+  ],
+  [
+   1.82,
+   0.225
+  ],
+  [
+   2.06,
+   0.17
+  ]
+ ],
+ "wall": 0.04,
+ "floor": 0.02,
+ "ceiling": 2.0,
+ "plate": {
+  "title": "MK1 COCKPIT",
+  "subtitle": "CREW 1   |   MAX 12 G   |   CHECK CANOPY LATCHES"
+ },
+ "pose": {
+  "seats": [
+   {
+    "x": 0.0,
+    "eye": [
+     0.0,
+     -0.182,
+     1.083
+    ],
+    "fwd": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "up": [
+     0.0,
+     -1.0,
+     0.0
+    ]
+   }
+  ]
+ },
+ "cameras": {
+  "eye": {
+   "loc": [
+    0.0,
+    -0.182,
+    1.083
+   ],
+   "target": [
+    0.0,
+    -0.13,
+    2.08
+   ],
+   "up": [
+    0,
+    -1,
+    0
+   ],
+   "fov": 95
+  },
+  "eye_left": {
+   "loc": [
+    0.0,
+    -0.182,
+    1.083
+   ],
+   "target": [
+    -1.0,
+    0.25,
+    1.5
+   ],
+   "up": [
+    0,
+    -1,
+    0
+   ],
+   "fov": 95
+  },
+  "eye_right": {
+   "loc": [
+    0.0,
+    -0.182,
+    1.083
+   ],
+   "target": [
+    1.0,
+    0.25,
+    1.5
+   ],
+   "up": [
+    0,
+    -1,
+    0
+   ],
+   "fov": 95
+  },
+  "eye_down": {
+   "loc": [
+    0.0,
+    -0.182,
+    1.083
+   ],
+   "target": [
+    0.0,
+    0.9,
+    1.6
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 95
+  },
+  "aft": {
+   "loc": [
+    0.0,
+    -0.2,
+    1.35
+   ],
+   "target": [
+    0.0,
+    0.0,
+    0.2
+   ],
+   "up": [
+    0,
+    -1,
+    0
+   ],
+   "fov": 95
+  },
+  "canopy": {
+   "loc": [
+    0.0,
+    -0.182,
+    1.083
+   ],
+   "target": [
+    0.0,
+    -1.0,
+    1.0
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 100
+  }
+ },
+ "cabin_light": {
+  "position": [
+   0.0,
+   -0.3,
+   0.9
+  ],
+  "range": 1.6,
+  "intensity": 0.9
+ },
+ "preview_lights": [
+  {
+   "loc": [
+    0.0,
+    -0.35,
+    0.8
+   ],
+   "dir": [
+    0,
+    0.3,
+    1
+   ],
+   "energy": 3.0,
+   "size": 0.3
+  },
+  {
+   "loc": [
+    0.0,
+    -0.1,
+    1.45
+   ],
+   "dir": [
+    0,
+    0.5,
+    1
+   ],
+   "energy": 1.2,
+   "size": 0.2
+  }
+ ]
+}

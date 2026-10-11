@@ -659,6 +659,89 @@ def deckplate(size=1024, cells=2):
     save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "deckplate_normal.png")
 
 
+# ---------------------------------------------------------------- shuttle-era flight deck (inspired by the orbiter's panels)
+LEGENDS = ["PWR", "ON", "OFF", "AUTO", "MAN", "ARM", "SAFE", "PRI", "BKUP", "SEL", "BUS A", "BUS B", "ESS 1", "ESS 2",
+           "CRT 1", "CRT 2", "MAJ FUNC", "GNC", "SM", "PL", "FLOOD", "DIM", "BRT", "TEST", "RESET", "MODE", "OPEN",
+           "CLOSE", "CABIN", "FAN", "PUMP", "VENT", "LIGHTS", "RCS", "OMS", "SAS", "GEAR", "BRAKE", "TRIM", "ADI",
+           "HSI", "ATT", "RATE", "ERR", "CMD", "TIMER", "EVENT", "START", "STOP", "UP", "DN", "L", "R", "FWD", "AFT"]
+
+
+def shuttle_panel(size=1024, cells=4):
+    """Orbiter-style switch panel finish: medium grey powder coat, sub-plates with fasteners, white stencilled
+    legends and mimic lines joining switch groups. Nothing here is a real panel; it reads as one at a glance."""
+    grime = 0.6 * _tile_noise(size, 5, 31) + 0.4 * _tile_noise(size, 19, 32)
+    base = np.array([0.58, 0.59, 0.60])
+    col = base[None, None, :] * (0.88 + 0.16 * grime[..., None])
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(33)
+    f = font(FONT_COND, 12)
+    step = size // cells
+    white = (244, 245, 240)
+    for i in range(cells):
+        for j in range(cells):
+            x0, y0 = i * step, j * step
+            d.rectangle([x0 + 2, y0 + 2, x0 + step - 3, y0 + step - 3], outline=(78, 80, 82), width=3)   # sub-plate seam
+            for ox, oy in ((14, 14), (step - 14, 14), (14, step - 14), (step - 14, step - 14)):   # quarter-turn fasteners
+                d.ellipse([x0 + ox - 6, y0 + oy - 6, x0 + ox + 6, y0 + oy + 6], fill=(150, 152, 150), outline=(70, 72, 74))
+                d.line([x0 + ox - 4, y0 + oy, x0 + ox + 4, y0 + oy], fill=(60, 62, 64), width=2)
+            # title band
+            t = " ".join(rng.choice(LEGENDS, 2))
+            d.text((x0 + 26, y0 + 22), t, fill=white, font=f)
+            d.line([x0 + 24, y0 + 44, x0 + step - 26, y0 + 44], fill=white, width=2)
+            # rows of switch legends with mimic brackets
+            rows = int(rng.integers(2, 4))
+            for r in range(rows):
+                y = y0 + 60 + r * 60
+                n = int(rng.integers(2, 4))
+                xs = [x0 + 30 + k * (step - 60) // n for k in range(n)]
+                for x in xs:
+                    d.text((x, y), str(rng.choice(LEGENDS)), fill=white, font=f)
+                    d.text((x, y + 24), str(rng.choice(LEGENDS)), fill=white, font=f)
+                if rng.random() < 0.6 and n > 1:
+                    yb = y + 44
+                    d.line([xs[0] + 10, yb, xs[-1] + 10, yb], fill=white, width=2)
+                    for x in xs:
+                        d.line([x + 10, yb - 8, x + 10, yb], fill=white, width=2)
+    save(img.filter(ImageFilter.GaussianBlur(0.4)), "shuttle_panel_color.png")
+
+
+def wall_cream(size=1024, cells=2):
+    """The orbiter's cabin walls: cream padded closeout panels with stitched quilting, seams, a little grime, and the
+    light-blue velcro patches everywhere."""
+    grime = 0.6 * _tile_noise(size, 4, 41) + 0.4 * _tile_noise(size, 13, 42)
+    base = np.array([0.80, 0.78, 0.71])
+    col = base[None, None, :] * (0.9 + 0.12 * grime[..., None])
+    h = np.zeros((size, size), np.float32)
+    yy, xx = np.mgrid[0:size, 0:size]
+    step = size // cells
+    q = step // 4   # quilting
+    for a in (xx, yy):
+        stitch = (np.abs((a % q) - q / 2) > q / 2 - 2)
+        h[stitch] -= 0.5
+        col[stitch] *= 0.93
+    for i in range(cells + 1):
+        for a in (xx, yy):
+            seam = np.abs(a - i * step) < 5
+            h[seam] -= 1.0
+            col[seam] *= 0.55
+    img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(43)
+    for _ in range(cells * cells * 5):   # velcro
+        x, y = rng.integers(20, size - 60, 2)
+        w_, h_ = int(rng.integers(26, 46)), int(rng.integers(18, 30))
+        d.rectangle([x, y, x + w_, y + h_], fill=(96, 140, 196))
+        d.rectangle([x + 2, y + 2, x + w_ - 2, y + h_ - 2], outline=(80, 122, 178), width=1)
+    save(img.filter(ImageFilter.GaussianBlur(0.6)), "wall_cream_color.png")
+    ha = (h - h.min()) / max(1e-6, (h.max() - h.min()))
+    ha = np.asarray(Image.fromarray((ha * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255
+    gy, gx = np.gradient(ha * 5.0)
+    n = np.dstack([-gx, -gy, np.ones_like(ha)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "wall_cream_normal.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -672,6 +755,7 @@ ALL = {
     "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel, "food": food, "food_labels": food_labels, "deckplate": deckplate,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
+    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream,
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
 }
 # python texgen.py <out> [name ...]: only the named textures (default: all)
