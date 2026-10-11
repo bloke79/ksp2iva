@@ -31,7 +31,8 @@ namespace IVA
         public bool OnHull;        // built to the real hull: place at HullBaseY with no auto-fit scaling
         public float HullBaseY;    // part-local Y of the hull's base (from the extracted reference mesh)
         public bool UprightCrew;   // crew moved in from the portrait booth sit upright at the seat points (cabins, labs)
-        public string[] HideRenderers;   // stock meshes of the part to hide while inside (they'd show through ours)
+        public string[] HideRenderers;
+        public bool HideExterior;  // hide the part's own outer meshes while inside (cabins: their recessed end hatches poke into the room)   // stock meshes of the part to hide while inside (they'd show through ours)
     }
 
     public static class InteriorCatalogue
@@ -51,12 +52,12 @@ namespace IVA
             // OSL-25 Starlab: an ISS-style rack room; the greenhouse in the ceiling replaces the stock crops while inside.
             new InteriorDesign { Name = "Starlab", Address = "IVA/Interior_lab_2v_science_orbital", Parts = new[] { "lab_2v_science_orbital" },
                                  Seats = 3, BaseRadius = 1.48f, Height = 4.72f, Yaw = 180f, OnHull = true, HullBaseY = -2.352f,
-                                 UprightCrew = true, HideRenderers = new[] { "plants" } },
+                                 UprightCrew = true, HideRenderers = new[] { "plants" }, HideExterior = true },
             // PPD-10 Hitchhiker and PPD-20 Wayfarer crew cabins: rack rooms with a wardroom table (and a window lounge).
             new InteriorDesign { Name = "Hitchhiker", Address = "IVA/Interior_cabin_2v_crew_hitchhiker", Parts = new[] { "cabin_2v_crew_hitchhiker" },
-                                 Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true },
+                                 Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true, HideExterior = true },
             new InteriorDesign { Name = "Wayfarer", Address = "IVA/Interior_cabin_3v_crew", Parts = new[] { "cabin_3v_crew" },
-                                 Seats = 8, BaseRadius = 1.96f, Height = 5.0f, Yaw = 180f, OnHull = true, HullBaseY = -2.5f, UprightCrew = true },
+                                 Seats = 8, BaseRadius = 1.96f, Height = 5.0f, Yaw = 180f, OnHull = true, HullBaseY = -2.5f, UprightCrew = true, HideExterior = true },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
@@ -428,6 +429,7 @@ namespace IVA
             {
                 if (r == null || !r.enabled || r.GetComponentInParent<PartBehavior>() != Pod) continue;
                 if (_instance != null && r.transform.IsChildOf(_instance.transform)) continue;
+                if (r.GetComponentInParent<KSP.Game.Kerbal3DModel>() != null) continue;   // the crew stay visible
                 r.enabled = false;
                 _hiddenExterior.Add(r);
             }

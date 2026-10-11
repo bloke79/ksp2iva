@@ -608,7 +608,7 @@ def foot_loops(room, seats, name="FootLoop"):
         foot_loop(f"{name}{i}", feet - n * dist, n, along)
 
 
-def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
+def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None, hull_side=0):
     """Hygiene compartment: an enclosed room on a surface. p, b: centre of its back on the surface and the basis
     (right, up, normal into the cabin); w x h on the surface, d deep. Inside: toilet with thigh bars, foot loop, wash
     station with mirror, towels and wipes, light, fan, handrail. The door leaf is a separate part pivoting on its
@@ -662,7 +662,9 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
     L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["light"], sign + r * 0.06 + n * 0.006, rot, bevel=0.002)
     L.box(name + "SignTag", (0.09, 0.025, 0.004), M["btn_soft"], sign - r * 0.03 + n * 0.006, rot)
     # inside
-    tq = p + u * (-h / 2 + 0.32) + r * 0.08
+    # hull_side -1/+1: the hull cuts through that side of the room (the 3v's cone); keep every fitting off it
+    hs = hull_side
+    tq = p + u * (-h / 2 + 0.32) + r * (0.08 - hs * 0.12) + n * (0.1 if hs else 0.0)
     P.toilet(name + "Toilet", tq, b)
     for sx in (-1, 1):
         L.tube(f"{name}ThighBar{sx}", [tq + r * sx * 0.16 + n * 0.3 + u * 0.12, tq + r * sx * 0.16 + n * 0.42 + u * 0.12,
@@ -672,12 +674,23 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
     wp = p + r * (w / 2 - 0.035) + n * (d * 0.45) + u * 0.12
     P.sink(name + "Wash", wp, side_r)
     L.box(name + "Wipes", (0.1, 0.06, 0.05), M["btn_soft"], wp + u * 0.3 - r * 0.03, side_r, bevel=0.01)
-    side_l = L.basis(-n, u, r)
-    P.towels(name + "Towels", p - r * (w / 2 - 0.035) + n * (d * 0.5) + u * 0.2, side_l)
-    L.tube(name + "Rail", [p - r * (w / 2 - 0.03) + n * 0.15 + u * 0.4, p - r * (w / 2 - 0.08) + n * 0.15 + u * 0.4,
-                           p - r * (w / 2 - 0.08) + n * 0.55 + u * 0.4, p - r * (w / 2 - 0.03) + n * 0.55 + u * 0.4], 0.009, M["yellow"])
-    S.light_fixture(name + "Light", p + u * (h / 2 - 0.03) + n * (d / 2), L.basis(r, n, -u), w=0.26, h=0.07)
-    P.fan(name + "Fan", p + u * (h / 2 - 0.25) - r * 0.18, b)
+    if hs == 0:
+        side_l = L.basis(-n, u, r)
+        P.towels(name + "Towels", p - r * (w / 2 - 0.035) + n * (d * 0.5) + u * 0.2, side_l)
+        L.tube(name + "Rail", [p - r * (w / 2 - 0.03) + n * 0.15 + u * 0.4, p - r * (w / 2 - 0.08) + n * 0.15 + u * 0.4,
+                               p - r * (w / 2 - 0.08) + n * 0.55 + u * 0.4, p - r * (w / 2 - 0.03) + n * 0.55 + u * 0.4], 0.009, M["yellow"])
+        S.light_fixture(name + "Light", p + u * (h / 2 - 0.03) + n * (d / 2), L.basis(r, n, -u), w=0.26, h=0.07)
+        P.fan(name + "Fan", p + u * (h / 2 - 0.25) - r * 0.18, b)
+    else:
+        # everything on the wall away from the hull and towards the door, where the room is whole
+        rs = -hs   # the clear side
+        wall = p + r * rs * (w / 2 - 0.035)
+        side_c = L.basis(n, u, -r * rs) if rs > 0 else L.basis(-n, u, r)
+        P.towels(name + "Towels", wall + n * (d * 0.84) + u * -0.3, side_c)
+        L.tube(name + "Rail", [p + r * rs * (w / 2 - 0.03) + n * (d * 0.4) + u * 0.62, p + r * rs * (w / 2 - 0.08) + n * (d * 0.4) + u * 0.62,
+                               p + r * rs * (w / 2 - 0.08) + n * (d * 0.8) + u * 0.62, p + r * rs * (w / 2 - 0.03) + n * (d * 0.8) + u * 0.62], 0.009, M["yellow"])
+        S.light_fixture(name + "Light", p + u * (h / 2 - 0.03) + n * (d * 0.78) + r * rs * 0.1, L.basis(r, n, -u), w=0.22, h=0.07)
+        P.fan(name + "Fan", wall + r * rs * 0.03 + n * (d * 0.8) + u * (h / 2 - 0.28), side_c)
     keep_out_prefix(name)
 
 

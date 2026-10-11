@@ -27,6 +27,16 @@ namespace IVA
             public bool Outside => Beyond == null;
         }
 
+        // Which way a hatch leads, in world space: end hatches along the part's axis (Aft down it; Fore, Tunnel and Docking
+        // up it), others from the part's centre out through the hatch. (Measuring from the part's origin alone picked the
+        // wrong end of long cabins and the side hatch of pods.)
+        public static Vector3 Facing(string name, Vector3 hatchWorld, Transform pod)
+        {
+            if (name == "Aft") return -pod.up;
+            if (name == "Fore" || name == "Tunnel" || name == "Docking") return pod.up;
+            return hatchWorld - pod.position;
+        }
+
         public static List<Hatch> Find(Transform interior, PodInfo here, GameInstance game, bool anyPod)
         {
             var list = new List<Hatch>();
@@ -37,7 +47,7 @@ namespace IVA
             {
                 if (!t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal)) continue;
                 var h = new Hatch { Name = t.name.Substring("IVA_Hatch_".Length), Pod = pod.InverseTransformPoint(t.position) };
-                Vector3 dir = t.position - pod.position;
+                Vector3 dir = Facing(h.Name, t.position, pod);
                 if (h.Name != "Side" && dir.sqrMagnitude > 1e-4f)
                 {
                     float best = float.MaxValue;

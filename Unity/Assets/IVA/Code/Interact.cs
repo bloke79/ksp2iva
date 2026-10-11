@@ -38,6 +38,11 @@ namespace IVA
         }
 
         private class LightRec { public Light L; public Color C; public float I; }
+        private class Wheel { public readonly List<Transform> Parts = new List<Transform>(); public readonly List<Quaternion> Rest = new List<Quaternion>(); public readonly List<Vector3> Axis = new List<Vector3>(); }
+        private class HatchRun { public Wheel W; public Doors.Door Lid; public Action Then; public float T; public int Phase; }
+        private readonly Dictionary<string, Wheel> _wheels = new Dictionary<string, Wheel>(StringComparer.Ordinal);
+        private HatchRun _hatchRun;
+        public bool HatchBusy => _hatchRun != null;
         private class EmitRec { public Material M; public Color C; }
 
         public readonly List<Target> Targets = new List<Target>();
@@ -66,6 +71,7 @@ namespace IVA
             ix.Doors = Doors.Find(interior, pod, log);
             foreach (Doors.Door d in ix.Doors.All)
             {
+                if (d.Name.StartsWith("DoorHatch", StringComparison.Ordinal)) continue;   // hatch lids open with the hatch (OpenHatch)
                 Doors.Door door = d;
                 string what = Noun(door.Name);
                 ix.Targets.Add(new Target
@@ -85,7 +91,7 @@ namespace IVA
             // groups of moving parts by kind
             var groups = new Dictionary<string, List<Transform>>(StringComparer.Ordinal);
             foreach (Transform t in all)
-                foreach (string kind in new[] { "Slide", "Curtain", "Glow", "Screen" })
+                foreach (string kind in new[] { "Slide", "Curtain", "Glow", "Screen", "Wheel" })
                 {
                     string key = Doors.LiveKey(t.name, kind, out bool main);
                     if (key == null || t.parent == null) continue;
@@ -146,6 +152,19 @@ namespace IVA
                         Prompt = () => r.enabled ? "turn the reading lamp off" : "turn the reading lamp on",
                         Use = () => { r.enabled = !r.enabled; ix.Sounds?.Play(Sounds.Switch); },
                     });
+                }
+                else if (key.StartsWith("Wheel", StringComparison.Ordinal))
+                {
+                    if (!live.TryGetValue("IVA_LiveAxis_" + key, out Transform axisM)) continue;
+                    var w = new Wheel();
+                    Vector3 axisW = (axisM.position - main.position).normalized;
+                    foreach (Transform t in kv.Value)
+                    {
+                        w.Parts.Add(t);
+                        w.Rest.Add(t.localRotation);
+                        w.Axis.Add(t.parent.InverseTransformDirection(axisW).normalized);
+                    }
+                    ix._wheels[key.Substring(5)] = w;   // "Hatch<name>"
                 }
                 else if (key.StartsWith("Screen", StringComparison.Ordinal))
                 {
@@ -211,6 +230,46 @@ namespace IVA
             return "locker";
         }
 
+        // A hatch with a handwheel and a lid (round floor hatches): turn the wheel, swing the lid open with the wheel on it,
+        // then call `then`. Without them, `then` runs at once. Returns false if nothing is animated.
+        public bool OpenHatch(string hatchName, Action then)
+        {
+            _wheels.TryGetValue("Hatch" + hatchName, out Wheel w);
+            Doors.Door lid = Doors?.All.Find(d => d.Name == "DoorHatch" + hatchName);
+            if (w == null && lid == null) { then(); return false; }
+            _hatchRun = new HatchRun { W = w, Lid = lid, Then = then };
+            Sounds?.Play(Sounds.HatchWheel);
+            return true;
+        }
+
+        private void UpdateHatch(float dt)
+        {
+            HatchRun h = _hatchRun;
+            if (h == null) return;
+            h.T += dt;
+            if (h.Phase == 0)
+            {
+                float a = 360f * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(h.T / 0.9f));
+                if (h.W != null)
+                    for (int i = 0; i < h.W.Parts.Count; i++)
+                        if (h.W.Parts[i] != null) h.W.Parts[i].localRotation = Quaternion.AngleAxis(a, h.W.Axis[i]) * h.W.Rest[i];
+                if (h.T < 0.9f) return;
+                if (h.Lid != null && h.Lid.Parts.Count > 0 && h.Lid.Parts[0].T != null)
+                {
+                    if (h.W != null)
+                        foreach (Transform t in h.W.Parts) if (t != null) t.SetParent(h.Lid.Parts[0].T, true);   // the wheel rides on the lid
+                    h.Lid.Target = 1f;
+                    Sounds?.Play(Sounds.HatchLid);
+                }
+                h.Phase = 1;
+                h.T = 0f;
+                return;
+            }
+            if (h.T < Doors.SwingSeconds + 0.25f) return;
+            _hatchRun = null;
+            h.Then?.Invoke();
+        }
+
         private void Later(float seconds, string ev) => _later.Add(new KeyValuePair<float, string>(_clock + seconds, ev));
 
         private void NextPage(Renderer r)
@@ -258,6 +317,7 @@ namespace IVA
             for (int i = _later.Count - 1; i >= 0; i--)
                 if (_clock >= _later[i].Key) { Sounds?.Play(_later[i].Value); _later.RemoveAt(i); }
             Doors?.Update(dt);
+            UpdateHatch(dt);
             foreach (Mover m in _slides)
             {
                 if (Mathf.Approximately(m.Open, m.Target)) continue;

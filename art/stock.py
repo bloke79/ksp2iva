@@ -495,3 +495,80 @@ def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15):
         k += 1
     print("collision boxes", k)
     return k
+
+
+# ------------------------------------------------------------------ round floor hatch with a handwheel (submarine style)
+def round_floor_hatch(hname, cx, cy, z, r=0.27, hinge=(0.0, 1.0), well=0.34):
+    """A pressure hatch in the floor: hole cut in the Floor mesh, a short dark well under it, a bolted coaming ring, a
+    lid with latch dogs and a raised rim, and a handwheel. Live parts for the mod (Interact.OpenHatch): the lid is
+    IVA_Live_DoorHatch<hname> (hinged on the `hinge` side, opening down into the well) and the wheel
+    IVA_Live_WheelHatch<hname> (turns about the vertical). The hatch marker itself comes from collision_markers."""
+    import bpy
+    import act as A
+    c = Vector((cx, cy, z))
+    up = Vector((0, 0, 1))
+    hv = Vector((hinge[0], hinge[1], 0)).normalized()
+    side = up.cross(hv)
+    # the hole: cut the floor with a cylinder (applied here, so the export sees a plain mesh)
+    floor = L.COLL.objects.get("Floor")
+    if floor is not None:
+        cut = L.cylinder("HatchCut_" + hname, r + 0.004, 0.4, M["frame"], c, segs=48)
+        mod = floor.modifiers.new("HatchHole", "BOOLEAN")
+        mod.operation = "DIFFERENCE"
+        mod.object = cut
+        mod.solver = "EXACT"
+        dg = bpy.context.evaluated_depsgraph_get()
+        me = bpy.data.meshes.new_from_object(floor.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+        floor.modifiers.clear()
+        old = floor.data
+        floor.data = me
+        if old.users == 0:
+            bpy.data.meshes.remove(old)
+        bpy.data.objects.remove(cut, do_unlink=True)
+    # well: an inward-facing sleeve and a dark floor below (the tunnel on to the next module)
+    bm = bmesh.new()
+    seg = 40
+    top = [bm.verts.new(c + Vector((math.cos(2 * math.pi * j / seg), math.sin(2 * math.pi * j / seg), 0)) * (r + 0.004)) for j in range(seg)]
+    bot = [bm.verts.new(v.co - up * well) for v in top]
+    for j in range(seg):
+        k = (j + 1) % seg
+        bm.faces.new((top[j], bot[j], bot[k], top[k]))
+    bm.faces.new(list(reversed(bot)))
+    bm.normal_update()
+    for f in bm.faces:
+        if f.normal.dot(c - well * up / 2 - f.calc_center_median()) < 0:
+            f.normal_flip()
+    L.mesh_obj(f"HatchWell{hname}", bm, [M["frame_dark"]])
+    # coaming: a chamfered ring standing proud of the floor, with bolts
+    ring = [c + Vector((math.cos(2 * math.pi * j / 48), math.sin(2 * math.pi * j / 48), 0)) * (r + 0.035) + up * 0.012 for j in range(48)]
+    sweep(f"HatchCoaming{hname}", ring, [up] * 48, chamfer_rect(0.07, 0.03, 0.008), M["frame"], closed=True)
+    for k in range(12):
+        a = 2 * math.pi * (k + 0.5) / 12
+        L.cylinder(f"HatchBolt{hname}{k}", 0.008, 0.008, M["buckle"], c + Vector((math.cos(a), math.sin(a), 0)) * (r + 0.05) + up * 0.03, segs=8)
+    for s_ in (-1, 1):   # hinge knuckles on the coaming
+        L.cylinder(f"HatchHingeKnuckle{hname}{s_}", 0.016, 0.07, M["buckle"], c + hv * (r - 0.01) + side * s_ * 0.12 + up * 0.004,
+                   L.basis(hv, up, side), segs=12)   # axis along the hinge line
+    # lid (with its dogs and rim) and the wheel: all of it swings down on the hinge; the wheel also turns
+    lid = [L.cylinder(f"HatchLid{hname}", r - 0.006, 0.035, M["hatch"], c - up * 0.008, segs=48, bevel=0.006)]
+    lid.append(L.torus(f"HatchLidRim{hname}", r - 0.06, 0.012, M["frame"], c + up * 0.012, Matrix.Identity(3), seg=40, mseg=8))
+    for k in range(6):
+        a = 2 * math.pi * (k + 0.25) / 6
+        q = c + Vector((math.cos(a), math.sin(a), 0)) * (r - 0.03) + up * 0.014
+        lid.append(cbox(f"HatchDog{hname}{k}", (0.05, 0.025, 0.014), M["yellow"], q, Matrix.Rotation(a, 3, "Z"), ch=0.004))
+    A.hinge("Hatch" + hname, lid, c + hv * (r - 0.006) + up * 0.009, side, c - hv * (r - 0.006) + up * 0.009, -up,
+            act_at=c + up * 0.08, half_h=0.1)
+    wheel = [L.torus(f"HatchWheelRim{hname}", 0.13, 0.013, M["buckle"], c + up * 0.075, Matrix.Identity(3), seg=36, mseg=10)]
+    wheel.append(L.cylinder(f"HatchWheelHub{hname}", 0.03, 0.07, M["frame_dark"], c + up * 0.045, segs=16, bevel=0.006))
+    for k in range(4):
+        a = math.pi / 2 * k
+        dvec = Vector((math.cos(a), math.sin(a), 0))
+        wheel.append(cbox(f"HatchWheelSpoke{hname}{k}", (0.115, 0.016, 0.012), M["buckle"], c + dvec * 0.072 + up * 0.075,
+                          Matrix.Rotation(a, 3, "Z"), ch=0.003))
+    for k in range(3):   # grips round the rim
+        a = 2 * math.pi * k / 3 + 0.4
+        wheel.append(cbox(f"HatchWheelGrip{hname}{k}", (0.03, 0.05, 0.03), M["yellow"],
+                          c + Vector((math.cos(a), math.sin(a), 0)) * 0.13 + up * 0.075, Matrix.Rotation(a, 3, "Z"), ch=0.01))
+    for k, o in enumerate(wheel):
+        A._pivot(o, c + up * 0.075)
+        A._live(o, "WheelHatch" + hname, k)
+    C.marker(f"IVA_LiveAxis_WheelHatch{hname}", c + up * 0.175)

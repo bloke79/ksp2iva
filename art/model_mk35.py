@@ -207,7 +207,7 @@ def slab(name, side, depth=0.35, x0=None, x1=None):
                                Vector((side * bulk_x(BULK_TOP), BULK_Y - 0.01, BULK_TOP))], 0.012, M["couchframe"])
 
 
-HYG_X0, HYG_X1 = 0.4, 1.26   # hygiene compartment behind the left half of the bulkhead (|x|)
+HYG_X0, HYG_X1 = 0.4, 1.12   # hygiene compartment behind the left half of the bulkhead (|x|)
 
 
 def build_bulkhead():
@@ -218,7 +218,7 @@ def build_bulkhead():
     hz = (FLOOR + BULK_TOP) / 2
     hd = 0.6
     K.hygiene_room("Hygiene", Vector((-(HYG_X0 + HYG_X1) / 2, BULK_Y + hd, hz)), bulk_frame(0, hz)[1], HYG_X1 - HYG_X0, BULK_TOP - FLOOR - 0.02,
-                   hd + 0.015, door_h=1.45)
+                   hd + 0.015, door_h=1.45, hull_side=-1)   # the cone cuts the outer side
     # comms and mission station on the aisle wall beside it
     s = C.Surface("CommsStation", (-AISLE + 0.03, 1.25, 1.6), (0, 1, 0), (0, 0, 1), 0.44, 0.28, corner=0.015)
     s.build(M["console"], thick=0.025)
@@ -347,7 +347,7 @@ def platform(name, z, holes, ceiling=False):
 def build_decks():
     platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)], ceiling=True)
     ladder("LadderAft", 0.0, 1.3, FLOOR, DECK_Z + 0.55, 0.22)
-    S.floor_hatch("AftHatch", (0.0, 0.73), FLOOR, 0.5, 0.34)   # down through the heat shield end to the modules below
+    S.round_floor_hatch("Aft", 0.0, 0.66, FLOOR, r=0.27, hinge=(0.0, 1.0))   # down to the modules below (handwheel, lid opens down)
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
 
 
@@ -591,8 +591,7 @@ def build_dome(clear):
 
 
 def build_floors():
-    """Floor dressing: kept to the flight-deck aisle (loose-looking hatches and foot bars on the grating read as clutter)."""
-    S.foot_restraint("FootAisle", (-0.18, 0.5), (0.18, 0.5), FLOOR)
+    """Floor dressing: none for now (the aisle between the couch feet and the bulkhead is the floor hatch)."""
 
 
 def hidden(p):
@@ -651,7 +650,7 @@ build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)],
-                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, 0.73, FLOOR + 0.2))])
+                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, 0.66, FLOOR + 0.2))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
 print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; bulkhead at y {BULK_Y:.2f}")

@@ -125,6 +125,7 @@ namespace IVA
         private bool _hasAirlock;
         private class Arrival { public PodInfo To; public Vector3 FromWorld; public KSP.Game.KerbalInfo Kerbal; public float At; }
         private Arrival _arrival;
+        private Hatches.Hatch _hatchGo;   // set when a hatch has finished opening; acted on in the next Update
         // EVA waits until IVA has fully let go of the camera (the game crashed when EVA started in the same frame).
         private class PendingEva { public PartBehavior Part; public VesselBehavior Vessel; public KSP.Game.KerbalInfo Kerbal; public float At; }
         private PendingEva _pendingEva;
@@ -299,7 +300,8 @@ namespace IVA
                     _sounds.PlayAudition(Sounds.Audition[_auditionIndex]);
                 }
             }
-            if (_free != null && _doorKey.Value.Down) UseTarget();
+            if (_hatchGo != null) { Hatches.Hatch g = _hatchGo; _hatchGo = null; GoThrough(g); return; }
+            if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy)) UseTarget();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -732,7 +734,7 @@ namespace IVA
             _vesselAtEntry = PodLocator.ActiveVessel(Game);
             _seatIndex = 0;
             _mode = Mode.CustomInterior;
-            if (_hideExterior.Value) _session.HidePodExterior();
+            if (_hideExterior.Value || design.HideExterior) _session.HidePodExterior();
             FindCompanionsAndReport();
             StartCameraGuard();
             TryStartShotOverride();
@@ -1045,7 +1047,7 @@ namespace IVA
             _doorBoxes.Clear();
             if (_interact?.Doors != null)
                 foreach (Doors.Door d in _interact.Doors.All)
-                    if (d.IsRoomDoor)
+                    if (d.IsRoomDoor && !d.Name.StartsWith("DoorHatch", StringComparison.Ordinal))
                     {
                         _doorBoxes[d] = f.AddDoor(d.CentrePod, d.EdgePod * 0.5f, d.AxisPod.normalized * d.HalfHeight, d.OutPod * 0.02f);
                     }
@@ -1168,10 +1170,9 @@ namespace IVA
             KSP.Game.KerbalInfo me = Me();
             if (!h.Outside)
             {
-                if (me != null && !Hatches.Transfer(Game, me, h.Beyond.Pod, SWLogger)) return;
-                var a = new Arrival { To = h.Beyond, FromWorld = _session.PodTransform.position, Kerbal = me, At = Time.unscaledTime + 0.3f };
-                ExitIva();
-                _arrival = a;
+                if (me != null && Hatches.FreeSeat(Game, h.Beyond.Pod) < 0) { SWLogger.LogInfo($"IVA: {h.Beyond.Name} is full."); return; }
+                if (_interact != null) _interact.OpenHatch(h.Name, () => _hatchGo = h);   // wheel, lid, then through
+                else _hatchGo = h;
                 return;
             }
             if (!eva) return;
@@ -1200,6 +1201,16 @@ namespace IVA
             Hatches.StartEva(e.Part, e.Kerbal, SWLogger);
         }
 
+        private void GoThrough(Hatches.Hatch h)
+        {
+            if (_session == null || h.Beyond?.Pod == null) return;
+            KSP.Game.KerbalInfo me = Me();
+            if (me != null && !Hatches.Transfer(Game, me, h.Beyond.Pod, SWLogger)) return;
+            var a = new Arrival { To = h.Beyond, FromWorld = _session.PodTransform.position, Kerbal = me, At = Time.unscaledTime + 0.3f };
+            ExitIva();
+            _arrival = a;
+        }
+
         // Just through the hatch from the part you came from: floating inside it, facing into the cabin.
         private void Arrive()
         {
@@ -1211,7 +1222,9 @@ namespace IVA
             Unbuckle();
             if (_free == null || _hatches.Count == 0) return;
             Transform pod = _session.PodTransform;
-            Hatches.Hatch h = _hatches.OrderBy(x => Vector3.Distance(pod.TransformPoint(x.Pod), a.FromWorld)).First();
+            // the hatch that faces the part you came from (side hatches only if there's nothing else)
+            Vector3 toFrom = a.FromWorld - pod.position;
+            Hatches.Hatch h = _hatches.OrderBy(x => (x.Name == "Side" ? 1000f : 0f) + Vector3.Angle(Hatches.Facing(x.Name, pod.TransformPoint(x.Pod), pod), toFrom)).First();
             Vector3 dir = (_free.Middle - h.Pod).normalized;
             Vector3 up = Vector3.ProjectOnPlane(Vector3.forward, dir);
             if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(Vector3.up, dir);

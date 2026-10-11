@@ -36,6 +36,8 @@ namespace IVA
         public const string FlushStop = "Play_resources_fuel_flow_OFF_to";
         public const string OvenStart = "Play_gimbal_ON";
         public const string HatchClose = "Play_An_DockingPortMK2_close_5_shut";
+        public const string HatchWheel = "Play_An_DockingPortMK2_open_1__start";
+        public const string HatchLid = "Play_An_DockingPortMK2_open_2_open";
 
         // Candidates for the interactive kit, to try in game with the audition keys (see IVAPlugin).
         public static readonly string[] Audition =

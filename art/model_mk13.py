@@ -169,6 +169,8 @@ def build_back_wall():
     for k in range(n):
         phi = LOCKER_PHI0 + span * (k + 0.5) / n
         for row, (z, h) in enumerate(((0.36, 0.26), (0.66, 0.26))):
+            if row == 0 and 1 <= k <= 3:
+                continue   # the ECS unit sits here
             p, b = C.frame_at(phi, z, 0.06)
             w = span / n * C.r_in(z) - 0.02
             L.box(f"Locker_{k}_{row}", (w, h, 0.05), M["locker"], p, b, bevel=0.006)
@@ -230,16 +232,20 @@ def build_fill():
         S.junction(f"CeilingCablesBox{side}", C.rad(side * 128), 1.42)
 
     # equipment behind the feet: environmental control unit and two battery/junction boxes
-    G.box_unit("ECSUnit", (0, 0.66, C.Z_FLOOR + 0.12), (0.52, 0.22, 0.24), lamps_n=3)
+    ep, eb = C.frame_at(math.pi, 0.36, 0.0)
+    ecs = ep + eb.col[2] * 0.12
+    G.box_unit("ECSUnit", ecs, (0.52, 0.22, 0.24), L.basis(eb.col[0], -eb.col[2], eb.col[1]), lamps_n=3)
+    ecs_front = ecs.y - 0.11
     for side in (-1, 1):
         G.box_unit(f"PowerBox{side}", (side * 0.6, 0.6, C.Z_FLOOR + 0.1), (0.24, 0.2, 0.2), lamps_n=2)
-        G.cables(f"PowerCables{side}", (side * 0.6, 0.6, C.Z_FLOOR + 0.2), (side * 0.3, 0.66, C.Z_FLOOR + 0.24), droop=0.03, n=3)
+        G.cables(f"PowerCables{side}", (side * 0.6, 0.68, C.Z_FLOOR + 0.18), (side * 0.27, ecs.y, 0.3), droop=0.03, n=3)
+    S.round_floor_hatch("Aft", 0.0, 0.6, C.Z_FLOOR, r=0.26, hinge=(0.0, 1.0))   # down to the modules below
 
     # suit umbilicals: ribbed hoses from the ECS unit to each kerbal's suit connector (left side of the chest)
     for i, seat in enumerate(SEATS):
         x = seat["x"]
-        start = Vector((max(-0.22, min(0.22, x * 0.35)), 0.56, C.Z_FLOOR + 0.24))
-        pts = [start, Vector((x - 0.25, 0.38, 0.38)), Vector((x - 0.25, 0.1, 0.5)), Vector((x - 0.2, -0.1, 0.58)), Vector((x - 0.13, -0.16, 0.6))]
+        start = Vector((max(-0.22, min(0.22, x * 0.35)), ecs_front, 0.42))
+        pts = [start, Vector((start.x, ecs_front - 0.12, 0.62)), Vector((x - 0.25, 0.3, 0.5)), Vector((x - 0.25, 0.1, 0.5)), Vector((x - 0.2, -0.1, 0.58)), Vector((x - 0.13, -0.16, 0.6))]
         G.hose(f"Umbilical{i}", pts, r=0.018, mat=M["umbilical"])
         L.cylinder(f"UmbilicalPlug{i}", 0.026, 0.04, M["buckle"], pts[-1], (pts[-1] - pts[-2]).normalized().to_track_quat("Z", "Y").to_matrix(), segs=16)
 
@@ -390,7 +396,7 @@ build_fill()
 build_stowage()
 build_ceiling()
 build_structure()
-S.collision_markers(hatches=[("Docking", (0.0, 0.0, C.Z_TOP - 0.25))])
+S.collision_markers(hatches=[("Docking", (0.0, 0.0, C.Z_TOP - 0.25)), ("Aft", (0.0, 0.6, C.Z_FLOOR + 0.2))])
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])
