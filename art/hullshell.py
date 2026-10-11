@@ -60,6 +60,18 @@ def glass_pieces(verts, faces, glass):
     return [p for p in pieces.values() if len(p) >= 2]
 
 
+_LAST = {}
+
+
+def inner(p, d, gap=0.0):
+    """The shell's inner face seen from p along d (after build), stood off by gap: for fittings mounted on the wall."""
+    d = Vector(d).normalized()
+    h = _LAST["bvh"].ray_cast(Vector(p), d, 5.0)
+    if h[0] is None:
+        return None
+    return h[0] - d * (_LAST["wall"] + gap)
+
+
 def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, centre=(0.0, 0.0), frame_mat=None,
           margin=0.01, keep=None):
     """Shell from z0 to z1 (generator space). Returns (shell object, list of window dicts with centre, normal, outline).
@@ -71,6 +83,7 @@ def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, c
             tris.append((f[0], f[k], f[k + 1]))
             tri_glass.append(g)
     bvh = BVHTree.FromPolygons(verts, tris)
+    _LAST.update(bvh=bvh, wall=wall + 0.015)
     cx, cy = centre
     nz = max(2, int(round((z1 - z0) / dz)))
     zs = [z0 + (z1 - z0) * i / nz for i in range(nz + 1)]

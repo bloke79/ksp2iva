@@ -79,26 +79,35 @@ def build_front():
     ], border=0.012)
     s.check()
     G.housing(s, "MainPanel", depth=0.1)
-    # glareshield: a dark hood over the panel with the eyebrow strip on its lip
-    top = PANEL_C + s.up * (s.h / 2)
-    hood = top + Vector((0, -0.018, -0.05))
-    S.cbox("Glareshield", (0.64, 0.036, 0.20), M["glare"], hood + Vector((0, 0, 0.04)), ch=0.012)
-    S.cbox("GlareshieldLip", (0.66, 0.05, 0.03), M["glare"], hood + Vector((0, 0.005, -0.06)), ch=0.012)
-    eb = C.Surface("Eyebrow", hood + Vector((0, 0.03, -0.076)), (1, 0, 0), (0, -1, 0.1), 0.5, 0.045, corner=0.006)
+    # eyebrow strip: in the panel's own plane, just above its top edge, so it sits clear of the top row rather than in
+    # front of it; the dark glareshield hoods over it from above
+    up = s.up.normalized()
+    n = Vector((0.0, -up.z, -up.y)) if up.y < 0 else Vector((0.0, up.z, up.y))   # towards the pilot (and up)
+    if n.y > 0:
+        n = -n
+    top = PANEL_C + up * (s.h / 2)
+    eb_c = top + up * 0.034
+    eb = C.Surface("Eyebrow", eb_c, (1, 0, 0), up, 0.5, 0.05, corner=0.006)
     eb.build(M["console"], thick=0.012)
     G.grid(eb, "Eyebrow", 6, 1, [("buttons", 0, 0, 1, 1, {"n": 1}), ("annunciators", 1, 0, 4, 1, {"cols": 8, "rows": 1, "start": 3}),
                                  ("buttons", 5, 0, 1, 1, {"n": 1})], border=0.004, gap=0.003)
-    for sx in (-1, 1):   # master alarm: red push-lights at each end
-        L.box(f"MasterAlarm{sx}", (0.034, 0.024, 0.012), M["red"], hood + Vector((sx * 0.22, 0.03, -0.088)), bevel=0.003)
+    S.cbox("EyebrowBack", (0.62, 0.07, 0.03), M["glare"], eb_c - n * 0.03, basis((1, 0, 0), up), ch=0.006)
+    for sx in (-1, 1):   # master alarm: red push-lights in the panel plane at each end of the strip
+        L.box(f"MasterAlarm{sx}", (0.04, 0.03, 0.014), M["red"], eb_c + Vector((sx * 0.28, 0, 0)) + n * 0.004, basis((1, 0, 0), up), bevel=0.003)
+    # the hood: from above the strip, reaching back towards the pilot, high enough to clear the line of sight to the panel
+    lip = eb_c + up * 0.03                               # top edge of the strip
+    hood = Vector((0.0, lip.y - 0.015, lip.z - 0.035))
+    S.cbox("Glareshield", (0.68, 0.03, 0.13), M["glare"], hood, ch=0.012)
+    S.cbox("GlareshieldLip", (0.70, 0.04, 0.025), M["glare"], hood + Vector((0, 0.01, -0.065)), ch=0.01)
     # HUD combiner on the hood centre
-    hq = hood + Vector((0, -0.04, -0.02))
+    hq = hood + Vector((0, -0.02, -0.02))
     for sx in (-1, 1):
         L.tube(f"HudPost{sx}", [hq + Vector((sx * 0.065, 0.0, 0.0)), hq + Vector((sx * 0.065, -0.09, -0.03))], 0.005, M["frame_dark"])
     L.plane("HudGlass", 0.12, 0.08, M["hud_glass"], hq + Vector((0, -0.05, -0.02)), basis((1, 0, 0), (0, -1, -0.45)))
     S.cbox("HudBase", (0.17, 0.02, 0.06), M["glare"], hq + Vector((0, 0.005, 0.0)), ch=0.005)
-    # panel floodlights under the hood
+    # panel floodlights under the hood lip
     for sx in (-1, 1):
-        L.cylinder(f"Floodlight{sx}", 0.012, 0.03, M["light"], hood + Vector((sx * 0.27, 0.025, -0.02)), basis((1, 0, 0), (0, 0, 1)), segs=10)
+        L.cylinder(f"Floodlight{sx}", 0.012, 0.03, M["light"], hood + Vector((sx * 0.31, 0.03, -0.05)), basis((1, 0, 0), (0, 0, 1)), segs=10)
     return s
 
 
@@ -220,12 +229,16 @@ def build_aft():
     upright = Matrix.Rotation(math.pi / 2, 3, "X")   # cylinder axis along the pilot's up/down
     L.cylinder("Extinguisher", 0.04, 0.3, M["red"], Vector((0.46, 0.0, 0.42)), upright, segs=20, bevel=0.01)
     L.cylinder("O2Bottle", 0.045, 0.32, M["tank"], Vector((-0.46, 0.02, 0.42)), upright, segs=20, bevel=0.012)
-    for sx in (-1, 1):   # hazard-striped grab bars along the canopy sills (the stock touch)
-        L.tube(f"SillBar{sx}", [Vector((sx * 0.47, -0.18, 0.55)), Vector((sx * 0.44, -0.20, 0.62)), Vector((sx * 0.44, -0.20, 1.30)),
-                                Vector((sx * 0.47, -0.18, 1.36))], 0.012, M["yellow"])
-    # cable runs along the sills
+    for sx in (-1, 1):   # yellow grab bars along the canopy sills, below the side-window frames, on standoffs off the wall
+        zs = [0.55 + 0.75 * k / 10 for k in range(11)]
+        pts = [HS.inner((0, -0.08, z), (sx, 0, 0), gap=0.045) for z in zs]
+        L.tube(f"SillBar{sx}", pts, 0.012, M["yellow"])
+        for k in (0, 5, 10):
+            L.tube(f"SillBarFoot{sx}{k}", [pts[k], HS.inner((0, -0.08, zs[k]), (sx, 0, 0), gap=-0.005)], 0.008, M["frame"])
+    # cable runs along the walls, clipped just off the shell
     for sx in (-1, 1):
-        S.bundle(f"SillCables{sx}", [Vector((sx * 0.5, -0.05, 0.1)), Vector((sx * 0.52, -0.06, 0.8)), Vector((sx * 0.5, -0.08, 1.5))], n=3, r=0.008)
+        run = [HS.inner((0, -0.03, 0.1 + 0.5 * k / 5), (sx, 0, 0), gap=0.016) for k in range(6)]
+        S.bundle(f"SillCables{sx}", run + [Vector((sx * 0.43, 0.02, 0.66)), Vector((sx * 0.42, 0.12, 0.70))], n=3, r=0.008)   # down into the side console
 
 
 def build_lights_and_markers():
