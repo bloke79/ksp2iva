@@ -44,6 +44,7 @@ namespace IVA
         public bool Valid => _hull.Count >= 2 && _hMax > 0.1f;
         public int BoxCount => _boxes.Count;
         public Vector3 Axis => _u;
+        public Vector3 Middle => _a0 + _u * (_hMax * 0.5f);   // halfway up the axis, pod space
 
         public static FreeMove Build(Transform interior, Transform pod, ILogger log)
         {

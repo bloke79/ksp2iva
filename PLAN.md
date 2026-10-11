@@ -230,7 +230,34 @@ system. Nothing here is built yet beyond the doors._
 
 ## Order
 1. Look-to-target, prompt, registry, and the cheap wins: curtains, lockers/drawers, oven, lights, toilet flush,
-   laptops/MFD pages (all local: markers, a little animation, game sounds where they exist).
-2. Thruster sound and ambient module sounds.
-3. Hatches between modules (needs the crew-transfer research), then EVA out of the side hatch.
-4. Things tied to real game systems: experiments, lights/SAS switches, sleep with time warp.
+   laptops/MFD pages (all local: markers, a little animation, game sounds where they exist). **Built 2026-10-11.**
+2. Thruster sound and ambient module sounds. **Built 2026-10-11** (ambience is a setting, off until a sound is chosen).
+3. Hatches between modules (needs the crew-transfer research), then EVA out of the side hatch. **First version built
+   2026-10-11:** F at a hatch moves you into a free seat of the crewed module beyond (`KerbalRosterManager.SetKerbalLocation`)
+   and you arrive floating at its matching hatch; F at the side hatch (or a cabin end hatch with nothing beyond) calls
+   `EVAUtils.TryStartEVA`. No hatch animation or fade yet.
+4. Things tied to real game systems: experiments, lights/SAS switches, sleep with time warp. Plan below.
+
+## Plan for 4: kit tied to real game systems
+
+_Written 2026-10-11. The game calls below were checked in the 26w41a DLLs; none is wired yet._
+
+| Item | What F does | Game call | Notes |
+|---|---|---|---|
+| Starlab experiment racks | Run the part's experiment; the rack's lamps light and its screen shows progress until done | `PartComponentModule_ScienceExperiment.RunExperiment(id)` / `StopExperiment`, `IndexOfRunningExperiment`, `GetInvalidSituationString` for "can't run here" | Find the module on the Starlab part (`_session.Pod.Model`). One rack per experiment the part defines; others say which experiment is running. Also the 3v lab tier and Mk1-3 science panel for the pod's own experiments |
+| Light switch | Toggle the vessel's lights action group (the exterior lights) | `VesselComponent.SetActionGroup(KSPActionGroup.Lights, on)`, `GetActionGroupState` | Separate from the cabin light modes (which stay local). A guarded toggle on each console |
+| SAS / RCS / gear / brakes switches | Toggle those action groups | the same with `KSPActionGroup.SAS`, `RCS`, `Gear`, `Brakes`; SAS mode buttons via `VesselAutopilot.SetMode(AutopilotMode.…)` | Only on the cockpit consoles (Mk1, Mk1-3, 3v), within reach while seated, so these need the seated version of look-to-target (see below) |
+| Abort / stage handle | Stage, abort | `KSPActionGroup.Abort`; staging through the game's staging call (to be found) | Behind a lift-the-cover-then-pull two-step, never by accident |
+| Sleep (own quarters) | Lie in, the view fades, time warps to a set wake time (morning at KSC, or 8 h), then fades up | `TimeWarp.WarpTo(ut, min, max)`, `CancelAutoWarp`; `GetMaxRateIndex` to respect the game's warp limits | Refuses in atmosphere, under thrust or near a manoeuvre node, the same as the game's warp rules |
+| Instrument panels' real readouts | Already live (navball, needles); add fuel, power and comms readouts to the MFD pages | telemetry the live instruments already read | Pages stay textures; numbers drawn on top later |
+
+**The seated version of look-to-target** (needed for console switches): while buckled in, with the mouse look, the
+same dot and prompt, but only for targets within 0.8 m of the eye and only kinds marked "reach" (switches, MFDs). F is a
+flight key while seated (the vessel's controls aren't locked), so the seated key needs to be different: hold the
+middle mouse button and click, or a configurable key that doesn't clash (to choose with Matt).
+
+**Order:** seated targeting, then the switch banks (lights, SAS, RCS, gear, brakes), then the Starlab experiments, then
+sleep with time warp, then abort and staging.
+
+**Art:** the console toggle banks become live parts (each toggle throws), with `IVA_Act_Switch_<group>` markers and
+labels under them; the Starlab racks get an `IVA_Act_Experiment_<n>` marker and a progress screen.

@@ -20,6 +20,19 @@ namespace IVA
         public const string DoorClose = "Play_An_Kerbal_science_tube_close";
         public const string Unbuckle = "Play_An_Kerbal_jetpack_open_end";
         public const string Buckle = "Play_An_Kerbal_jetpack_close_end";
+        public const string LockerOpen = "Play_An_Landing_Leg_Medium_Extensible_LT_2_latch_open";
+        public const string LockerClose = "Play_An_Landing_Leg_Medium_Extensible_LT_2_latch_close";
+        public const string DrawerOpen = "Play_An_Kerbal_science_tube_pullout";
+        public const string DrawerClose = "Play_An_Kerbal_science_tube_away";
+        public const string Curtain = "Play_An_Kerbal_helmet_adjust";
+        public const string Switch = "Play_An_Kerbal_jetpack_button";
+        public const string Button = "Play_An_Kerbal_science_button";
+        public const string LightsOn = "Play_light_ON";
+        public const string LightsOff = "Play_light_OFF";
+        public const string FlushStart = "Play_resources_fuel_flow_ON_to";
+        public const string FlushStop = "Play_resources_fuel_flow_OFF_to";
+        public const string OvenStart = "Play_gimbal_ON";
+        public const string HatchClose = "Play_An_DockingPortMK2_close_5_shut";
 
         // Candidates for the interactive kit, to try in game with the audition keys (see IVAPlugin).
         public static readonly string[] Audition =

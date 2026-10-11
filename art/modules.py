@@ -59,7 +59,8 @@ def mfd(name, p, b, w, h, screen):
     d = plate(name + "Plate", p, b, w, h, 0.012)
     s = min(w, h) * 0.66
     L.box(name + "Bezel", (s + 0.01, s + 0.01, 0.006), M["bezel"], _at(p, b, 0, 0, d + 0.003), b, bevel=0.002)
-    L.plane(name + "Screen", s, s, M[screen], _at(p, b, 0, 0, d + 0.0065), b)
+    import act as A
+    A.screen(name, L.plane(name + "Screen", s, s, M[screen], _at(p, b, 0, 0, d + 0.0065), b))
     kw = s / 5 * 0.7
     for row in (-1, 1):
         for i in range(5):

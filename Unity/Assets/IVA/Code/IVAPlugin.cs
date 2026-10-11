@@ -114,10 +114,17 @@ namespace IVA
 
         // Unbuckled: floating round the cabin (null while seated).
         private FreeMove _free;
-        private Doors _doors;
+        private Interact _interact;
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
         private bool _flightInputLocked;
         private GUIStyle _promptStyle;
+        private GUIStyle _dotStyle;
+
+        // Hatches of the current interior, and a move through one in progress (re-entering IVA in the next part).
+        private List<Hatches.Hatch> _hatches = new List<Hatches.Hatch>();
+        private bool _hasAirlock;
+        private class Arrival { public PodInfo To; public Vector3 FromWorld; public KSP.Game.KerbalInfo Kerbal; public float At; }
+        private Arrival _arrival;
         private Sounds _sounds;
         private int _auditionIndex = -1;
 
@@ -143,7 +150,7 @@ namespace IVA
             _unbuckleKey = Bind(cfg, "Keys", "Unbuckle", new KeyboardShortcut(KeyCode.U),
                 "Leave the couch and float round the cabin (WASD move, Shift/Ctrl up/down, Q/E roll); press again to sit in the nearest couch.");
             _doorKey = Bind(cfg, "Keys", "Open door", new KeyboardShortcut(KeyCode.F),
-                "While floating round the cabin: open or close the door you're next to (the vessel's controls are locked then, so F is free).");
+                "While floating round the cabin: use what you're looking at (doors, lockers, drawers, curtains, lamps, screens, lights, the toilet; the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
 
             _soundOn = Bind(cfg, "Sound", "Interior sounds", true, "Sounds inside the cabin (thrusters, doors, buckles), using the game's own sound events.");
@@ -236,6 +243,11 @@ namespace IVA
             }
             CheckCameraAfterExit();
             if (!inFlight) { _loading = false; return; }
+            if (_arrival != null && !InIva && !_loading)
+            {
+                if (Time.unscaledTime > _arrival.At + 10f) { SWLogger.LogWarning("IVA: gave up entering the next part."); _arrival = null; }
+                else if (Time.unscaledTime >= _arrival.At && _arrival.To?.Pod != null) { _exitCheckAt = -1f; EnterIva(_arrival.To); }
+            }
 
             if (_toggleKey.Value.Down)
             {
@@ -275,7 +287,7 @@ namespace IVA
                     _sounds.PlayAudition(Sounds.Audition[_auditionIndex]);
                 }
             }
-            if (_free != null && _doorKey.Value.Down) ToggleDoor();
+            if (_free != null && _doorKey.Value.Down) UseTarget();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -290,9 +302,9 @@ namespace IVA
                 try { _session.Live.Update(Game, _vesselAtEntry.Model, _session.PodTransform, Time.deltaTime); }
                 catch (Exception e) { SWLogger.LogError("IVA: live instruments failed and are now off: " + e.Message); _session.DisableLive(); }
             }
-            if (_doors != null)
+            if (_interact != null)
             {
-                _doors.Update(Time.unscaledDeltaTime);
+                _interact.Update(Time.unscaledDeltaTime);
                 if (_free != null)
                     foreach (var kv in _doorBoxes) _free.SetDoorSolid(kv.Value, kv.Key.Open < 0.3f);
             }
@@ -699,7 +711,12 @@ namespace IVA
             SaveFlightCamera();
             ResetView();
             _session = session;
-            _doors = _session.Root != null ? Doors.Find(_session.Root.gameObject, _session.PodTransform, SWLogger) : null;
+            _interact = null;
+            if (_session.Root != null)
+            {
+                try { _interact = Interact.Build(_session.Root.gameObject, _session.PodTransform, SWLogger); }
+                catch (Exception e) { SWLogger.LogError("IVA: couldn't set up the cabin's interactive parts: " + e); }
+            }
             _vesselAtEntry = PodLocator.ActiveVessel(Game);
             _seatIndex = 0;
             _mode = Mode.CustomInterior;
@@ -720,8 +737,11 @@ namespace IVA
                 }
                 else _sounds = null;
             }
+            if (_interact != null) _interact.Sounds = _sounds;
+            SetUpHatches(pod);
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
+            if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod) Arrive();
         }
 
         // Pods without an interior of ours: hand over to Redux's own first-person camera. The old portrait-camera view
@@ -942,8 +962,8 @@ namespace IVA
         private void ExitIva()
         {
             _free = null;
-            _doors?.CloseAll();
-            _doors = null;
+            _interact?.Reset();
+            _interact = null;
             _doorBoxes.Clear();
             _sounds?.End();
             _sounds = null;
@@ -1011,9 +1031,12 @@ namespace IVA
             _pitch = 0f;
             _free = f;
             _doorBoxes.Clear();
-            if (_doors != null)
-                foreach (Doors.Door d in _doors.All)
-                    _doorBoxes[d] = f.AddDoor(d.CentrePod, d.EdgePod * 0.5f, d.AxisPod, d.OutPod * 0.02f);
+            if (_interact?.Doors != null)
+                foreach (Doors.Door d in _interact.Doors.All)
+                    if (d.IsRoomDoor)
+                    {
+                        _doorBoxes[d] = f.AddDoor(d.CentrePod, d.EdgePod * 0.5f, d.AxisPod.normalized * d.HalfHeight, d.OutPod * 0.02f);
+                    }
             _session.HideWholeKerbal(_seatIndex);   // you've left the couch
             LockFlightInput(true);                  // WASD, Shift and Ctrl move you, not the vessel
             _sounds?.Play(Sounds.Unbuckle);
@@ -1066,13 +1089,14 @@ namespace IVA
             catch (Exception e) { SWLogger.LogWarning($"IVA: couldn't {(on ? "lock" : "unlock")} the flight controls: {e.Message}"); }
         }
 
-        private void ToggleDoor()
+        private Interact.Target Aimed() => _free != null && _interact != null ? _interact.Pick(_free.Pos, _free.Rot * Vector3.forward) : null;
+
+        private void UseTarget()
         {
-            Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
-            if (d == null) return;
-            d.Target = d.Target > 0.5f ? 0f : 1f;
-            _sounds?.Play(d.Target > 0.5f ? Sounds.DoorOpen : Sounds.DoorClose);
-            SWLogger.LogInfo($"IVA: {(d.Target > 0.5f ? "opening" : "closing")} door {d.Name}.");
+            Interact.Target t = Aimed();
+            if (t == null) return;
+            SWLogger.LogInfo($"IVA: {t.Prompt()} ({t.Name}).");
+            t.Use();
         }
 
         private void OnGUI()
@@ -1082,11 +1106,86 @@ namespace IVA
                 GUI.Label(new Rect(0f, Screen.height * 0.08f, Screen.width, 30f),
                           $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}", _promptStyle);
             if (_free == null) return;
+            // a small dot where you're looking
+            GUI.Label(new Rect(Screen.width / 2f - 10f, Screen.height / 2f - 15f, 20f, 30f), "\u00b7", _dotStyle ?? (_dotStyle = new GUIStyle(_promptStyle) { fontSize = 28 }));
             string text = null;
-            Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
-            if (d != null) text = $"{_doorKey.Value}: {(d.Target > 0.5f ? "close" : "open")} the door";
-            else if (_free.NearHatch(0.6f, out string hatch)) text = $"{hatch} hatch: going through hatches isn't possible yet";
+            Interact.Target t = Aimed();
+            if (t != null) text = $"{_doorKey.Value}: {t.Prompt()}";
             if (text != null) GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), text, _promptStyle);
+        }
+
+        // ------------------------------------------------------------------
+        // Hatches: into the next module, or out on EVA
+        // ------------------------------------------------------------------
+
+        private KSP.Game.KerbalInfo Me()
+        {
+            if (_session == null || _seatIndex < 0 || _seatIndex >= _session.EyeKerbals.Count) return null;
+            return _session.EyeKerbals[_seatIndex]?.ThisKerbalInfo;
+        }
+
+        private void SetUpHatches(PodInfo pod)
+        {
+            _hatches = new List<Hatches.Hatch>();
+            if (_session?.Root == null || _interact == null) return;
+            try
+            {
+                _hatches = Hatches.Find(_session.Root, pod, Game, _anyPod.Value);
+                _hasAirlock = Hatches.HasAirlock(_session.Pod);
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't work out the hatches: " + e.Message); return; }
+            bool hasSide = _hatches.Any(h => h.Name == "Side");
+            foreach (Hatches.Hatch hatch in _hatches)
+            {
+                Hatches.Hatch h = hatch;
+                bool eva = h.Outside && _hasAirlock && (h.Name == "Side" || !hasSide);
+                _interact.Targets.Add(new Interact.Target
+                {
+                    Kind = "Hatch", Name = h.Name, Pod = h.Pod,
+                    Prompt = () => !h.Outside ? (Hatches.FreeSeat(Game, h.Beyond.Pod) < 0 && Me() != null ? $"{h.Beyond.Name} is full" : $"go through to the {h.Beyond.Name}")
+                                 : eva ? "go outside (EVA)" : "nothing on the other side of this hatch",
+                    Use = () => UseHatch(h, eva),
+                });
+            }
+            SWLogger.LogInfo("IVA: hatches: " + string.Join(", ", _hatches.Select(h => h.Name + (h.Outside ? (h.Name == "Side" || !hasSide) && _hasAirlock ? " (EVA)" : " (nothing beyond)" : " -> " + h.Beyond.Name))));
+        }
+
+        private void UseHatch(Hatches.Hatch h, bool eva)
+        {
+            KSP.Game.KerbalInfo me = Me();
+            if (!h.Outside)
+            {
+                if (me != null && !Hatches.Transfer(Game, me, h.Beyond.Pod, SWLogger)) return;
+                var a = new Arrival { To = h.Beyond, FromWorld = _session.PodTransform.position, Kerbal = me, At = Time.unscaledTime + 0.3f };
+                ExitIva();
+                _arrival = a;
+                return;
+            }
+            if (!eva) return;
+            if (me == null) { SWLogger.LogInfo("IVA: no kerbal of yours here to send outside."); return; }
+            PartBehavior part = _session.Pod;
+            ExitIva();
+            Hatches.StartEva(part, me, SWLogger);
+        }
+
+        // Just through the hatch from the part you came from: floating inside it, facing into the cabin.
+        private void Arrive()
+        {
+            Arrival a = _arrival;
+            _arrival = null;
+            if (_session == null) return;
+            for (int i = 0; i < _session.EyeKerbals.Count; i++)
+                if (a.Kerbal != null && _session.EyeKerbals[i]?.ThisKerbalInfo == a.Kerbal) { _seatIndex = i; _session.ShowSeat(i, _hideOwnKerbal.Value, SWLogger); break; }
+            Unbuckle();
+            if (_free == null || _hatches.Count == 0) return;
+            Transform pod = _session.PodTransform;
+            Hatches.Hatch h = _hatches.OrderBy(x => Vector3.Distance(pod.TransformPoint(x.Pod), a.FromWorld)).First();
+            Vector3 dir = (_free.Middle - h.Pod).normalized;
+            Vector3 up = Vector3.ProjectOnPlane(Vector3.forward, dir);
+            if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(Vector3.up, dir);
+            _free.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
+            _sounds?.Play(Sounds.HatchClose);
+            SWLogger.LogInfo($"IVA: came through the {h.Name} hatch.");
         }
 
         private void NextSeat()

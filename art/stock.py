@@ -299,6 +299,8 @@ def light_fixture(name, p, b, w=0.3, h=0.09):
     """Ceiling light: chamfered housing with an emissive diffuser, facing along b's normal."""
     cbox(name, (w + 0.04, h + 0.04, 0.05), M["frame_dark"], p + b.col[2] * 0.025, b, ch=0.01)
     cbox(name + "Diffuser", (w, h, 0.008), M["diffuser"], p + b.col[2] * 0.052, b, ch=0.002)
+    import act as A
+    A.target("Lights", name, p + b.col[2] * 0.06)
     for sx in (-1, 1):
         L.cylinder(f"{name}Clip{sx}", 0.006, 0.012, M["buckle"], p + b.col[0] * sx * (w / 2 + 0.008) + b.col[2] * 0.052, b, segs=6)
 

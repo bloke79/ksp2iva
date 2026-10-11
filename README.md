@@ -62,7 +62,8 @@ Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** 
 | B | Window view: lean up to the nearest window, again for the next, and after the last back to your seat |
 | U | Unbuckle and float round the cabin; U again (or N / B) to sit in the nearest couch |
 | W A S D, Shift / Ctrl, Q / E | While floating: move, up / down, roll (the vessel's flight controls are locked meanwhile) |
-| F | While floating: open or close the door you're next to (hygiene compartments) |
+| F | While floating: use what the dot in the middle of the view is on: doors, lockers, drawers, the food warmer, freezers, bunk curtains, reading lamps, screens (next page), ceiling lights (normal / night / dim), the toilet flush and the wash station |
+| F at a hatch | While floating: go through to the next crewed module (you move into one of its free seats) or, at the side hatch (or a cabin's end hatch with nothing beyond), go out on EVA |
 | [ / ] | Only with *Audition keys* on: play the previous / next candidate game sound, with its name on screen |
 | Mouse | Look around |
 | Scroll wheel | Zoom (up zooms in) |

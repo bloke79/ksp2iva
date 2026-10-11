@@ -7,6 +7,7 @@ capsule.frame_at() returns, and builds outwards along b.col[2].
 import math
 
 import ivalib as L  # imports bpy first
+import act as A
 import modules as G
 from mathutils import Matrix, Vector
 
@@ -134,7 +135,7 @@ def laptop(name, p, b, arm=0.25, screen="mfd_map"):
     lid_rot = L.basis(b.col[0], (up * 0.94 - b.col[2] * 0.34).normalized(), (b.col[2] * 0.94 + up * 0.34).normalized())
     lid_c = tray - b.col[2] * 0.105 + up * 0.1
     L.box(name + "Lid", (0.3, 0.2, 0.012), M["module"], lid_c, lid_rot, bevel=0.004)
-    L.plane(name + "Screen", 0.26, 0.17, M[screen], lid_c + lid_rot.col[2] * 0.0065, lid_rot)
+    A.screen(name, L.plane(name + "Screen", 0.26, 0.17, M[screen], lid_c + lid_rot.col[2] * 0.0065, lid_rot))
 
 
 def camera(name, p, b, lens_dir=None):
@@ -260,16 +261,18 @@ def hazard_rail(name, pts, r=0.009):
         L.tube(f"{name}_{k}", [a, c], r, M["yellow"] if k % 2 == 0 else M["handle"], bevel_res=1)
 
 
-def drawer_stack(name, p, b, w=0.3, h=0.4, n=4):
+def drawer_stack(name, p, b, w=0.3, h=0.4, n=4, live=True):
     """Stack of labelled stowage drawers in a frame."""
     d = 0.22
     L.box(name + "Frame", (w + 0.02, h + 0.02, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
     dh = h / n
     for k in range(n):
         y = h / 2 - dh * (k + 0.5)
-        L.box(f"{name}Drawer{k}", (w - 0.01, dh - 0.008, 0.012), M["locker"], _a(p, b, 0, y, d + 0.006), _r(b), bevel=0.002)
-        L.box(f"{name}Pull{k}", (0.06, 0.01, 0.014), M["handle"], _a(p, b, 0, y + dh * 0.15, d + 0.018), _r(b), bevel=0.002)
-        L.box(f"{name}Tag{k}", (0.05, 0.018, 0.002), M["btn_soft"], _a(p, b, -w * 0.3, y, d + 0.013), _r(b))
+        parts = [L.box(f"{name}Drawer{k}", (w - 0.01, dh - 0.008, 0.012), M["locker"], _a(p, b, 0, y, d + 0.006), _r(b), bevel=0.002),
+                 L.box(f"{name}Pull{k}", (0.06, 0.01, 0.014), M["handle"], _a(p, b, 0, y + dh * 0.15, d + 0.018), _r(b), bevel=0.002),
+                 L.box(f"{name}Tag{k}", (0.05, 0.018, 0.002), M["btn_soft"], _a(p, b, -w * 0.3, y, d + 0.013), _r(b))]
+        if live:
+            A.slide(f"{name}_{k}", parts, b.col[2] * min(0.16, d * 0.7), act_at=_a(p, b, 0, y, d + 0.02))
 
 
 def gear_rack(name, p, b, w=0.32, h=0.42):
@@ -289,14 +292,18 @@ def gear_rack(name, p, b, w=0.32, h=0.42):
 
 
 # ------------------------------------------------------------------ habitation and lab furniture
-def cabinet(name, p, b, w, h, d, doors=2, top=None):
+def cabinet(name, p, b, w, h, d, doors=2, top=None, live=True):
     """Wall cabinet/counter unit with doors, pulls and an optional worktop."""
     L.box(name, (w, h, d), M["locker"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
     dw = w / doors
     for k in range(doors):
         x = -w / 2 + dw * (k + 0.5)
-        L.box(f"{name}Door{k}", (dw - 0.012, h - 0.02, 0.006), M["locker"], _a(p, b, x, 0, d + 0.003), _r(b), bevel=0.001)
-        L.box(f"{name}Pull{k}", (0.012, 0.06, 0.012), M["handle"], _a(p, b, x + (dw / 2 - 0.03) * (1 if k % 2 == 0 else -1), h * 0.25, d + 0.012), _r(b), bevel=0.002)
+        sgn = 1 if k % 2 == 0 else -1   # the pull's side; the hinge is on the other
+        leaf = L.box(f"{name}Door{k}", (dw - 0.012, h - 0.02, 0.006), M["locker"], _a(p, b, x, 0, d + 0.003), _r(b), bevel=0.001)
+        pull = L.box(f"{name}Pull{k}", (0.012, 0.06, 0.012), M["handle"], _a(p, b, x + (dw / 2 - 0.03) * sgn, h * 0.25, d + 0.012), _r(b), bevel=0.002)
+        if live:
+            A.hinge(f"{name}_{k}", [leaf, pull], _a(p, b, x - sgn * (dw / 2 - 0.006), 0, d + 0.003), b.col[1],
+                    _a(p, b, x + sgn * (dw / 2 - 0.006), 0, d + 0.003), b.col[2], act_at=_a(p, b, x, 0, d + 0.01))
     if top:
         L.box(name + "Top", (w + 0.02, 0.025, d + 0.03), top, _a(p, b, 0, h / 2 + 0.0125, d / 2 + 0.01), _r(b), bevel=0.004)
 
@@ -304,8 +311,10 @@ def cabinet(name, p, b, w, h, d, doors=2, top=None):
 def oven(name, p, b, w=0.2, h=0.16, d=0.18):
     """Food warmer/oven with a window, dial and status lamps."""
     L.box(name, (w, h, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.006)
-    L.box(name + "Door", (w * 0.7, h * 0.75, 0.006), M["ring"], _a(p, b, -w * 0.1, 0, d + 0.003), _r(b), bevel=0.002)
-    L.box(name + "Window", (w * 0.5, h * 0.45, 0.002), M["crt_data"], _a(p, b, -w * 0.1, 0.005, d + 0.0065), _r(b))
+    leaf = L.box(name + "Door", (w * 0.7, h * 0.75, 0.006), M["ring"], _a(p, b, -w * 0.1, 0, d + 0.003), _r(b), bevel=0.002)
+    window = L.box(name + "Window", (w * 0.5, h * 0.45, 0.002), M["crt_data"], _a(p, b, -w * 0.1, 0.005, d + 0.0065), _r(b))
+    A.hinge(name, [leaf, window], _a(p, b, -w * 0.45, 0, d + 0.003), b.col[1], _a(p, b, w * 0.25, 0, d + 0.003), b.col[2],
+            act_at=_a(p, b, -w * 0.1, 0, d + 0.01))
     L.cylinder(name + "Dial", 0.014, 0.012, M["toggle"], _a(p, b, w * 0.38, h * 0.2, d + 0.006), _r(b), segs=16, bevel=0.002)
     G.lamps(name + "Lamps", _a(p, b, w * 0.38, -h * 0.2, d), b, 0.04, 0.03, 2)
 
@@ -377,18 +386,23 @@ def sleep_station(name, p, b, w=0.5, h=0.8, d=0.32):
         L.box(f"{name}Cap{sy}", (w, t, d), M["module"], _a(p, b, 0, sy * (h / 2 - t / 2), d / 2), _r(b), bevel=0.003)
     sleeping_bag(name + "Bag", _a(p, b, 0, -0.02, 0.0), b, w * 0.75, h * 0.85, 0.11)
     L.cylinder(name + "CurtainRod", 0.006, w, M["buckle"], _a(p, b, 0, h / 2 - 0.04, d - 0.01), L.basis(b.col[1], b.col[2], b.col[0]), segs=10)
-    L.box(name + "Curtain", (w * 0.38, h * 0.88, 0.01), M["towel"], _a(p, b, -w * 0.29, -0.02, d - 0.012), _r(b), bevel=0.004)
+    parts = [L.box(name + "Curtain", (w * 0.38, h * 0.88, 0.01), M["towel"], _a(p, b, -w * 0.29, -0.02, d - 0.012), _r(b), bevel=0.004)]
     for k in range(4):
-        L.box(f"{name}Fold{k}", (0.012, h * 0.86, 0.016), M["towel"], _a(p, b, -w * 0.46 + k * 0.045, -0.02, d - 0.006), _r(b), bevel=0.004)
+        parts.append(L.box(f"{name}Fold{k}", (0.012, h * 0.86, 0.016), M["towel"], _a(p, b, -w * 0.46 + k * 0.045, -0.02, d - 0.006), _r(b), bevel=0.004))
+    A.curtain(name, parts, _a(p, b, -w / 2 + 0.02, -0.02, d - 0.012), _a(p, b, -w * 0.1, -0.02, d - 0.012),
+              _a(p, b, w / 2 - 0.02, -0.02, d - 0.012), act_at=_a(p, b, -w * 0.25, 0.0, d))
     L.cylinder(name + "Lamp", 0.025, 0.03, M["ring"], _a(p, b, w * 0.3, h / 2 - 0.06, 0.05), L.basis(b.col[0], -b.col[2], b.col[1]), segs=16)
+    A.glow(name, L.disc(name + "LampGlow", 0.02, M["light"], _a(p, b, w * 0.3, h / 2 - 0.0765, 0.05), L.basis(b.col[0], b.col[2], -b.col[1]), segs=20),
+           act_at=_a(p, b, w * 0.3, h / 2 - 0.08, 0.06))
     L.box(name + "Locker", (0.12, 0.1, 0.08), M["locker"], _a(p, b, w * 0.28, -h * 0.3, 0.15), _r(b), bevel=0.003)
     L.box(name + "Photo", (0.06, 0.08, 0.002), M["crt_orbit"], _a(p, b, -w * 0.05, h * 0.2, 0.115), _r(b))
 
 
 def toilet(name, p, b):
     """Waste management station: cabinet with a seat ring, suction hose, handholds."""
-    cabinet(name + "Body", p, b, 0.36, 0.38, 0.3, doors=1)
+    cabinet(name + "Body", p, b, 0.36, 0.38, 0.3, doors=1, live=False)
     seat = _a(p, b, 0, 0.2, 0.17)
+    A.target("Flush", name, _a(p, b, 0, 0.2, 0.3))
     L.torus(name + "Seat", 0.1, 0.02, M["btn_soft"], seat, L.basis(b.col[0], b.col[2], -b.col[1]), seg=28, mseg=8)
     L.tube(name + "Hose", [_a(p, b, 0.15, 0.0, 0.3), _a(p, b, 0.22, 0.05, 0.36), _a(p, b, 0.2, 0.2, 0.32)], 0.018, M.get("umbilical", M["handle"]))
     for sx in (-1, 1):
@@ -400,6 +414,7 @@ def sink(name, p, b):
     L.box(name + "Panel", (0.34, 0.4, 0.012), M["module"], _a(p, b, 0, 0, 0.006), _r(b), bevel=0.003)
     L.box(name + "Mirror", (0.22, 0.16, 0.004), M["glass_dark"], _a(p, b, 0, 0.1, 0.014), _r(b), bevel=0.002)
     L.cylinder(name + "Basin", 0.08, 0.06, M["toggle"], _a(p, b, 0, -0.1, 0.08), L.basis(b.col[0], b.col[2], -b.col[1]), segs=28, radius2=0.06)
+    A.target("Wash", name, _a(p, b, 0, -0.05, 0.1))
     L.tube(name + "Tap", [_a(p, b, 0, -0.03, 0.012), _a(p, b, 0, -0.03, 0.08), _a(p, b, 0, -0.06, 0.09)], 0.006, M["buckle"])
     L.box(name + "Soap", (0.04, 0.06, 0.025), M["food_green"], _a(p, b, 0.13, -0.08, 0.025), _r(b), bevel=0.006)
 
@@ -487,11 +502,13 @@ def freezer(name, p, b, w=0.36, h=0.42, d=0.3):
     dark = M.get("frame_dark", M["module"])
     L.box(name, (w, h, d), frame, _a(p, b, 0, 0, d / 2), _r(b), bevel=0.02, segs=1)
     L.box(name + "Gasket", (w * 0.84, h * 0.7, 0.01), M["handle"], _a(p, b, 0, -0.03, d + 0.004), _r(b), bevel=0.004, segs=1)
-    L.box(name + "Door", (w * 0.8, h * 0.66, 0.02), dark, _a(p, b, 0, -0.03, d + 0.014), _r(b), bevel=0.008, segs=1)
+    leaf = L.box(name + "Door", (w * 0.8, h * 0.66, 0.02), dark, _a(p, b, 0, -0.03, d + 0.014), _r(b), bevel=0.008, segs=1)
     L.box(name + "ReadoutStrip", (w * 0.84, 0.05, 0.012), dark, _a(p, b, 0, h / 2 - 0.045, d + 0.006), _r(b), bevel=0.004, segs=1)
     L.box(name + "Readout", (0.07, 0.025, 0.003), M["crt_data"], _a(p, b, -w * 0.2, h / 2 - 0.045, d + 0.0135), _r(b))
     G.lamps(name + "Lamps", _a(p, b, w * 0.18, h / 2 - 0.045, d + 0.012), b, 0.08, 0.02, 3)
-    L.box(name + "Latch", (0.03, 0.12, 0.025), M["handle"], _a(p, b, w * 0.3, -0.03, d + 0.036), _r(b), bevel=0.006, segs=1)
+    latch = L.box(name + "Latch", (0.03, 0.12, 0.025), M["handle"], _a(p, b, w * 0.3, -0.03, d + 0.036), _r(b), bevel=0.006, segs=1)
+    A.hinge(name, [leaf, latch], _a(p, b, -w * 0.4, -0.03, d + 0.014), b.col[1], _a(p, b, w * 0.4, -0.03, d + 0.014), b.col[2],
+            act_at=_a(p, b, 0, -0.03, d + 0.03))
     L.box(name + "Vent", (w * 0.5, 0.03, 0.006), M["handle"], _a(p, b, 0, -h / 2 + 0.03, d + 0.003), _r(b))
 
 

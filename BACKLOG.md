@@ -38,11 +38,12 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
   - PPD-20 Wayfarer: eight recessed crew quarters in two bays; galley, hygiene, table; window lounge and ergometer.
   - Every crew position floats with foot loops (no chairs); N moves on to the next crewed part after the last seat.
 - [x] **Hygiene door opening** (F while floating).
-- [ ] **F action system** (`PLAN.md`, "F as the action key"): look-to-target with a prompt, then:
-  - [ ] cheap interactive kit: curtains, lockers/drawers, oven, cabin lights, toilet flush, laptop/MFD pages
-  - [ ] thruster sound while floating (the game's EVA jetpack sound), ambient module sounds
-  - [ ] hatches between modules (glide through, real crew transfer), then EVA out of the side hatch
-  - [ ] kit tied to game systems: Starlab experiments, light/SAS switches, sleep with time warp
+- [ ] **F action system** (`PLAN.md`, "F as the action key"): look-to-target with a prompt, then (1-3 built 2026-10-11, untested in game):
+  - [x] cheap interactive kit: curtains, lockers/drawers, oven, cabin lights, toilet flush, laptop/MFD pages
+  - [x] thruster sound while floating (the game's EVA jetpack sound), ambient module sounds
+  - [x] hatches between modules (real crew transfer, arrive floating at the matching hatch), EVA out of the side hatch; later: hatch animation, fade, boarding straight back into IVA
+  - [ ] choose sounds with the audition keys (placeholders now) and a cabin ambience
+  - [ ] kit tied to game systems (plan written, `PLAN.md` "Plan for 4"): Starlab experiments, light/SAS switches, sleep with time warp
 - [ ] **Remaining fuselage cabins:** Mk1 Stowaway, Mk2 Tag Along, Mk3 Skybus (plane-style, gravity layouts are right there).
 - [ ] _(original plan entry)_ **Crew cabins and Starlab** (`PLAN.md`, "Crew cabins and Starlab"):
   - [ ] Generalise the pipeline: specs without a pose block, upright seated kerbals moved in by the mod,
