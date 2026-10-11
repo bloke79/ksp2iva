@@ -58,7 +58,7 @@ def basis(right, up):
 
 # ------------------------------------------------------------------ shell from the real exterior, with the windows open
 def build_shell():
-    HS.build("Shell", SPEC["exterior"], SPEC["hull_base_y"], Z_BACK, Z_FRONT, wall=SPEC["wall"], dz=0.015, seg=160,
+    HS.build("Shell", SPEC["exterior"], SPEC["hull_base_y"], Z_BACK, Z_FRONT, wall=SPEC["wall"], dz=0.01, seg=220, wells=True, bezel=0.06,
              centre=(0.0, -0.02), mat=M["wall_cream"], frame_mat=M["frame_dark"])
     S.cbox("Deck", (0.80, 0.03, Z_FRONT - 0.12), M["deckplate"], Vector((0.0, FLOOR_Y + 0.015, (Z_FRONT + 0.08) / 2)), ch=0.0)
 
@@ -236,6 +236,15 @@ def build_aft():
                  n=3, r=0.008)   # down into the back of the side console
 
 
+def build_velcro():
+    """Velcro strips on the side walls, where checklists and pens get stuck down."""
+    for sx in (-1, 1):
+        for k, (y, z) in enumerate(((0.0, 0.45), (-0.2, 0.35))):
+            fr = HS.wall_frame((0.0, y, z), (sx, 0, 0), 0.004, up=(0, -1, 0))
+            if fr:
+                P.velcro(f"WallVelcro{sx}{k}", fr[0], fr[1], w=0.12, h=0.04)
+
+
 def build_lights_and_markers():
     S.light_fixture("DomeLight", Vector((0.0, -0.55, 0.45)), basis((1, 0, 0), (0, 0, 1)), w=0.16, h=0.06)
     K.view("Windscreen", (0.0, -0.30, 1.30), (0.0, -0.45, 2.4))
@@ -252,6 +261,7 @@ build_controls()
 build_side_consoles()
 build_seat()
 build_aft()
+build_velcro()
 build_lights_and_markers()
 S.collision_markers(hatches=[("Aft", (0.0, 0.0, Z_BACK + 0.25))])
 L.save(OUT)

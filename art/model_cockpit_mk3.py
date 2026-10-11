@@ -407,6 +407,15 @@ def build_mid_deck():
         S.light_fixture(f"MidLight{k}", Vector((0.0, FLOOR_Y + DECK_T + 0.02, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.4, h=0.08)
 
 
+def build_velcro():
+    """Velcro strips where the crew work: flight-deck side walls, by the galley and the sleep stations."""
+    spots = [(-1, -0.9, 0.45), (1, -0.9, 0.45), (-1, -0.6, 0.85), (1, -0.6, 0.85), (-1, 0.1, 1.55), (1, 0.0, 1.0)]
+    for k, (sx, y, z) in enumerate(spots):
+        fr = HS.wall_frame((0.0, y, z), (sx, 0, 0), 0.004, up=(0, -1, 0))
+        if fr:
+            P.velcro(f"WallVelcro{k}", fr[0], fr[1], w=0.14, h=0.05)
+
+
 def build_lights_and_markers():
     S.light_fixture("DomeLight", Vector((0.0, HS.inner((0, -1.0, 0.55), (0, -1, 0), 0.03).y, 0.55)), basis((1, 0, 0), (0, 0, 1)), w=0.3, h=0.08)
     K.view("Windscreen", (0.0, -1.0, 1.6), (0.0, -1.2, 3.0))
@@ -427,6 +436,7 @@ build_overhead()
 build_aft_flight_deck()
 build_flight_walls()
 build_mid_deck()
+build_velcro()
 build_lights_and_markers()
 S.collision_markers(hatches=[("Aft", (0.0, 0.48, Z_BACK + 0.3)), ("Side", (-1.0, 0.45, 2.05)), ("Deck", (HATCH.x, FLOOR_Y, HATCH.z))])
 L.save(OUT)

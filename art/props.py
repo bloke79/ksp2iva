@@ -41,6 +41,14 @@ def _r(b):
     return L.basis(b.col[0], b.col[1], b.col[2])
 
 
+def velcro(name, p, b, w=0.14, h=0.05):
+    """A strip of blue velcro on a surface (p, b: point and basis with the normal out of the surface), for sticking
+    down checklists, pens and kit in zero g. Put them where the crew work."""
+    mat = M.get("velcro") or L.material("IVA_Velcro", (0.38, 0.55, 0.78), rough=1.0)
+    M["velcro"] = mat
+    return L.box(name, (w, h, 0.003), mat, p + b.col[2] * 0.0015, _r(b))
+
+
 def straps(name, p, b, w, h, d, n=2, mat=None):
     for i in range(n):
         x = (i - (n - 1) / 2) * w / max(1, n)

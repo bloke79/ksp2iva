@@ -72,6 +72,21 @@ def inner(p, d, gap=0.0):
     return h[0] - d * (_LAST["wall"] + gap)
 
 
+def wall_frame(p, d, gap=0.0, up=(0.0, 0.0, 1.0)):
+    """Point and basis on the shell's inner face seen from p along d (after build): right, up (as near `up` as the wall
+    allows) and the normal out of the wall. For flat fittings (labels, velcro, plates) laid on the hull."""
+    d = Vector(d).normalized()
+    h = _LAST["bvh"].ray_cast(Vector(p), d, 5.0)
+    if h[0] is None:
+        return None
+    n = -h[1] if h[1].dot(d) > 0 else h[1]          # out of the wall, towards p
+    u = Vector(up) - Vector(up).project(n)
+    if u.length < 1e-4:
+        u = Vector((1, 0, 0)) - Vector((1, 0, 0)).project(n)
+    u = u.normalized()
+    return h[0] - d * (_LAST["wall"] + gap), L.basis(u.cross(n).normalized(), u, n)
+
+
 def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, centre=(0.0, 0.0), frame_mat=None,
           margin=0.01, keep=None, frame_w=0.07, wells=False, well_cut=0.05, bezel=0.09):
     """Shell from z0 to z1 (generator space). Returns (shell object, list of window dicts with centre, normal, outline).

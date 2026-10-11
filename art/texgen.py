@@ -707,8 +707,8 @@ def shuttle_panel(size=1024, cells=4):
 
 
 def wall_cream(size=1024, cells=2):
-    """The orbiter's cabin walls: cream padded closeout panels with stitched quilting, seams, a little grime, and the
-    light-blue velcro patches everywhere."""
+    """The orbiter's cabin walls: cream padded closeout panels with stitched quilting, seams and a little grime.
+    (Velcro is modelled as strips beside the equipment that uses it, not printed on every panel.)"""
     grime = 0.6 * _tile_noise(size, 4, 41) + 0.4 * _tile_noise(size, 13, 42)
     base = np.array([0.80, 0.78, 0.71])
     col = base[None, None, :] * (0.9 + 0.12 * grime[..., None])
@@ -726,13 +726,6 @@ def wall_cream(size=1024, cells=2):
             h[seam] -= 1.0
             col[seam] *= 0.55
     img = Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8))
-    d = ImageDraw.Draw(img)
-    rng = np.random.default_rng(43)
-    for _ in range(cells * cells * 5):   # velcro
-        x, y = rng.integers(20, size - 60, 2)
-        w_, h_ = int(rng.integers(26, 46)), int(rng.integers(18, 30))
-        d.rectangle([x, y, x + w_, y + h_], fill=(96, 140, 196))
-        d.rectangle([x + 2, y + 2, x + w_ - 2, y + h_ - 2], outline=(80, 122, 178), width=1)
     save(img.filter(ImageFilter.GaussianBlur(0.6)), "wall_cream_color.png")
     ha = (h - h.min()) / max(1e-6, (h.max() - h.min()))
     ha = np.asarray(Image.fromarray((ha * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255

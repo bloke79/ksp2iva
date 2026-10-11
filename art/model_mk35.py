@@ -58,6 +58,7 @@ M["glare"] = L.material("IVA_Glareshield", (0.045, 0.046, 0.05), rough=0.85)
 M["cushion"] = L.material("IVA_SeatBlue", (0.10, 0.17, 0.42), rough=0.9, normal="canvas_normal.png", uv_scale=(5.0, 5.0), normal_strength=0.8)
 M["shell"] = L.material("IVA_SeatFrame", (0.42, 0.44, 0.47), rough=0.45, metal=0.5)
 M["locker"] = L.material("IVA_MidLocker", (0.78, 0.77, 0.72), rough=0.6, metal=0.05)
+M["velcro"] = L.material("IVA_Velcro", (0.38, 0.55, 0.78), rough=1.0)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
 POSE = SPEC["pose"]
@@ -335,6 +336,8 @@ def build_aft_rooms():
     s.check()
     G.housing(s, "CommsStation", depth=0.02)
     P.headset("CommsHeadset", Vector((AISLE - 0.005, 1.25, 1.3)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
+    P.velcro("ToiletVelcro", *at(-126, FLOOR + 1.55, 0.0))
+    P.velcro("CommsVelcro", Vector((AISLE - 0.001, 0.72, 1.5)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))), w=0.05, h=0.14)
     for side in (-1, 1):
         y0, y1 = (DOOR_Y1 + 0.05, DOOR_Y1 + 0.3) if side < 0 else (0.62, 0.86)
         for z in (0.8, 1.45):
@@ -347,6 +350,9 @@ def build_aft_rooms():
 
 def build_front_lockers():
     """Low lockers in the two front corners, below the side windows' sills, clear of the route to the EVA hatch."""
+    for side in (-1, 1):   # velcro above the lockers and beside the side consoles, where checklists go
+        P.velcro(f"FrontVelcro{side}", *at(side * 39, 0.86, 0.0))
+        P.velcro(f"SideVelcro{side}", *at(side * 108, 1.32, 0.0))
     k = 0
     for side in (-1, 1):
         for deg in (29, 39, 49):
@@ -418,6 +424,80 @@ def build_decks():
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
 
 
+# ------------------------------------------------------------------ sleep pods: crew quarters fitted into the cone
+def sleep_pod(name, p0, p1, z0, z1, depth=0.4):
+    """A private sleeping pod between wall angles p0..p1 (degrees) and heights z0..z1: two side walls, a floor and a roof
+    from the hull in to `depth`, and a front frame leaning with the cone round a curtained opening. The hull is its back
+    wall, so nothing can poke through. Inside: a sleeping bag, a reading lamp (F toggles it), a small locker."""
+    import bmesh
+    a0, a1 = C.rad(p0), C.rad(p1)
+    nphi, nz = 8, 10
+    phis = [a0 + (a1 - a0) * i / nphi for i in range(nphi + 1)]
+    zs = [z0 + (z1 - z0) * k / nz for k in range(nz + 1)]
+
+    def H(phi, z):
+        return C.polar(phi, C.r_in(z) - 0.012, z)
+
+    def I(phi, z):
+        return C.polar(phi, C.r_in(z) - depth, z)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    quads = []
+    for phi in (a0, a1):                                   # side walls
+        for k in range(nz):
+            quads.append([H(phi, zs[k]), I(phi, zs[k]), I(phi, zs[k + 1]), H(phi, zs[k + 1])])
+    for z in (z0, z1):                                     # floor and roof
+        for i in range(nphi):
+            quads.append([H(phis[i], z), H(phis[i + 1], z), I(phis[i + 1], z), I(phis[i], z)])
+    jamb = 0.05 / max(0.3, C.r_in((z0 + z1) / 2) - depth)   # 5 cm jambs, in radians
+    sill, header = 0.07, 0.1
+    for i in range(nphi):                                   # front frame: sill and header
+        for za, zb in ((z0, z0 + sill), (z1 - header, z1)):
+            quads.append([I(phis[i], za), I(phis[i + 1], za), I(phis[i + 1], zb), I(phis[i], zb)])
+    for pa, pb in ((a0, a0 + jamb), (a1 - jamb, a1)):       # jambs
+        for k in range(nz):
+            za, zb = max(zs[k], z0 + sill), min(zs[k + 1], z1 - header)
+            if zb > za:
+                quads.append([I(pa, za), I(pb, za), I(pb, zb), I(pa, zb)])
+    for q in quads:
+        f = bm.faces.new([bm.verts.new(v) for v in q])
+        for l in f.loops:
+            l[uv].uv = (l.vert.co.x + l.vert.co.y, l.vert.co.z)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    o = L.mesh_obj(name + "Pod", bm, [M["locker"]])
+    L.solidify(o, 0.018, offset=0.0)
+    mid, zm = (p0 + p1) / 2, (z0 + z1) / 2
+    width = 2 * (C.r_in(zm) - depth) * math.sin((a1 - a0) / 2)
+    # inside: the bag on the hull, a locker above it, the lamp under the roof
+    P.sleeping_bag(name + "Bag", *at(mid, z0 + 0.06 + (z1 - z0 - 0.3) / 2, 0.03), w=min(0.38, width - 0.04), h=z1 - z0 - 0.36, d=0.11)
+    P.cabinet(name + "Locker", *at(mid, z1 - 0.13, 0.025), min(0.24, width - 0.1), 0.12, 0.12, doors=1)
+    lamp_p, lamp_b = at(mid + (p1 - p0) * 0.28, z1 - 0.03, 0.2)
+    L.cylinder(name + "Lamp", 0.025, 0.03, M["ring"], lamp_p, segs=16)
+    A.glow(name, L.disc(name + "LampGlow", 0.02, M["light"], lamp_p - Vector((0, 0, 0.016)), Matrix.Rotation(math.pi, 3, "X"), segs=20),
+           act_at=lamp_p - Vector((0, 0, 0.03)))
+    # curtain across the opening: hangs from a rod under the header, drawn open towards the first jamb
+    fa, fb = I(a0 + jamb, zm), I(a1 - jamb, zm)
+    across = fb - fa
+    across.z = 0.0
+    across = across.normalized()
+    pf, bf = at(mid, zm, depth + 0.02)
+    up = (bf.col[1] - bf.col[1].project(across)).normalized()
+    n = across.cross(up).normalized()
+    if n.dot(Vector((-pf.x, -pf.y, 0.0))) < 0:
+        n = -n                                   # out of the pod, towards the cabin
+    cb = L.basis(across, up, n)
+    span = (fb - fa).length
+    ch = (z1 - header) - (z0 + sill) - 0.02
+    left = (fa + fb) / 2 - across * (span / 2 - 0.01)
+    L.cylinder(name + "CurtainRod", 0.005, span, M["buckle"], (fa + fb) / 2 + up * (ch / 2 + 0.006) - n * 0.012, L.basis(up, n, across), segs=10)
+    parts = [L.box(name + "Curtain", (span * 0.32, ch, 0.008), M["towel"], left + across * (span * 0.16) - n * 0.012, cb, bevel=0.003)]
+    for k in range(3):
+        parts.append(L.box(f"{name}Fold{k}", (0.012, ch * 0.98, 0.014), M["towel"], left + across * (0.02 + k * 0.04) - n * 0.008, cb, bevel=0.003))
+    A.curtain(name, parts, left, left + across * span * 0.32, left + across * (span - 0.02), act_at=(fa + fb) / 2 - n * 0.04)
+    # a velcro strip and a name tag on the header, outside
+    P.velcro(name + "Velcro", *at(p1 - (p1 - p0) * 0.2, z1 + 0.12, 0.0), w=0.12, h=0.04)
+
+
 # ------------------------------------------------------------------ living deck: docking and science forward, berths on the sides, galley aft
 def build_living_deck():
     D = DECK_Z
@@ -445,19 +525,20 @@ def build_living_deck():
     S.mount("GloveboxMount", *at(52, D + 0.36, 0.05), 0.42, 0.3)
     # exercise: the ergometer on the deck, front port
     K.ergometer("Ergometer", Vector((-0.78, -0.52, D + 0.015)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))))
-    # berths: three sleeping bags to starboard, two to port with the crew lockers; a lamp and a small locker over each
-    for k, deg in enumerate((90, 108, 126, -98, -118)):
-        P.sleeping_bag(f"Berth{k}", *at(deg, D + 0.38, 0.045), w=0.38, h=0.64, d=0.12)
-        P.cabinet(f"BerthLocker{k}", *at(deg, D + 0.92, 0.03), 0.24, 0.14, 0.14, doors=1)
-    P.drawer_stack("CrewLockers", *at(-80, D + 0.3, 0.0), 0.3, 0.42, 4)
+    # crew quarters: five sleep pods, three to starboard and two to port, the crew lockers between them and the galley
+    for k, (pa, pb) in enumerate(((70.5, 92.8), (93.8, 116.2), (117.2, 139.5), (-97.8, -75.0), (-121.5, -98.8))):
+        sleep_pod(f"Berth{k}", min(pa, pb), max(pa, pb), D + 0.03, D + 0.86)
+    P.drawer_stack("CrewLockers", *at(-130, D + 0.3, 0.02), 0.28, 0.42, 4)
     # galley aft-port, pantry aft-starboard, either side of the ladder hole; a fold-out table by the galley
     P.galley("Galley", *at(-151, D + 0.34, 0.05), w=0.36, h=0.46)
     P.oven("Oven", *at(-151, D + 0.78, 0.08))
     P.utensil_rack("Utensils", *at(-138, D + 0.86, 0.0))
-    K.rail_table("FoldTable", Vector((-0.56, 0.58, D + 0.01)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))), w=0.42, l=0.34, stand=0.5)
+    K.rail_table("FoldTable", Vector((-0.36, 0.66, D + 0.01)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))), w=0.42, l=0.34, stand=0.5)
     P.cabinet("Pantry", *at(151, D + 0.3, 0.035), 0.34, 0.46, 0.3, doors=2)
     P.cabinet("FoodLocker", *at(151, D + 0.78, 0.04), 0.28, 0.2, 0.2, doors=1)
     P.whiteboard("Board", *at(140, D + 1.1), 0.28, 0.22)
+    for k, (deg, z) in enumerate(((-34, D + 0.72), (34, D + 0.72), (64, D + 0.66), (-140, D + 0.9), (162, D + 0.62), (-62, D + 0.6))):
+        P.velcro(f"LivingVelcro{k}", *at(deg, z, 0.0))
 
 
 def ladder(name, x, y, z0, z1, w):
