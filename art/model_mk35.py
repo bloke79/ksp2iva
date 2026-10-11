@@ -176,17 +176,19 @@ def bulk_frame(x, z):
     return Vector((x, BULK_Y, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
 
 
-def slab(name, side, depth=0.35):
+def slab(name, side, depth=0.35, x0=None, x1=None):
     """One half of the bulkhead: a solid from the aisle edge to the hull, floor to BULK_TOP, front face at BULK_Y; its back
     face (depth behind) is trimmed to the hull too, so the top closes off the space behind without poking through."""
     import bmesh
+    x0 = AISLE if x0 is None else x0
     zs = [FLOOR + (BULK_TOP - FLOOR) * k / 10 for k in range(11)]
-    outline = [(AISLE, FLOOR)] + [(bulk_x(z), z) for z in zs] + [(AISLE, BULK_TOP)]
+    lim = (lambda x: x) if x1 is None else (lambda x: min(x1, x))
+    outline = [(x0, FLOOR)] + [(max(x0 + 0.01, lim(bulk_x(z))), z) for z in zs] + [(x0, BULK_TOP)]
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
     f = [bm.verts.new((side * x, BULK_Y, z)) for x, z in outline]
     yb = BULK_Y + depth
-    back = [(AISLE, FLOOR)] + [(max(AISLE + 0.01, math.sqrt(max(0.0, C.r_in(z) ** 2 - yb ** 2)) - 0.015), z) for z in zs] + [(AISLE, BULK_TOP)]
+    back = [(x0, FLOOR)] + [(max(x0 + 0.01, lim(math.sqrt(max(0.0, C.r_in(z) ** 2 - yb ** 2)) - 0.015)), z) for z in zs] + [(x0, BULK_TOP)]
     b = [bm.verts.new((side * x, yb, z)) for x, z in back]
     faces = [bm.faces.new(f), bm.faces.new(b[::-1])]
     n = len(outline)
@@ -200,18 +202,36 @@ def slab(name, side, depth=0.35):
             l[uv].uv = ((co.x if ny >= nx else co.y) * 1.0, co.z * 1.0)
     L.mesh_obj(name, bm, [M["blanket"]])
     # trim: a frame strip along the aisle edge and the top
-    L.tube(name + "Trim", [Vector((side * AISLE, BULK_Y - 0.01, FLOOR)), Vector((side * AISLE, BULK_Y - 0.01, BULK_TOP)),
-                           Vector((side * bulk_x(BULK_TOP), BULK_Y - 0.01, BULK_TOP))], 0.012, M["couchframe"])
+    if x0 <= AISLE + 1e-6:
+        L.tube(name + "Trim", [Vector((side * AISLE, BULK_Y - 0.01, FLOOR)), Vector((side * AISLE, BULK_Y - 0.01, BULK_TOP)),
+                               Vector((side * bulk_x(BULK_TOP), BULK_Y - 0.01, BULK_TOP))], 0.012, M["couchframe"])
+
+
+HYG_X0, HYG_X1 = 0.4, 1.26   # hygiene compartment behind the left half of the bulkhead (|x|)
 
 
 def build_bulkhead():
-    slab("BulkheadL", -1)
+    slab("BulkheadL", -1, x1=HYG_X0)
+    slab("BulkheadLOuter", -1, x0=HYG_X1)
     slab("BulkheadR", 1)
+    # hygiene compartment recessed into the bulkhead: its door flush with the bulkhead face, the hull behind it
+    hz = (FLOOR + BULK_TOP) / 2
+    hd = 0.6
+    K.hygiene_room("Hygiene", Vector((-(HYG_X0 + HYG_X1) / 2, BULK_Y + hd, hz)), bulk_frame(0, hz)[1], HYG_X1 - HYG_X0, BULK_TOP - FLOOR - 0.02,
+                   hd + 0.015, door_h=1.45)
+    # comms and mission station on the aisle wall beside it
+    s = C.Surface("CommsStation", (-AISLE + 0.03, 1.25, 1.6), (0, 1, 0), (0, 0, 1), 0.44, 0.28, corner=0.015)
+    s.build(M["console"], thick=0.025)
+    G.grid(s, "Comms", 4, 2, [("mfd", 0, 0, 2, 2, {"screen": "mfd_comms"}), ("keypad", 2, 0, 1, 2, {}),
+                              ("annunciators", 3, 0, 1, 1, {"cols": 2, "rows": 2, "start": 10}), ("toggles", 3, 1, 1, 1, {"cols": 3})], border=0.01)
+    s.check()
+    G.housing(s, "CommsStation", depth=0.02)
+    P.headset("CommsHeadset", Vector((-AISLE + 0.005, 1.42, 1.38)), L.basis(Vector((0, 1, 0)), Vector((0, 0, 1)), Vector((1, 0, 0))))
     # left: a wall of stowage lockers, every one labelled and latched
     k = 0
     for row, z in enumerate((0.25, 0.53, 0.81, 1.09, 1.37, 1.65)):
         for col, x in enumerate((-0.52, -0.84, -1.16, -1.48)):
-            if abs(x) + 0.155 > bulk_x(z + 0.13) - 0.01:
+            if abs(x) + 0.155 > bulk_x(z + 0.13) - 0.01 or HYG_X0 - 0.16 < abs(x) < HYG_X1 + 0.16:
                 continue
             G.box_unit(f"MidLocker{k}", (x, BULK_Y - 0.035, z), (0.29, 0.07, 0.26), vents=(row == 0), lamps_n=2 if (row + col) % 3 == 0 else 0)
             p, b = bulk_frame(x, z + 0.1)
@@ -349,13 +369,6 @@ def build_hab_deck():
     P.drawer_stack("PersonalLockers", *at(-70, D + 0.25, 0.0), 0.3, 0.4, 4)
     P.net_with_gear("QuartersNet", *at(-70, D + 0.66, 0.0), 0.34, 0.26)
     # hygiene on the right, exercise bike on the deck
-    # hygiene compartment against the hull: a vertical back plane inside the sloping wall, its sides and roof running
-    # back to the hull; toilet, wash station and towels are inside it
-    phi = C.rad(105)
-    inward = Vector((-math.sin(phi), math.cos(phi), 0.0))
-    right = Vector((-math.cos(phi), -math.sin(phi), 0.0))
-    hh = 1.45
-    K.hygiene_room("Hygiene", C.polar(phi, 1.02, D + hh / 2), L.basis(right, Vector((0, 0, 1)), inward), 0.9, hh, 0.72, back_ext=0.45, door_h=1.3)
     P.bike("Bike", (-0.62, 0.55), yaw=math.radians(35), floor_z=D)
     # back wall either side of the ladder: tanks, tool board, cargo
     P.tool_board("ToolBoard", *at(140, D + 0.52), 0.32, 0.3)
