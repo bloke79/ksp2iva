@@ -58,6 +58,9 @@ namespace IVA
                                  Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true, HideExterior = true },
             new InteriorDesign { Name = "Wayfarer", Address = "IVA/Interior_cabin_3v_crew", Parts = new[] { "cabin_3v_crew" },
                                  Seats = 8, BaseRadius = 1.96f, Height = 5.0f, Yaw = 180f, OnHull = true, HullBaseY = -2.5f, UprightCrew = true, HideExterior = true },
+            // Mk1 cockpit: shuttle-era flight deck built to the real hull (nose along the part's +Y, canopy up).
+            new InteriorDesign { Name = "Mk1 Cockpit", Address = "IVA/Interior_cockpit_1v_m1_crew", Parts = new[] { "cockpit_1v_m1_crew" },
+                                 Seats = 1, BaseRadius = 0.625f, Height = 2.1f, Yaw = 180f, OnHull = true, HullBaseY = -0.62f },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
