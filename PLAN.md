@@ -261,3 +261,89 @@ sleep with time warp, then abort and staging.
 
 **Art:** the console toggle banks become live parts (each toggle throws), with `IVA_Act_Switch_<group>` markers and
 labels under them; the Starlab racks get an `IVA_Act_Experiment_<n>` marker and a progress screen.
+
+# Plan: Interiors for the remaining crewed parts
+
+_Written 2026-10-11 for Matt's list: the Mk3 shuttle cockpit, the three lander cans, the cupola, the rover truck cab,
+the Mk1/Mk2/Mk3 fuselage crew cabins (2, 4 and 16 seats) and the marine survey lab. Sizes and crew counts are from the
+extracted parts (`C:\Games\KSP2Mods\reference`); none are built yet._
+
+## The one big split: gravity or zero g
+Everything so far is zero-g (pods and stations: foot loops, every surface used). Most of this list lives under gravity,
+so it gets a **gravity layout**: a real floor, seats that face forward, things stowed so they don't fall, ladders and
+steps. Free movement (U) then needs walking for these parts (backlog: "walking under gravity, ladders"); until then
+they work seated, with N between seats and B to the windows, like the pods.
+
+| Part | Crew | Size (w × h × d) | Lives | Layout |
+|---|---|---|---|---|
+| Mk3 cockpit (shuttle) | 4 | 3.35 × 4.48 long × 3.75 | atmosphere and orbit | gravity (a flight deck) |
+| Lander can 1v | 1 | 1.68 dia × 1.4 | landed / descent | gravity |
+| Lander can 2v | 2 | 2.73 dia × 1.4 | landed / descent | gravity |
+| Lander can 3v | 4 | 3.8 dia × 2.24 | landed / descent | gravity |
+| Cupola | 1 | 2.73 dia × 1.24 | orbit (station) | zero g |
+| Rover truck cab | 3 | 2.6 × 4.0 tall × 1.9 | surface | gravity, upright |
+| Mk1 crew cabin | 2 | 1.25 dia × 1.94 long | atmosphere | gravity (cabin) |
+| Mk2 crew cabin | 4 | 2.5 × 1.5 lifting body × 1.88 long | atmosphere | gravity (cabin) |
+| Mk3 crew cabin | 16 | 3.25 × 3.79 × 3.75 long | atmosphere and orbit | gravity (two decks) |
+| Marine survey lab | 1 | 2v (to extract) | in water | gravity, submersible |
+
+## Designs
+
+**Mk3 cockpit — shuttle flight deck.** The Space Shuttle's layout scaled to KSP: commander and pilot side by side at the
+front under the eight forward/overhead windows, two mission specialists behind. Forward glareshield with MFDs and the
+navball, centre console between the front seats, overhead switch panels (the shuttle's famous ceiling of breakers),
+aft flight-deck station facing back through the two aft windows (the docking/robotic-arm controls, like the orbiter's
+aft deck), a ladder hole in the floor down to a small mid-deck (lockers, galley strip, side hatch for EVA, and the
+connecting hatch aft to the Mk3 fuselage). Windows from the extracted glass (8 panes).
+
+**Lander cans — Apollo LM style, three sizes.** Standing/strapped-in crew facing two triangular forward windows that
+look down at the landing site (the 3v already shows that window band), with a descent panel between them: navball,
+altitude and vertical-speed tapes, a radar altimeter dial, an abort/stage pair. Overhead docking window and hatch
+(rendezvous), floor hatch out to the ladder (EVA). Behind the crew: a wall of stowage, sample containers and a
+suit-and-helmet rack. Sized up:
+- 1v: one standing station, harness from the floor, everything within arm's reach (a phone box).
+- 2v: two stations side by side (the LM itself), shared centre console.
+- 3v: four seats in two rows, a small galley and sleep hammocks strung across the back for surface stays.
+
+**Cupola — observation and robotics.** One seat in the middle facing up into the dome of windows (seven panes, like the
+ISS cupola), two hand controllers on swing-out arms for a robotic arm, a laptop on its arm, camera and binocular
+stowage, foot loops round the rim. Window shutters (an F action from the interactive kit plan) that close over each pane.
+
+**Rover truck cab — the expedition cab.** Tall, upright and narrow: a driver's seat forward and high behind the big
+front windows with a steering yoke, throttle, a navigation map screen and a camera monitor; two passenger seats behind
+facing the side windows; a floor hatch out the back to the ladder (EVA), suit lockers, a sample drawer bank and a
+tool rack. Grab handles everywhere (it's bumpy). Gravity, upright.
+
+**Mk1 crew cabin (2).** A small business-jet cabin: two reclining seats facing each other across a fold-down table,
+overhead lockers, side panels with reading lights, a tiny galley shelf. Doors at both ends to the next fuselage parts.
+
+**Mk2 crew cabin (4).** The lifting-body cross-section is wide and low: four seats in two facing pairs either side of a
+narrow aisle, low overhead bins, a crew panel at one end with the cabin display, and a hatch at each end.
+
+**Mk3 crew cabin (16).** An airliner-style cabin on two levels, or one tall level with seats 2-2 and a middle aisle
+(16 seats in four rows of four), overhead bins, galley and lavatory at one end (reusing the hatch-door bathroom), a
+crew station at the other, floor hatches between levels if two decks. In orbit it reads as the shuttle mid-deck's
+big sister.
+
+**Marine survey lab (1).** A submarine science station: one operator seat at a sonar/sampling console facing a big
+viewing port, a sample lock (wet lock) in the floor, specimen tanks with lit water, pipes and valves with handwheels
+(like the new floor hatches). Extract the part first (not in the reference set yet).
+
+## Shared work before building
+- **Gravity kit:** seats (upright, with harness), a floor, steps/ladders, stowage that's latched, grab handles. New
+  `art/gravity.py` alongside `cabin.py`.
+- **Windows:** the landers, cupola, truck and cabins use tinted glass the window extractor doesn't recognise yet (it
+  found 0 windows); extend `window_extract.py` to their glass materials.
+- **Seats and eyes:** the cockpits have stock interiors (their seat poses are in `reference/poses`); the landers,
+  cupola, truck and cabins put their crew in the portrait booth, so they use our seat points with upright crew, as the
+  Starlab and cabins do. Enter IVA once in each part so the pose and stock-interior dump runs.
+- **Hatches:** each part's real hatch positions (EVA side/floor hatches and the attach ends) as `IVA_Hatch_*` markers.
+
+## Order (renders first for each)
+1. Lander 2v (the classic LM; sets up the gravity kit), then 1v and 3v from the same kit.
+2. Rover truck cab (gravity, upright; uses the same kit).
+3. Cupola (zero g; small, reuses the station kit).
+4. Mk3 cockpit (shuttle) — the biggest single interior.
+5. Mk1, Mk2, Mk3 crew cabins (seating rows).
+6. Marine survey lab (after extracting the part).
+Later: the 1.5v pod, the Mk1 and Mk2 cockpits and the inline cockpits.
