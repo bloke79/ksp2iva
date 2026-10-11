@@ -73,9 +73,11 @@ def inner(p, d, gap=0.0):
 
 
 def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, centre=(0.0, 0.0), frame_mat=None,
-          margin=0.01, keep=None):
+          margin=0.01, keep=None, frame_w=0.07, wells=False, well_cut=0.05, bezel=0.09):
     """Shell from z0 to z1 (generator space). Returns (shell object, list of window dicts with centre, normal, outline).
-    keep(p) -> False drops a shell vertex region (for openings you build yourself)."""
+    keep(p) -> False drops a shell vertex region (for openings you build yourself).
+    wells=True: for tightly curved panes, each window gets a flat dark bezel and a short tunnel out to the glass, and
+    the shell is cut back behind the bezel (no stepped edge can show); otherwise frames follow the opening edges."""
     verts, faces, glass = load_exterior(ext_path, base)
     tris, tri_glass = [], []
     for f, g in zip(faces, glass):
@@ -85,6 +87,19 @@ def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, c
     bvh = BVHTree.FromPolygons(verts, tris)
     _LAST.update(bvh=bvh, wall=wall + 0.015)
     cx, cy = centre
+    panes = []
+    if wells:
+        for piece in glass_pieces(verts, faces, glass):
+            pn = _pane(verts, faces, piece, cx, cy)
+            if pn and z0 - 0.05 < pn["c"].z < z1 + 0.05:
+                panes.append(pn)
+
+    def in_well(p):
+        for pn in panes:
+            r = p - pn["c"]
+            if abs(r.dot(pn["n"])) < 0.35 and _inside(pn["poly"], r.dot(pn["u"]), r.dot(pn["v"]), well_cut):
+                return True
+        return False
     nz = max(2, int(round((z1 - z0) / dz)))
     zs = [z0 + (z1 - z0) * i / nz for i in range(nz + 1)]
     grid = []
@@ -119,13 +134,38 @@ def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, c
             if any(v is None for v in q):
                 continue
             mid = sum((v.co for v in q), Vector()) / 4
-            if hits_glass(mid) or any(hits_glass(v.co) for v in q):
+            if panes and in_well(mid):
+                continue   # behind a window well's bezel
+            if not panes and (hits_glass(mid) or any(hits_glass(v.co) for v in q)):
                 continue   # a window (or its edge): left open, the frame covers the stepped edge
             if keep is not None and not keep(mid):
                 continue
             f = bm.faces.new(q)
             for l, (uu, vv) in zip(f.loops, ((j, i), (j + 1, i), (j + 1, i + 1), (j, i + 1))):
                 l[uv].uv = (uu * 2 * math.pi * 0.6 / seg, zs[0] + (zs[-1] - zs[0]) * vv / nz)
+    # the window openings' own edges (before the caps), for the frames: chained into loops
+    ends = set(v for i in (0, nz) for v in bv[i] if v is not None)
+    nxt = {}
+    for e in bm.edges:
+        if e.is_boundary and not (e.verts[0] in ends and e.verts[1] in ends):
+            a_, b_ = e.verts
+            nxt.setdefault(a_, []).append(b_)
+            nxt.setdefault(b_, []).append(a_)
+    loops, seen = [], set()
+    for start in list(nxt):
+        if start in seen or start in ends:
+            continue
+        loop, prev, cur = [start], None, start
+        seen.add(start)
+        while True:
+            cand = [q for q in nxt.get(cur, []) if q is not prev and q not in seen and q not in ends]
+            if not cand:
+                break
+            prev, cur = cur, cand[0]
+            seen.add(cur)
+            loop.append(cur)
+        if len(loop) >= 8:
+            loops.append([v.co.copy() for v in loop])
     # end caps: the first and last rings filled (fan from their centre)
     for i in (0, nz):
         ring = [v for v in bv[i] if v is not None]
@@ -165,56 +205,185 @@ def build(name, ext_path, base, z0, z1, wall=0.04, dz=0.02, seg=120, mat=None, c
         outline = _outline(verts, faces, piece)
         if len(outline) >= 3:
             windows.append({"centre": c, "normal": n, "outline": outline})
-    # frames: a chamfered ring on the inner face round each opening
+    # frames: a chamfered ring along each opening's edge (smoothed), so it covers the shell's stepped edge exactly
     import stock as S
-    for k, w in enumerate(windows):
-        n, c = w["normal"], w["centre"]
-        ring = []
-        for p in w["outline"]:
-            q = p + (p - c).normalized() * (margin + 0.012)
-            hit = bvh.ray_cast(q - n * 0.4, n, 0.6)   # back onto the hull, then in by the wall
-            base_p = (hit[0] if hit[0] is not None else q) - n * (wall + 0.012)
-            ring.append(base_p)
-        S.sweep(f"{name}Frame{k}", ring, [-n] * len(ring), S.chamfer_rect(0.07, 0.035, 0.01), frame_mat or M["frame"], closed=True)
+    for k, pn in enumerate(panes):
+        _well(f"{name}Well{k}", pn, bvh, wall, bezel, frame_mat or M["frame"])
+    for k, loop in enumerate([] if panes else loops):
+        pts = loop
+        for _ in range(6):   # closed moving average
+            m = len(pts)
+            pts = [(pts[(i - 2) % m] + pts[(i - 1) % m] + pts[i] + pts[(i + 1) % m] + pts[(i + 2) % m]) / 5 for i in range(m)]
+        pts = pts[::2] if len(pts) > 80 else pts
+        ring, norms = [], []
+        for p in pts:
+            nh = bvh.find_nearest(p)
+            axis_pt = Vector((cx, cy, p.z))
+            n_in = (nh[1] if nh[1].dot(axis_pt - p) > 0 else -nh[1]) if nh[0] is not None else (axis_pt - p).normalized()
+            ring.append(p + n_in * 0.012)
+            norms.append(n_in)
+        if sum(((ring[i] - ring[i - 1]).length for i in range(len(ring))), 0.0) < 0.3:
+            continue
+        S.sweep(f"{name}Frame{k}", ring, norms, S.chamfer_rect(frame_w, 0.035, 0.01), frame_mat or M["frame"], closed=True)
     return shell, windows
 
 
 def _outline(verts, faces, piece):
-    """Boundary loop of a glass patch (positions, in order)."""
-    edges = defaultdict(int)
-    key = {}
-
-    def k(i):
-        p = tuple(round(c, 4) for c in verts[i])
-        key.setdefault(p, verts[i])
-        return p
+    """Outer boundary of a glass patch, in order: the convex hull of its vertices projected onto the pane's plane.
+    (Walking boundary edges zig-zags on panes modelled with two layers or a rim; the panes are convex.)"""
+    pts = {}
+    for fi in piece:
+        for i in faces[fi]:
+            pts[tuple(round(c, 4) for c in verts[i])] = verts[i]
+    pts = list(pts.values())
+    if len(pts) < 3:
+        return []
+    c = sum(pts, Vector()) / len(pts)
+    nsum = Vector()
     for fi in piece:
         f = faces[fi]
-        for a in range(len(f)):
-            e = tuple(sorted((k(f[a]), k(f[(a + 1) % len(f)]))))
-            edges[e] += 1
-    bound = [e for e, c in edges.items() if c == 1]
-    if not bound:
+        nsum += (verts[f[1]] - verts[f[0]]).cross(verts[f[2]] - verts[f[0]])
+    if nsum.length < 1e-9:
         return []
-    nxt = defaultdict(list)
-    for a, b in bound:
-        nxt[a].append(b)
-        nxt[b].append(a)
-    # the longest loop
-    best = []
-    seen = set()
-    for start in list(nxt):
-        if start in seen:
+    n = nsum.normalized()
+    u = (Vector((0, 0, 1)) - Vector((0, 0, 1)).project(n))
+    if u.length < 1e-3:
+        u = Vector((1, 0, 0)) - Vector((1, 0, 0)).project(n)
+    u = u.normalized()
+    v = n.cross(u)
+    flat = sorted(((((p - c).dot(u)), ((p - c).dot(v)), p) for p in pts), key=lambda t: (t[0], t[1]))
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in flat:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0:
+            lower.pop()
+        lower.append(q)
+    for q in reversed(flat):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0:
+            upper.pop()
+        upper.append(q)
+    hull = lower[:-1] + upper[:-1]
+    # resample long edges so the frame sweep and the edge snapping have points every few centimetres
+    out = []
+    for a_, b_ in zip(hull, hull[1:] + hull[:1]):
+        pa, pb = a_[2], b_[2]
+        k = max(1, int((pb - pa).length / 0.03))
+        for t in range(k):
+            out.append(pa.lerp(pb, t / k))
+    return out
+
+
+def _pane(verts, faces, piece, cx, cy):
+    """A glass pane: centre, outward normal, in-plane axes and its outline as a convex polygon in (u, v)."""
+    pts = {}
+    for fi in piece:
+        for i in faces[fi]:
+            pts[tuple(round(c, 4) for c in verts[i])] = verts[i]
+    pts = list(pts.values())
+    if len(pts) < 3:
+        return None
+    nsum = Vector()
+    for fi in piece:
+        f = faces[fi]
+        nsum += (verts[f[1]] - verts[f[0]]).cross(verts[f[2]] - verts[f[0]])
+    if nsum.length < 1e-9:
+        return None
+    c = sum(pts, Vector()) / len(pts)
+    n = nsum.normalized()
+    if n.dot(Vector((c.x - cx, c.y - cy, 0))) < 0:
+        n = -n
+    c = c + n * max((p - c).dot(n) for p in pts)         # on the outer face of the glass
+    u = Vector((0, 0, 1)) - Vector((0, 0, 1)).project(n)
+    if u.length < 1e-3:
+        u = Vector((1, 0, 0)) - Vector((1, 0, 0)).project(n)
+    u = u.normalized()
+    v = n.cross(u)
+    flat = sorted(((p - c).dot(u), (p - c).dot(v)) for p in pts)
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in flat:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0:
+            lower.pop()
+        lower.append(q)
+    for q in reversed(flat):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0:
+            upper.pop()
+        upper.append(q)
+    hull = lower[:-1] + upper[:-1]
+    mu = sum(a for a, b in hull) / len(hull)
+    mv = sum(b for a, b in hull) / len(hull)
+    c = c + u * mu + v * mv
+    hull = [(a - mu, b - mv) for a, b in hull]
+    poly = []
+    for (a1, b1), (a2, b2) in zip(hull, hull[1:] + hull[:1]):
+        k = max(1, int(math.hypot(a2 - a1, b2 - b1) / 0.03))
+        for t in range(k):
+            poly.append((a1 + (a2 - a1) * t / k, b1 + (b2 - b1) * t / k))
+    return {"c": c, "n": n, "u": u, "v": v, "poly": poly}
+
+
+def _grow(poly, e):
+    out = []
+    for a, b in poly:
+        r = math.hypot(a, b)
+        f = (r + e) / r if r > 1e-6 else 1.0
+        out.append((a * f, b * f))
+    return out
+
+
+def _inside(poly, a, b, e=0.0):
+    """Point in a convex polygon centred on the origin, grown by e."""
+    pg = _grow(poly, e) if e else poly
+    sgn = 0
+    for (a1, b1), (a2, b2) in zip(pg, pg[1:] + pg[:1]):
+        cr = (a2 - a1) * (b - b1) - (b2 - b1) * (a - a1)
+        if abs(cr) < 1e-12:
             continue
-        loop, prev, cur = [start], None, start
-        seen.add(start)
-        while True:
-            cand = [q for q in nxt[cur] if q != prev and q not in seen]
-            if not cand:
-                break
-            prev, cur = cur, cand[0]
-            seen.add(cur)
-            loop.append(cur)
-        if len(loop) > len(best):
-            best = loop
-    return [key[p] for p in best]
+        if sgn == 0:
+            sgn = 1 if cr > 0 else -1
+        elif (cr > 0) != (sgn > 0):
+            return False
+    return True
+
+
+def _well(name, pn, bvh, wall, bezel, mat):
+    """Window well: a tunnel from the glass in to a flat bezel, the bezel ring, and a skirt from the bezel's outer
+    edge back to the shell wherever the hull curves away behind it."""
+    c, n, u, v, poly = pn["c"], pn["n"], pn["u"], pn["v"], pn["poly"]
+    outer = _grow(poly, bezel)
+
+    def P(a, b, d):
+        return c + u * a + v * b + n * d
+    shell_d = []
+    for a, b in outer:
+        h = bvh.ray_cast(P(a, b, 0.6), -n, 2.0)
+        shell_d.append(((h[0] - c).dot(n) if h[0] is not None else -wall) - wall - 0.015)
+    d1 = min(min(shell_d), -wall - 0.02) - 0.008
+    d0 = -wall * 0.4
+    bm = bmesh.new()
+    r0 = [bm.verts.new(P(a, b, d0)) for a, b in poly]
+    r1 = [bm.verts.new(P(a, b, d1)) for a, b in poly]
+    r2 = [bm.verts.new(P(a, b, d1)) for a, b in outer]
+    r3 = [bm.verts.new(P(a, b, d)) for (a, b), d in zip(outer, shell_d)]
+    m = len(poly)
+    for ra, rb in ((r0, r1), (r1, r2), (r2, r3)):
+        for i in range(m):
+            j = (i + 1) % m
+            try:
+                bm.faces.new((ra[i], ra[j], rb[j], rb[i]))
+            except ValueError:
+                pass
+    bm.normal_update()
+    for f in bm.faces:
+        cc = f.calc_center_median()
+        axis_d = (cc - c) - n * (cc - c).dot(n)
+        want = -axis_d if abs(f.normal.dot(n)) < 0.5 else -n
+        if f.normal.dot(want) < 0:
+            f.normal_flip()
+    o = L.mesh_obj(name, bm, [mat])
+    L.solidify(o, 0.008, offset=1.0)
+    return o

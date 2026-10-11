@@ -36,7 +36,7 @@ GLASS = re.compile(r"glass|window|hud", re.I)
 CONTROL = re.compile(r"(Plate|^MasterAlarm.*|^ThrottleHandle.*|^Rhc(Grip|Button)|^IVA_Live_Screen.*|^IVA_Live_.*navball.*|Handle.*)$")
 
 
-MOUNT = re.compile(r"_(Flange|Socket|Tie)\d*$")   # fittings that seat into whatever they're fixed to
+MOUNT = re.compile(r"(_(Flange|Socket|Tie)\d*|Foot-?\d*)$")   # fittings that seat into whatever they're fixed to
 
 
 def is_struct(n):

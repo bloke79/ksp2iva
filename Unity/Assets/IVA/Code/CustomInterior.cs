@@ -32,6 +32,7 @@ namespace IVA
         public float HullBaseY;    // part-local Y of the hull's base (from the extracted reference mesh)
         public bool UprightCrew;   // crew moved in from the portrait booth sit upright at the seat points (cabins, labs)
         public string[] HideRenderers;
+        public string[] KeepRenderers;   // with HideExterior: part meshes that stay visible (seen through our windows)
         public bool HideExterior;  // hide the part's own outer meshes while inside (cabins: their recessed end hatches poke into the room)   // stock meshes of the part to hide while inside (they'd show through ours)
     }
 
@@ -52,7 +53,8 @@ namespace IVA
             // OSL-25 Starlab: an ISS-style rack room; the greenhouse in the ceiling replaces the stock crops while inside.
             new InteriorDesign { Name = "Starlab", Address = "IVA/Interior_lab_2v_science_orbital", Parts = new[] { "lab_2v_science_orbital" },
                                  Seats = 3, BaseRadius = 1.48f, Height = 4.72f, Yaw = 180f, OnHull = true, HullBaseY = -2.352f,
-                                 UprightCrew = true, HideRenderers = new[] { "plants" }, HideExterior = true },
+                                 UprightCrew = true, HideRenderers = new[] { "plants" }, HideExterior = true,
+                                 KeepRenderers = new[] { "greenhouse" } },
             // PPD-10 Hitchhiker and PPD-20 Wayfarer crew cabins: rack rooms with a wardroom table (and a window lounge).
             new InteriorDesign { Name = "Hitchhiker", Address = "IVA/Interior_cabin_2v_crew_hitchhiker", Parts = new[] { "cabin_2v_crew_hitchhiker" },
                                  Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true, HideExterior = true },
@@ -433,6 +435,8 @@ namespace IVA
                 if (r == null || !r.enabled || r.GetComponentInParent<PartBehavior>() != Pod) continue;
                 if (_instance != null && r.transform.IsChildOf(_instance.transform)) continue;
                 if (r.GetComponentInParent<KSP.Game.Kerbal3DModel>() != null) continue;   // the crew stay visible
+                if (Design != null && Design.KeepRenderers != null &&
+                    Design.KeepRenderers.Any(n => r.name.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0)) continue;
                 r.enabled = false;
                 _hiddenExterior.Add(r);
             }
