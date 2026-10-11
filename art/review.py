@@ -45,6 +45,7 @@ def is_struct(n):
 
 def root(n):
     n = re.sub(r"^IVA_Live_(Door|Slide|Curtain|Glow|Screen|Wheel)?", "", n)
+    n = re.sub(r"^Bundle_", "", n)   # a cable bundle belongs with its clamp boxes (RunLow0 / RunLow0Box1)
     return re.sub(r"__p\d+$", "", n)
 
 
@@ -53,9 +54,24 @@ def key(n):
     return m.group(1) if m else root(n)
 
 
+def word_prefix(a, b):
+    """Shared leading words (CamelCase or _ separated): DockWheelSpoke_3 / DockWheelHub -> DockWheel."""
+    n = 0
+    while n < min(len(a), len(b)) and a[n] == b[n]:
+        n += 1
+    if n == min(len(a), len(b)):
+        return a[:n]
+    while n > 0 and not (a[n].isupper() or a[n] in "_-") and not (b[n].isupper() or b[n] in "_-"):
+        n -= 1
+    while n > 0 and not ((a[n].isupper() or a[n] in "_-") and (b[n].isupper() or b[n] in "_-")):
+        n -= 1
+    return a[:n]
+
+
 def related(a, b):
     ra, rb = root(a), root(b)
-    return ra.startswith(rb) or rb.startswith(ra) or key(a) == key(b)
+    return (ra.startswith(rb) or rb.startswith(ra) or key(a) == key(b)
+            or len(word_prefix(ra, rb).rstrip("_-")) >= 5)   # one assembly: DockWheelSpoke / DockWheelHub
 
 
 # ------------------------------------------------------------------ gather evaluated meshes

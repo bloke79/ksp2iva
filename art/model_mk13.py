@@ -69,7 +69,7 @@ WING_TILT = C.rad(15)
 def wing(side):
     """Outer section over seat +/-1: inner edge high, outer edge lower, following the cone."""
     right = Vector((math.cos(WING_TILT), 0, -side * math.sin(WING_TILT)))
-    return C.Surface(f"MDC_Wing{'R' if side > 0 else 'L'}", (side * 0.6, MDC_Y, MDC_Z - 0.075), right, (0, -1, 0), 0.46, MDC_H, bend=0.0, corner=0.04)
+    return C.Surface(f"MDC_Wing{'R' if side > 0 else 'L'}", (side * 0.53, MDC_Y, MDC_Z - 0.055), right, (0, -1, 0), 0.33, MDC_H, bend=0.0, corner=0.04)
 
 
 def build_mdc():
@@ -120,7 +120,8 @@ def build_mdc():
     for s_, nm in ((centre, "MDC_C"), (wings[1], "MDC_R"), (wings[-1], "MDC_L")):
         G.housing(s_, nm)
     # name plate on the hood
-    L.plane("NamePlate", 0.24, 0.05, M["plate"], Vector((0, MDC_Y + MDC_H / 2 + 0.006, MDC_Z + 0.02)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
+    # (on the hood's underside, where the crew can read it past the console)
+    L.plane("NamePlate", 0.24, 0.034, M["plate"], Vector((0, hy, MDC_Z + 0.02 - 0.036)), L.basis(Vector((1, 0, 0)), Vector((0, -1, 0)), Vector((0, 0, -1))))
 
 
 # ------------------------------------------------------------------ side consoles beside the outer couches
@@ -189,7 +190,7 @@ def build_front_wall():
         rot = L.basis(b.col[1], b.col[2], b.col[0])
         L.cylinder(f"FrontTank_{k}", 0.075, 0.28, M["tank"] if k < 2 else M["bottle"], p, rot, segs=28, bevel=0.012)
         for s in (-0.09, 0.09):
-            L.torus(f"FrontTankStrap_{k}_{s}", 0.078, 0.005, M["handle"], p + b.col[0] * s, rot @ Matrix.Rotation(math.pi / 2, 3, "Y"), seg=28, mseg=6)
+            L.torus(f"FrontTankStrap_{k}_{s}", 0.078, 0.005, M["handle"], p + b.col[0] * s, rot, seg=28, mseg=6)   # ring round the tank axis
         L.cylinder(f"FrontTankValve_{k}", 0.014, 0.04, M["rib"], p + b.col[0] * 0.16, rot, segs=12)
     # stowage net between the lower windows, at the commander's head end
     pts = []
@@ -233,7 +234,7 @@ def build_fill():
 
     # equipment behind the feet: environmental control unit and two battery/junction boxes
     ep, eb = C.frame_at(math.pi, 0.36, 0.0)
-    ecs = ep + eb.col[2] * 0.12
+    ecs = ep + eb.col[2] * 0.135
     G.box_unit("ECSUnit", ecs, (0.52, 0.22, 0.24), L.basis(eb.col[0], -eb.col[2], eb.col[1]), lamps_n=3)
     ecs_front = ecs.y - 0.11
     for side in (-1, 1):
@@ -245,7 +246,7 @@ def build_fill():
     for i, seat in enumerate(SEATS):
         x = seat["x"]
         start = Vector((max(-0.22, min(0.22, x * 0.35)), ecs_front, 0.42))
-        pts = [start, Vector((start.x, ecs_front - 0.12, 0.62)), Vector((x - 0.25, 0.3, 0.5)), Vector((x - 0.25, 0.1, 0.5)), Vector((x - 0.2, -0.1, 0.58)), Vector((x - 0.13, -0.16, 0.6))]
+        pts = [start, Vector((start.x, ecs_front - 0.12, 0.62)), Vector((x - 0.25, 0.3, 0.6)), Vector((x - 0.25, 0.1, 0.6)), Vector((x - 0.2, -0.1, 0.58)), Vector((x - 0.13, -0.16, 0.6))]
         G.hose(f"Umbilical{i}", pts, r=0.018, mat=M["umbilical"])
         L.cylinder(f"UmbilicalPlug{i}", 0.026, 0.04, M["buckle"], pts[-1], (pts[-1] - pts[-2]).normalized().to_track_quat("Z", "Y").to_matrix(), segs=16)
 
@@ -293,7 +294,7 @@ def build_stowage():
         ("lamps", 112, 1.4, 0.1, 0.045, {"n": 3}), ("annunciators", -112, 1.4, 0.12, 0.06, {"cols": 4, "rows": 2, "start": 8}),
     ])
     for side in (-1, 1):
-        G.hose(f"AirDuct{side}", [C.frame_at(C.rad(side * 95), 1.5, 0.03)[0], Vector((side * 0.62, MDC_Y + 0.05, MDC_Z + 0.16)), Vector((side * 0.6, MDC_Y, MDC_Z + 0.06))],
+        G.hose(f"AirDuct{side}", [C.frame_at(C.rad(side * 95), 1.5, 0.03)[0], Vector((side * 0.62, MDC_Y + 0.05, MDC_Z + 0.22)), Vector((side * 0.6, MDC_Y, MDC_Z + 0.135))],
                r=0.028, mat=M["umbilical"])
 
 

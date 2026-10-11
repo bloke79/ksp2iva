@@ -331,7 +331,7 @@ def box_unit(name, centre, size, rot=None, vents=True, lamps_n=2):
     up = rot @ V((0, 0, 1))
     right = rot @ V((1, 0, 0))
     b = L.basis(-right, up, front)
-    p = c + front * (size[1] / 2)
+    p = c + front * (size[1] / 2 + 0.004)   # on the door's face, not flush with it
     if vents:
         vent(name + "Vent", p + up * size[2] * 0.15, b, size[0] * 0.6, size[2] * 0.35, slots=5)
     if lamps_n:
