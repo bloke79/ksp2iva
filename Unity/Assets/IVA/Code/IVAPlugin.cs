@@ -38,6 +38,11 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _unbuckleKey;
         private ConfigValue<KeyboardShortcut> _doorKey;
         private ConfigValue<float> _floatSpeed;
+        private ConfigValue<bool> _soundOn;
+        private ConfigValue<bool> _thrusterSound;
+        private ConfigValue<float> _soundVolume;
+        private ConfigValue<string> _ambience;
+        private ConfigValue<bool> _audition;
         private ConfigValue<float> _windowFov;
         private ConfigValue<float> _glideTime;
         private ConfigValue<float> _mouseSensitivity;
@@ -113,6 +118,8 @@ namespace IVA
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
         private bool _flightInputLocked;
         private GUIStyle _promptStyle;
+        private Sounds _sounds;
+        private int _auditionIndex = -1;
 
         public override void OnInitialized()
         {
@@ -138,6 +145,14 @@ namespace IVA
             _doorKey = Bind(cfg, "Keys", "Open door", new KeyboardShortcut(KeyCode.F),
                 "While floating round the cabin: open or close the door you're next to (the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
+
+            _soundOn = Bind(cfg, "Sound", "Interior sounds", true, "Sounds inside the cabin (thrusters, doors, buckles), using the game's own sound events.");
+            _thrusterSound = Bind(cfg, "Sound", "Thruster sound", true, "While floating, moving plays the EVA jetpack's thruster sound.");
+            _soundVolume = Bind(cfg, "Sound", "Volume", 0.6f, "Volume of the cabin sounds (0 to 1).", new RangeConstraint<float>(0f, 1f));
+            _ambience = Bind(cfg, "Sound", "Cabin ambience", "",
+                "A looping sound event to play quietly while in a cabin (its stop event is the same name plus _stop). Blank = none.");
+            _audition = Bind(cfg, "Sound", "Audition keys", false,
+                "Testing aid: in IVA, [ and ] step through the game sounds that might suit the cabin's switches, lockers and doors, showing each name.");
 
             _mouseSensitivity = Bind(cfg, "Look", "Mouse sensitivity", 2.0f,
                 "Degrees of rotation per unit of mouse movement.", new RangeConstraint<float>(0.1f, 10f));
@@ -250,6 +265,16 @@ namespace IVA
                 if (_free != null) Buckle();
                 NextWindow();
             }
+            if (_audition.Value && _sounds != null)
+            {
+                int step = Input.GetKeyDown(KeyCode.RightBracket) ? 1 : Input.GetKeyDown(KeyCode.LeftBracket) ? -1 : 0;
+                if (step != 0)
+                {
+                    int n = Sounds.Audition.Length;
+                    _auditionIndex = ((_auditionIndex < 0 && step < 0 ? 0 : _auditionIndex + step) % n + n) % n;
+                    _sounds.PlayAudition(Sounds.Audition[_auditionIndex]);
+                }
+            }
             if (_free != null && _doorKey.Value.Down) ToggleDoor();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
@@ -272,6 +297,7 @@ namespace IVA
                     foreach (var kv in _doorBoxes) _free.SetDoorSolid(kv.Value, kv.Key.Open < 0.3f);
             }
             ApplyPose();
+            if (_sounds != null && _flightCam != null) _sounds.Place(_flightCam.transform);
         }
 
         // Applied again just before the flight camera renders, in case anything moved it after LateUpdate.
@@ -683,6 +709,17 @@ namespace IVA
             TryStartShotOverride();
             ApplyPose();
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
+            if (_soundOn.Value)
+            {
+                _sounds = Sounds.Create(SWLogger);
+                if (_sounds.Valid)
+                {
+                    _sounds.SetVolume(_soundVolume.Value);
+                    if (_flightCam != null) _sounds.Place(_flightCam.transform);
+                    _sounds.StartAmbience(_ambience.Value);
+                }
+                else _sounds = null;
+            }
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
         }
@@ -908,6 +945,8 @@ namespace IVA
             _doors?.CloseAll();
             _doors = null;
             _doorBoxes.Clear();
+            _sounds?.End();
+            _sounds = null;
             LockFlightInput(false);
             _loading = false;
             _loadingFor = null;
@@ -977,6 +1016,7 @@ namespace IVA
                     _doorBoxes[d] = f.AddDoor(d.CentrePod, d.EdgePod * 0.5f, d.AxisPod, d.OutPod * 0.02f);
             _session.HideWholeKerbal(_seatIndex);   // you've left the couch
             LockFlightInput(true);                  // WASD, Shift and Ctrl move you, not the vessel
+            _sounds?.Play(Sounds.Unbuckle);
             SWLogger.LogInfo($"IVA: unbuckled from seat {_seatIndex + 1}.");
         }
 
@@ -993,6 +1033,8 @@ namespace IVA
             }
             BeginGlide();   // from where you are now
             _free = null;
+            _sounds?.SetThrust(false);
+            _sounds?.Play(Sounds.Buckle);
             _seatIndex = best;
             _viewIndex = -1;
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
@@ -1006,9 +1048,11 @@ namespace IVA
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
             var move = new Vector3(K(KeyCode.D) - K(KeyCode.A), K(KeyCode.LeftShift) - K(KeyCode.LeftControl), K(KeyCode.W) - K(KeyCode.S));
             if (move.sqrMagnitude > 1f) move.Normalize();
-            _free.Turn(0f, 0f, (K(KeyCode.Q) - K(KeyCode.E)) * 70f * dt);
+            float roll = K(KeyCode.Q) - K(KeyCode.E);
+            _free.Turn(0f, 0f, roll * 70f * dt);
             float top = _floatSpeed.Value;
             _free.Step(move, dt, top * 2.5f, top, 2.5f);
+            _sounds?.SetThrust(_thrusterSound.Value && dt > 0f && (move.sqrMagnitude > 0f || roll != 0f));
         }
 
         private void LockFlightInput(bool on)
@@ -1027,13 +1071,17 @@ namespace IVA
             Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
             if (d == null) return;
             d.Target = d.Target > 0.5f ? 0f : 1f;
+            _sounds?.Play(d.Target > 0.5f ? Sounds.DoorOpen : Sounds.DoorClose);
             SWLogger.LogInfo($"IVA: {(d.Target > 0.5f ? "opening" : "closing")} door {d.Name}.");
         }
 
         private void OnGUI()
         {
-            if (_free == null) return;
             if (_promptStyle == null) _promptStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18 };
+            if (_audition.Value && _sounds != null && _auditionIndex >= 0)
+                GUI.Label(new Rect(0f, Screen.height * 0.08f, Screen.width, 30f),
+                          $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}", _promptStyle);
+            if (_free == null) return;
             string text = null;
             Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
             if (d != null) text = $"{_doorKey.Value}: {(d.Target > 0.5f ? "close" : "open")} the door";

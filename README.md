@@ -63,6 +63,7 @@ Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** 
 | U | Unbuckle and float round the cabin; U again (or N / B) to sit in the nearest couch |
 | W A S D, Shift / Ctrl, Q / E | While floating: move, up / down, roll (the vessel's flight controls are locked meanwhile) |
 | F | While floating: open or close the door you're next to (hygiene compartments) |
+| [ / ] | Only with *Audition keys* on: play the previous / next candidate game sound, with its name on screen |
 | Mouse | Look around |
 | Scroll wheel | Zoom (up zooms in) |
 
@@ -94,6 +95,11 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Look | sensitivity, invert, hold right mouse, max angle | 2 / off / off / 85 | |
 | Look | Window glide time | 0.5 | Seconds to move between seat and window (0 = instant) |
 | Look | Float speed | 1.2 | Top speed when floating round the cabin (m/s) |
+| Sound | Interior sounds | on | Cabin sounds (thrusters, doors, buckles) from the game's own sound events |
+| Sound | Thruster sound | on | Moving while floating plays the EVA jetpack's thruster sound |
+| Sound | Volume | 0.6 | Volume of the cabin sounds (0 to 1) |
+| Sound | Cabin ambience | blank | A looping game sound event to play while in a cabin (stopped with the same name plus `_stop`) |
+| Sound | Audition keys | off | Testing aid: [ and ] step through candidate game sounds |
 | Zoom | starting, min, max field of view, speed, invert | 75 / 30 / 110 / 5 / off | |
 | Zoom | Window view field of view | 60 | Field of view at a window |
 | Interior | Use custom interiors | on | Off = original portrait-camera view |
