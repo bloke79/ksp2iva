@@ -52,7 +52,7 @@ EYES = [Vector(s["eye"]) for s in SPEC["pose"]["seats"]]
 FLOOR_Y = -0.45                    # flight-deck floor (top of the deck plates)
 DECK_T = 0.06                      # flight-deck floor thickness: its underside is the mid-deck ceiling
 MID_Y = 1.30                       # mid-deck floor
-Z_BACK, Z_FRONT = 0.10, 2.45       # aft bulkhead, forward bulkhead (the shell's end caps)
+Z_BACK, Z_FRONT = 0.10, 2.40       # aft bulkhead, forward bulkhead (the shell's end caps)
 HATCH = Vector((-1.0, FLOOR_Y, 0.42))   # interdeck hatch, port aft
 HATCH_R = 0.27
 
@@ -82,19 +82,22 @@ def slab(name, y_top, thick, z0, z1, mat, holes=(), cell=0.05, margin=0.004):
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
     nz = max(1, int(round((z1 - z0) / cell)))
+    zs = [z0 + (z1 - z0) * i / nz for i in range(nz + 1)]
+    # half-width at each station (the narrower of the slab's top and bottom faces): the edges run straight between
+    # stations, so the plate's sides follow the hull instead of stepping
+    hws = [half_width(y_top, z, margin) for z in zs]   # the top face meets the hull; the underside tucks into it
+    nx = max(2, int(round(2 * max(hws) / cell)))
     for i in range(nz):
-        za, zb = z0 + (z1 - z0) * i / nz, z0 + (z1 - z0) * (i + 1) / nz
-        hw = min(half_width(y, z, margin) for y in (y_top, y_top + thick) for z in (za, zb))
-        if hw <= 0.05:
+        za, zb, ha, hb = zs[i], zs[i + 1], hws[i], hws[i + 1]
+        if min(ha, hb) <= 0.05:
             continue
-        nx = max(1, int(round(2 * hw / cell)))
-        xs = [-hw + 2 * hw * k / nx for k in range(nx + 1)]
         for k in range(nx):
-            xm, zm = (xs[k] + xs[k + 1]) / 2, (za + zb) / 2
+            ta, tb = -1 + 2 * k / nx, -1 + 2 * (k + 1) / nx
+            xm, zm = (ta + tb) / 2 * (ha + hb) / 2, (za + zb) / 2
             if any(math.hypot(xm - hx, zm - hz) < hr for hx, hz, hr in holes):
                 continue
-            vs = [bm.verts.new((xs[k], y_top, za)), bm.verts.new((xs[k + 1], y_top, za)),
-                  bm.verts.new((xs[k + 1], y_top, zb)), bm.verts.new((xs[k], y_top, zb))]
+            vs = [bm.verts.new((ta * ha, y_top, za)), bm.verts.new((tb * ha, y_top, za)),
+                  bm.verts.new((tb * hb, y_top, zb)), bm.verts.new((ta * hb, y_top, zb))]
             f = bm.faces.new(vs)
             for l in f.loops:
                 l[uv].uv = (l.vert.co.x * 0.8, l.vert.co.z * 0.8)
@@ -305,8 +308,8 @@ def build_aft_flight_deck():
                                ("toggles", 2, 1, 2, 1, {"cols": 5}), ("mfd", 4, 0, 2, 2, {"screen": "mfd_map"})], border=0.01)
     s.check()
     # stowage cabinet in the starboard aft corner, opposite the hatch
-    hw = min(half_width(y, z, 0.02) for y in (FLOOR_Y, FLOOR_Y - 0.6) for z in (Z_BACK + 0.05, 0.75))
-    P.cabinet("FlightLocker", Vector((hw - 0.18, FLOOR_Y, 0.44)), STBD,
+    hw = min(half_width(y, z, 0.02) for y in (FLOOR_Y, FLOOR_Y - 0.6) for z in (Z_BACK + 0.15, 0.75))
+    P.cabinet("FlightLocker", Vector((hw - 0.18, FLOOR_Y - 0.3, 0.44)), STBD,
               0.56, 0.6, 0.34, doors=2)
     # interdeck hatch in the floor
     round_hatch("DeckHatch", HATCH + Vector((0, -0.002, 0)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))), r=HATCH_R + 0.03, door=False)
@@ -331,6 +334,9 @@ def build_flight_walls():
 
 # ------------------------------------------------------------------ mid-deck
 def build_mid_deck():
+    # the orbiter's mid-deck is off-white: lockers, booth, galley and bunk panels in a light finish
+    M["locker"] = L.material("IVA_MidLocker", (0.78, 0.77, 0.72), rough=0.6, metal=0.05)
+    M["module"] = L.material("IVA_MidPanel", (0.62, 0.63, 0.64), rough=0.55, metal=0.2)
     # ladder from the interdeck hatch down to the floor, against the aft side of the opening
     lz = HATCH.z - HATCH_R + 0.03
     for sx in (-1, 1):
@@ -377,9 +383,22 @@ def build_mid_deck():
             L.box(f"FwdLocker{k}", (cw - 0.02, rh - 0.02, 0.04), M["locker"], p - Vector((0, 0, 0.02)), FWD_WALL, bevel=0.006)
             for lx in (-1, 1):
                 L.box(f"FwdLockerLatch{k}{lx}", (0.03, 0.016, 0.012), M["handle"], p + Vector((lx * (cw / 2 - 0.05), -(rh / 2 - 0.03), -0.045)), FWD_WALL, bevel=0.003)
-            L.plane(f"FwdLockerLabel{k}", 0.07, 0.018, M["labels"], p + Vector((0, 0.0, -0.0412)), L.basis(Vector((-1, 0, 0)), Vector((0, -1, 0)), Vector((0, 0, -1))),
-                    (0.02, 0.81, 0.23, 0.94))
+            L.box(f"FwdLockerTag{k}", (0.08, 0.022, 0.003), M["btn_soft"], p + Vector((0, 0.0, -0.0415)), FWD_WALL)
             k += 1
+
+    # kick panels along the open wall runs: the hull curves out above the floor edge into a stepped ledge; a low
+    # vertical panel with a capping shelf hides it (and reads as floor-level stowage)
+    kick_h = 0.34
+    for side, (za, zb) in ((-1, (1.28, 2.36)), (1, (0.14, 0.92))):
+        n = 8
+        for k in range(n):
+            z0_, z1_ = za + (zb - za) * k / n, za + (zb - za) * (k + 1) / n
+            zc = (z0_ + z1_) / 2
+            x_floor = min(half_width(MID_Y - 0.01, z, 0.03) for z in (z0_, z1_))
+            x_top = half_width(MID_Y - kick_h - 0.02, zc, 0.02)
+            S.cbox(f"Kick{side}_{k}", (0.03, kick_h, z1_ - z0_ - 0.004), M["locker"], Vector((side * (x_floor - 0.015), MID_Y - kick_h / 2, zc)), ch=0.004)
+            cap_w = max(0.03, x_top - x_floor + 0.03)
+            S.cbox(f"KickCap{side}_{k}", (cap_w, 0.02, z1_ - z0_ - 0.004), M["frame"], Vector((side * (x_floor - 0.03 + cap_w / 2), MID_Y - kick_h - 0.01, zc)), ch=0.004)
 
     # fuselage hatch on the aft bulkhead, mid-deck height
     round_hatch("AftHatch", Vector((0.0, 0.48, Z_BACK + 0.04)), AFT_WALL, r=0.34)
