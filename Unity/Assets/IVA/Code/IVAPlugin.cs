@@ -125,6 +125,9 @@ namespace IVA
         private bool _hasAirlock;
         private class Arrival { public PodInfo To; public Vector3 FromWorld; public KSP.Game.KerbalInfo Kerbal; public float At; }
         private Arrival _arrival;
+        // EVA waits until IVA has fully let go of the camera (the game crashed when EVA started in the same frame).
+        private class PendingEva { public PartBehavior Part; public VesselBehavior Vessel; public KSP.Game.KerbalInfo Kerbal; public float At; }
+        private PendingEva _pendingEva;
         private Sounds _sounds;
         private int _auditionIndex = -1;
 
@@ -243,6 +246,7 @@ namespace IVA
             }
             CheckCameraAfterExit();
             if (!inFlight) { _loading = false; return; }
+            if (_pendingEva != null && !InIva && Time.unscaledTime >= _pendingEva.At) StartPendingEva();
             if (_arrival != null && !InIva && !_loading)
             {
                 if (Time.unscaledTime > _arrival.At + 10f) { SWLogger.LogWarning("IVA: gave up entering the next part."); _arrival = null; }
@@ -728,7 +732,7 @@ namespace IVA
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
             if (_soundOn.Value)
             {
-                _sounds = Sounds.Create(SWLogger);
+                _sounds = Sounds.Create(_session.Pod, SWLogger);
                 if (_sounds.Valid)
                 {
                     _sounds.SetVolume(_soundVolume.Value);
@@ -1163,9 +1167,28 @@ namespace IVA
             }
             if (!eva) return;
             if (me == null) { SWLogger.LogInfo("IVA: no kerbal of yours here to send outside."); return; }
-            PartBehavior part = _session.Pod;
+            var pending = new PendingEva { Part = _session.Pod, Vessel = PodLocator.ActiveVessel(Game), Kerbal = me, At = Time.unscaledTime + 1.0f };
             ExitIva();
-            Hatches.StartEva(part, me, SWLogger);
+            _pendingEva = pending;
+            SWLogger.LogInfo("IVA: leaving IVA; EVA in a moment.");
+        }
+
+        // The same call as the crew portrait's EVA button, once the normal flight camera is back.
+        private void StartPendingEva()
+        {
+            PendingEva e = _pendingEva;
+            _pendingEva = null;
+            if (e.Part == null || e.Part.Model == null || PodLocator.ActiveVessel(Game) != e.Vessel)
+            { SWLogger.LogInfo("IVA: EVA cancelled (the pod or vessel changed)."); return; }
+            try
+            {
+                var vc = Game.ViewController;
+                if (vc != null && (vc.TimeWarp.IsWarping || vc.IsPaused)) { SWLogger.LogInfo("IVA: EVA cancelled (time warp or paused)."); return; }
+            }
+            catch (Exception) { }
+            if (KSP.EVAUtils.GetFirstLadderOrAirlockPhysicsSpacePosRot(e.Part, true, out Vector3 at, out Quaternion _))
+                SWLogger.LogInfo($"IVA: EVA spawn point {e.Part.transform.InverseTransformPoint(at):F2} (pod space).");
+            Hatches.StartEva(e.Part, e.Kerbal, SWLogger);
         }
 
         // Just through the hatch from the part you came from: floating inside it, facing into the cabin.

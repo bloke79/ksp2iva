@@ -1,8 +1,10 @@
 // Sounds inside the interior, played through the game's own Wwise events (so there's nothing of ours to ship or licence).
 //
-// One emitter object follows the camera. The game's audio listener follows the flight camera shot, which in IVA is ours,
-// so the emitter sits on the listener and nothing is lost to distance. Event names were read from the game's banks for
-// 26w41a (see notes/sounds.md); a name the banks don't have just plays nothing (PostEvent returns 0, logged once).
+// The sounds play from the pod's own part-audio object (KSPPartAudioBase), which the game has registered with Wwise
+// and keeps its part parameters on (k_part_attachment_status = 1 and so on). A fresh emitter of our own played
+// nothing in the first test (2026-10-11), most likely because part sounds are muted while that parameter is 0. If a
+// part has no part-audio object we fall back to our own emitter at the camera with those parameters set. Event names
+// were read from the game's banks for 26w41a; each event's first play is logged with its result.
 
 using System;
 using System.Collections.Generic;
@@ -56,6 +58,9 @@ namespace IVA
 
         private GameObject _go;
         private ulong _id;
+        private bool _borrowed;   // the pod's own audio object: don't move it, and only stop what we started
+        private readonly List<uint> _playing = new List<uint>();
+        private readonly HashSet<string> _logged = new HashSet<string>();
         private readonly ILogger _log;
         private readonly HashSet<string> _failed = new HashSet<string>();
         private bool _thrusting;
@@ -64,18 +69,30 @@ namespace IVA
 
         public bool Valid => _go != null;
 
-        public static Sounds Create(ILogger log)
+        public static Sounds Create(Component pod, ILogger log)
         {
             var s = new Sounds(log);
             try
             {
-                s._go = new GameObject("IVA_Sounds");
-                UnityEngine.Object.DontDestroyOnLoad(s._go);
-                AkSoundEngine.RegisterGameObj(s._go, s._go.name);
+                KSPPartAudioBase partAudio = pod != null ? pod.GetComponentInChildren<KSPPartAudioBase>(true) : null;
+                if (partAudio != null)
+                {
+                    s._go = partAudio.gameObject;
+                    s._borrowed = true;
+                }
+                else
+                {
+                    s._go = new GameObject("IVA_Sounds");
+                    UnityEngine.Object.DontDestroyOnLoad(s._go);
+                    AkSoundEngine.RegisterGameObj(s._go, s._go.name);
+                    KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_attachment_status, 1f, s._go);
+                    KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_active_vessel_rtpc, 1f, s._go);
+                    // a pressurised cabin: sounds as at sea level, whatever the vessel's surroundings
+                    KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_static_pressure_kPa_rtpc, 101.325f, s._go);
+                    KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_atmos_density_rtpc, 1.225f, s._go);
+                }
                 s._id = AkSoundEngine.GetAkGameObjectID(s._go);
-                // A pressurised cabin: sounds as at sea level, whatever the vessel's surroundings.
-                KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_static_pressure_kPa_rtpc, 101.325f, s._go);
-                KSPBaseAudio.SetRTPCValue(KSPAudioParams.k_part_atmos_density_rtpc, 1.225f, s._go);
+                log?.LogInfo($"IVA: cabin sounds play from '{s._go.name}' ({(s._borrowed ? "the pod's own part audio" : "our own emitter")}, registered {AkSoundEngine.IsGameObjectRegistered(s._go)}).");
             }
             catch (Exception e)
             {
@@ -91,13 +108,19 @@ namespace IVA
         public void SetVolume(float v)
         {
             if (_go == null) return;
-            try { AkSoundEngine.SetGameObjectOutputBusVolume(_id, AkSoundEngine.AK_INVALID_GAME_OBJECT, Mathf.Clamp01(v)); }
+            try
+            {
+                GameObject listener = KSPAudioListenerManager.GetListenerGameObject();
+                ulong lid = listener != null ? AkSoundEngine.GetAkGameObjectID(listener) : AkSoundEngine.AK_INVALID_GAME_OBJECT;
+                AKRESULT r = AkSoundEngine.SetGameObjectOutputBusVolume(_id, lid, Mathf.Clamp01(v));
+                if (r != AKRESULT.AK_Success) _log?.LogWarning($"IVA: setting the sound volume returned {r}.");
+            }
             catch (Exception e) { _log?.LogWarning("IVA: couldn't set the sound volume: " + e.Message); }
         }
 
         public void Place(Transform at)
         {
-            if (_go == null || at == null) return;
+            if (_go == null || at == null || _borrowed) return;
             _go.transform.SetPositionAndRotation(at.position, at.rotation);
             AkSoundEngine.SetObjectPosition(_go, _go.transform);
         }
@@ -107,6 +130,12 @@ namespace IVA
             if (_go == null || string.IsNullOrEmpty(ev)) return 0u;
             uint id = KSPBaseAudio.PostEvent(ev, _go);
             if (id == 0u && _failed.Add(ev)) _log?.LogWarning($"IVA: sound event '{ev}' didn't play (not in the loaded banks?).");
+            else if (id != 0u && _logged.Add(ev)) _log?.LogInfo($"IVA: sound '{ev}' playing (id {id}).");
+            if (id != 0u)
+            {
+                _playing.Add(id);
+                if (_playing.Count > 64) _playing.RemoveAt(0);
+            }
             return id;
         }
 
@@ -148,11 +177,20 @@ namespace IVA
             {
                 if (_thrusting) Play(ThrustStop);
                 StopAmbience();
-                AkSoundEngine.StopAll(_id);
-                AkSoundEngine.UnregisterGameObj(_go);
+                if (_borrowed)
+                {
+                    foreach (uint id in _playing) AkSoundEngine.StopPlayingID(id, 200);
+                    SetVolume(1f);
+                }
+                else
+                {
+                    AkSoundEngine.StopAll(_id);
+                    AkSoundEngine.UnregisterGameObj(_go);
+                }
             }
             catch (Exception) { }
-            UnityEngine.Object.Destroy(_go);
+            if (!_borrowed) UnityEngine.Object.Destroy(_go);
+            _playing.Clear();
             _go = null;
             _thrusting = false;
         }
