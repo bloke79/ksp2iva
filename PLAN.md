@@ -379,17 +379,20 @@ Floorplan: `scratch/iva-redux/mk35_floorplan.png` (side section and both deck pl
 - Cockpit finish: grey legend panels, glareshield button beam, blue segmented cushions, cream padded walls with velcro,
   off-white lockers in living areas, yellow grab bars, round hatches with wheels.
 
-**Lower (flight) deck**
-- Five couches where the crew already lie: blue cushions, shuttle-seat frames.
-- Five-section main display console overhead, with a button beam (warning strip and master alarms per section).
-- Pedestals between the couches; side consoles under the side windows.
-- EVA hatch in the front wall.
-- Round floor hatch down behind the feet.
-- Tapered aft bulkhead: ladder up in the middle, low off-white lockers on one side, ECS and power units on the other.
-
-**Upper (living) deck**
-- Docking station under the two docking windows.
-- Sleeping bags on the hull on both sides.
-- Low galley and toilet rack in the aft corners, either side of the ladder hatch.
-- Ergometer, and an open centre with a fold-out table.
-- Docking hatch in the top.
+**Layout (second pass: the toilet stays downstairs, as Matt asked)**
+- Three ways in, all on clear paths. The floor hatch and the ladder share the aft aisle (x +/-0.40). The EVA hatch
+  has a clear route forward over the couches' head end.
+- Flight deck:
+  - Five couches where the crew lie, restyled with blue cushions. Pedestals between them, side consoles beside them.
+  - The five-section main display console overhead, with the button beam along its head edge.
+  - Low lockers in the front corners, below the window line.
+- Toilet compartment, port aft, entered from the aisle. Its two flat walls face the aisle and the couches; the hull is
+  its outer wall, so nothing pokes through. Inside: light, vent, handholds, towels and a curtained wash point.
+- Equipment bay, starboard aft, mirroring the toilet: ECS, power and CO2 cartridges. The suit umbilicals leave it in
+  a manifold under the couch frame, so no hose crosses the aisle.
+- Living deck:
+  - Docking station (leaning with the cone) and a glovebox forward, under the docking windows.
+  - Five sleeping berths on the quiet sides: three to starboard, two to port with crew lockers.
+  - Galley, fold-out table and pantry either side of the ladder hole.
+  - Ergometer front-port.
+  - The middle stays clear for the climb from the ladder to the docking hatch.
