@@ -347,3 +347,12 @@ viewing port, a sample lock (wet lock) in the floor, specimen tanks with lit wat
 5. Mk1, Mk2, Mk3 crew cabins (seating rows).
 6. Marine survey lab (after extracting the part).
 Later: the 1.5v pod, the Mk1 and Mk2 cockpits and the inline cockpits.
+
+## Update 2026-10-11: the cockpits already have stock interiors
+Extracted (`C:\Games\KSP2Mods\reference\interior_*_cockpit_crew*`) and rendered: the Mk1, Mk1 inline, Mk2, Mk2 inline and
+Mk3 cockpits all have complete, detailed stock interiors (glareshields, consoles, sticks and pedals, overhead panels,
+seats; the Mk3 is a four-seat shuttle flight deck, the Mk2 a side-by-side two-seater, the Mk2 inline a crew/stowage
+bay). Proposal: don't rebuild them. Keep the stock interior visible and add an invisible **overlay** per cockpit with
+only what the mod needs (collision markers for floating, hatches, window views, interactive targets), seated at the
+game's own eye points. The Mk2's interior sits about (3.5, -1.5, -6.3) m from its part origin in the prefab, so the
+overlay must be placed from the stock interior's transform, not the part's.
