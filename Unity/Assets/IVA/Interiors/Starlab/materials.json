@@ -466,6 +466,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_FoodGreen",
+      "color": [
+        0.25999999046325684,
+        0.47999998927116394,
+        0.20000000298023224
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_FoodRed",
       "color": [
         0.6200000047683716,

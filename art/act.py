@@ -35,14 +35,14 @@ def _live(obj, stem, k):
     return obj
 
 
-def hinge(name, parts, hinge_pt, up, edge_pt, out, act_at=None):
+def hinge(name, parts, hinge_pt, up, edge_pt, out, act_at=None, half_h=0.1):
     """parts swing together about the line through hinge_pt along up; edge_pt is the free edge (closed); out the side
     they open towards. The first part is the main one."""
     hinge_pt, up = Vector(hinge_pt), Vector(up).normalized()
     for k, o in enumerate(parts):
         _pivot(o, hinge_pt)
         _live(o, "Door" + name, k)
-    C.marker(f"IVA_LiveAxis_Door{name}", hinge_pt + up * 0.1)
+    C.marker(f"IVA_LiveAxis_Door{name}", hinge_pt + up * half_h)   # half the leaf's height up the hinge
     C.marker(f"IVA_LiveEdge_Door{name}", Vector(edge_pt))
     C.marker(f"IVA_LiveOut_Door{name}", hinge_pt + Vector(out).normalized() * 0.1)
     target("Door", name, act_at if act_at is not None else (hinge_pt + Vector(edge_pt)) / 2)

@@ -14,6 +14,7 @@ import random
 import ivalib as L  # imports bpy first
 import capsule as C
 import modules as G
+import act as A
 import props as P
 import stock as S
 from mathutils import Matrix, Vector
@@ -601,20 +602,27 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
                                          (dx, dy + door_h / 2 + 0.02, door_w + 0.08, 0.04), (dx, dy - door_h / 2 - 0.02, door_w + 0.08, 0.04))):
         S.cbox(f"{name}DoorFrame{k}", (fw, fh, 0.05), M["frame"], fz + r * cx + u * cy + n * 0.01, rot, ch=0.008)
     hinge = fz + r * (dx - door_w / 2) + u * dy + n * 0.005
-    leaf = L.box(f"IVA_Live_Door{name}", (door_w - 0.01, door_h - 0.01, 0.025), M["locker"], hinge, rot, bevel=0.004, segs=1)
-    for v in leaf.data.vertices:   # origin on the hinge line
-        v.co.x += (door_w - 0.01) / 2
-    C.marker(f"IVA_LiveAxis_Door{name}", hinge + u * (door_h / 2))        # up the hinge, half the door height
-    C.marker(f"IVA_LiveEdge_Door{name}", hinge + r * (door_w - 0.01))     # the free edge when closed
-    C.marker(f"IVA_LiveOut_Door{name}", hinge + n * 0.3)                  # it opens out into the cabin
+    # a spacecraft hatch door: chamfered leaf, raised inner panel, latch dogs on both edges, a lever on a hub and a vent
+    # grille; the leaf and everything on it swing together on the hinge
+    lw, lh = door_w - 0.01, door_h - 0.01
+    lc = hinge + r * (lw / 2)
+    parts = [S.cbox(name + "DoorLeaf", (lw, lh, 0.03), M["frame"], lc, rot, ch=0.03)]
+    parts.append(S.cbox(name + "DoorPanel", (lw - 0.11, lh - 0.13, 0.012), M["frame_dark"], lc + n * 0.019 + u * 0.02, rot, ch=0.025))
+    parts.append(S.cbox(name + "DoorPanelInset", (lw - 0.17, lh * 0.42, 0.008), M["frame"], lc + n * 0.027 + u * (lh * 0.17), rot, ch=0.02))
+    for i in range(5):
+        parts.append(L.box(f"{name}Vent{i}", (lw - 0.22, 0.014, 0.008), M["frame"], lc + n * 0.027 - u * (lh * 0.22 + i * 0.03), rot, bevel=0.003, segs=1))
+    for sx in (0.04, lw - 0.04):   # latch dogs near both edges, top and bottom
+        for sy in (-1, 1):
+            parts.append(S.cbox(f"{name}Dog{int(sx * 100)}_{sy}", (0.04, 0.07, 0.016), M["yellow"], hinge + r * sx + u * (sy * lh * 0.36) + n * 0.022, rot, ch=0.005))
+    hub = lc + r * (lw * 0.28) + n * 0.03
+    parts.append(L.cylinder(name + "LeverHub", 0.032, 0.022, M["buckle"], hub + n * 0.011, rot, segs=16, bevel=0.004))
+    lever_rot = rot @ Matrix.Rotation(math.radians(-20), 3, "Z")
+    parts.append(S.cbox(name + "Lever", (0.03, 0.2, 0.018), M["yellow"], hub + n * 0.03 - (lever_rot @ Vector((0, 0.07, 0))), lever_rot, ch=0.006))
+    parts.append(S.cbox(name + "StatusPlate", (0.1, 0.035, 0.006), M["frame_dark"], lc + n * 0.024 + u * (lh * 0.42), rot, ch=0.003))
+    parts.append(L.box(name + "StatusLamp", (0.025, 0.018, 0.004), M["light"], lc + n * 0.028 + u * (lh * 0.42) + r * 0.03, rot))
     for k in range(2):
-        L.cylinder(f"{name}Hinge{k}", 0.012, 0.06, M["buckle"], hinge + u * (door_h * 0.35 * (1 if k else -1)), L.basis(r, n, u) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=10)
-    dc = fz + r * dx + u * dy + n * 0.025
-    L.box(name + "DoorPanel", (door_w - 0.12, door_h * 0.4, 0.006), M["frame_dark"], dc + u * door_h * 0.15, rot, bevel=0.002)
-    for i in range(6):
-        L.box(f"{name}Louvre{i}", (door_w - 0.16, 0.012, 0.01), M["frame_dark"], dc - u * (door_h * 0.28 + i * 0.024), rot)
-    hq = dc + r * (door_w / 2 - 0.08)
-    L.tube(name + "Handle", [hq + u * 0.08, hq + u * 0.08 + n * 0.035, hq - u * 0.08 + n * 0.035, hq - u * 0.08], 0.009, M["yellow"])
+        L.cylinder(f"{name}Hinge{k}", 0.014, 0.08, M["buckle"], hinge + u * (door_h * 0.35 * (1 if k else -1)), L.basis(r, n, u) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=12)
+    A.hinge(name, parts, hinge, u, hinge + r * lw, n, act_at=lc + n * 0.04, half_h=door_h / 2)
     sign = fz + r * dx + u * (dy + door_h / 2 + 0.11) + n * 0.02
     L.box(name + "Sign", (0.2, 0.08, 0.008), M["frame"], sign, rot, bevel=0.002)
     L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["light"], sign + r * 0.06 + n * 0.006, rot, bevel=0.002)

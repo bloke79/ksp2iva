@@ -261,16 +261,72 @@ def hazard_rail(name, pts, r=0.009):
         L.tube(f"{name}_{k}", [a, c], r, M["yellow"] if k % 2 == 0 else M["handle"], bevel_res=1)
 
 
+
+
+# ------------------------------------------------------------------ hollow units (so opening a door or drawer shows an inside)
+def _shell(name, p, b, w, h, d, mat, x0=0.0, y0=0.0, t=0.01, inner=None):
+    """Open-fronted box: back, sides, top and bottom, w x h x d, centred at (x0, y0) on the surface; returns the parts."""
+    inner = inner or mat
+    return [L.box(name + "Back", (w, h, t), inner, _a(p, b, x0, y0, t / 2), _r(b)),
+            L.box(name + "SideL", (t, h, d), mat, _a(p, b, x0 - w / 2 + t / 2, y0, d / 2), _r(b)),
+            L.box(name + "SideR", (t, h, d), mat, _a(p, b, x0 + w / 2 - t / 2, y0, d / 2), _r(b)),
+            L.box(name + "Top", (w, t, d), mat, _a(p, b, x0, y0 + h / 2 - t / 2, d / 2), _r(b)),
+            L.box(name + "Bottom", (w, t, d), mat, _a(p, b, x0, y0 - h / 2 + t / 2, d / 2), _r(b))]
+
+
+def _stowed(name, p, b, w, d, y, seed, h_max=0.12):
+    """A row of stowed items standing on a shelf at height y (local), across w and within depth d: food packs, cans,
+    pouches, a kit box. Returns the objects (so drawers can carry them)."""
+    import random
+    rnd = random.Random(seed)
+    out = []
+    x = -w / 2 + 0.015
+    vert = L.basis(b.col[0], b.col[2], -b.col[1]) @ Matrix.Rotation(math.pi / 2, 3, "X")
+    k = 0
+    while True:
+        kind = rnd.choice(("pack", "pack", "can", "pouch", "kit"))
+        iw = {"pack": 0.05, "can": 0.045, "pouch": 0.06, "kit": 0.08}[kind] * rnd.uniform(0.85, 1.15)
+        if x + iw > w / 2 - 0.015:
+            break
+        ih = min(h_max, {"pack": 0.09, "can": 0.08, "pouch": 0.07, "kit": 0.06}[kind] * rnd.uniform(0.8, 1.2))
+        idp = min(d - 0.03, rnd.uniform(0.06, 0.12))
+        cx, cz = x + iw / 2, 0.02 + idp / 2 + rnd.uniform(0, max(0.0, d - 0.05 - idp))
+        if kind == "can":
+            out.append(L.cylinder(f"{name}Can{k}", iw / 2, ih, rnd.choice((M["foil"], M["tank"] if "tank" in M else M["foil"])),
+                                  _a(p, b, cx, y + ih / 2, cz), vert, segs=12))
+        else:
+            mat = {"pack": rnd.choice((M["food_red"], M["food_green"], M["food_yellow"], M["btn_soft"])),
+                   "pouch": M["foil"], "kit": M["locker"]}[kind]
+            out.append(L.box(f"{name}{kind.title()}{k}", (iw, ih, idp), mat, _a(p, b, cx, y + ih / 2, cz), _r(b), bevel=0.004, segs=1))
+        x += iw + rnd.uniform(0.004, 0.015)
+        k += 1
+    return out
+
 def drawer_stack(name, p, b, w=0.3, h=0.4, n=4, live=True):
     """Stack of labelled stowage drawers in a frame."""
     d = 0.22
-    L.box(name + "Frame", (w + 0.02, h + 0.02, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
     dh = h / n
+    if not live:
+        L.box(name + "Frame", (w + 0.02, h + 0.02, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
+    else:
+        _shell(name + "Frame", p, b, w + 0.02, h + 0.02, d, M["module"], inner=M.get("frame_dark", M["module"]))
+        for k in range(1, n):
+            L.box(f"{name}Runner{k}", (w, 0.006, d - 0.01), M["module"], _a(p, b, 0, h / 2 - dh * k, d / 2), _r(b))
     for k in range(n):
         y = h / 2 - dh * (k + 0.5)
         parts = [L.box(f"{name}Drawer{k}", (w - 0.01, dh - 0.008, 0.012), M["locker"], _a(p, b, 0, y, d + 0.006), _r(b), bevel=0.002),
                  L.box(f"{name}Pull{k}", (0.06, 0.01, 0.014), M["handle"], _a(p, b, 0, y + dh * 0.15, d + 0.018), _r(b), bevel=0.002),
                  L.box(f"{name}Tag{k}", (0.05, 0.018, 0.002), M["btn_soft"], _a(p, b, -w * 0.3, y, d + 0.013), _r(b))]
+        if live:
+            # the tray behind the front: sides, back and bottom, with things stowed in it
+            tw, th, td = w - 0.03, dh - 0.03, d - 0.04
+            ty = y - (dh - 0.008) / 2 + 0.006
+            for sx in (-1, 1):
+                parts.append(L.box(f"{name}Tray{k}Side{sx}", (0.006, th, td), M["locker"], _a(p, b, sx * (tw / 2 - 0.003), ty + th / 2, d - td / 2), _r(b)))
+            parts.append(L.box(f"{name}Tray{k}Back", (tw, th, 0.006), M["locker"], _a(p, b, 0, ty + th / 2, d - td + 0.003), _r(b)))
+            parts.append(L.box(f"{name}Tray{k}Bottom", (tw, 0.006, td), M["locker"], _a(p, b, 0, ty, d - td / 2), _r(b)))
+            for o in _stowed(f"{name}Tray{k}", _a(p, b, 0, 0, d - td), b, tw - 0.02, td, ty + 0.003, seed=hash(name) % 997 + k, h_max=th - 0.01):
+                parts.append(o)
         if live:
             A.slide(f"{name}_{k}", parts, b.col[2] * min(0.16, d * 0.7), act_at=_a(p, b, 0, y, d + 0.02))
 
@@ -293,8 +349,17 @@ def gear_rack(name, p, b, w=0.32, h=0.42):
 
 # ------------------------------------------------------------------ habitation and lab furniture
 def cabinet(name, p, b, w, h, d, doors=2, top=None, live=True):
-    """Wall cabinet/counter unit with doors, pulls and an optional worktop."""
-    L.box(name, (w, h, d), M["locker"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
+    """Wall cabinet/counter unit with doors, pulls and an optional worktop; hollow inside, with a shelf and stowage."""
+    if not live:
+        L.box(name, (w, h, d), M["locker"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.003)
+    else:
+        _shell(name, p, b, w, h, d, M["locker"], inner=M.get("frame_dark", M["module"]))
+        if h > 0.22:
+            L.box(name + "Shelf", (w - 0.02, 0.008, d - 0.02), M["locker"], _a(p, b, 0, 0, d / 2), _r(b))
+            _stowed(name + "Upper", p, b, w - 0.03, d - 0.01, 0.004, seed=hash(name) % 991, h_max=h / 2 - 0.03)
+            _stowed(name + "Lower", p, b, w - 0.03, d - 0.01, -h / 2 + 0.01, seed=hash(name) % 991 + 7, h_max=h / 2 - 0.03)
+        else:
+            _stowed(name + "Inside", p, b, w - 0.03, d - 0.01, -h / 2 + 0.01, seed=hash(name) % 991, h_max=h - 0.04)
     dw = w / doors
     for k in range(doors):
         x = -w / 2 + dw * (k + 0.5)
@@ -309,8 +374,13 @@ def cabinet(name, p, b, w, h, d, doors=2, top=None, live=True):
 
 
 def oven(name, p, b, w=0.2, h=0.16, d=0.18):
-    """Food warmer/oven with a window, dial and status lamps."""
-    L.box(name, (w, h, d), M["module"], _a(p, b, 0, 0, d / 2), _r(b), bevel=0.006)
+    """Food warmer/oven with a window, dial and status lamps; a lit cavity with a meal pouch behind the door."""
+    cw = w * 0.7
+    _shell(name + "Cavity", p, b, cw, h, d, M["module"], x0=-w * 0.1 - 0.0, inner=M.get("frame_dark", M["module"]))
+    L.box(name + "Controls", (w - cw - 0.0, h, d), M["module"], _a(p, b, w / 2 - (w - cw) / 2, 0, d / 2), _r(b), bevel=0.004)
+    L.box(name + "Rack", (cw - 0.03, 0.004, d - 0.03), M["buckle"], _a(p, b, -w * 0.1, -h * 0.15, d / 2), _r(b))
+    L.box(name + "Meal", (cw * 0.55, 0.025, d * 0.5), M["foil"], _a(p, b, -w * 0.1, -h * 0.15 + 0.015, d / 2), _r(b), bevel=0.008, segs=1)
+    L.box(name + "CavityLamp", (0.03, 0.004, 0.02), M["light"], _a(p, b, -w * 0.1, h / 2 - 0.012, d * 0.3), _r(b))
     leaf = L.box(name + "Door", (w * 0.7, h * 0.75, 0.006), M["ring"], _a(p, b, -w * 0.1, 0, d + 0.003), _r(b), bevel=0.002)
     window = L.box(name + "Window", (w * 0.5, h * 0.45, 0.002), M["crt_data"], _a(p, b, -w * 0.1, 0.005, d + 0.0065), _r(b))
     A.hinge(name, [leaf, window], _a(p, b, -w * 0.45, 0, d + 0.003), b.col[1], _a(p, b, w * 0.25, 0, d + 0.003), b.col[2],
@@ -500,7 +570,21 @@ def freezer(name, p, b, w=0.36, h=0.42, d=0.3):
     a lever latch and a vent."""
     frame = M.get("frame", M["module"])
     dark = M.get("frame_dark", M["module"])
-    L.box(name, (w, h, d), frame, _a(p, b, 0, 0, d / 2), _r(b), bevel=0.02, segs=1)
+    dw, dh, dy = w * 0.8, h * 0.66, -0.03
+    _shell(name + "Inner", p, b, dw, dh, d, M["btn_soft"], y0=dy)
+    top_h = h / 2 - (dy + dh / 2)
+    bot_h = (dy - dh / 2) + h / 2
+    L.box(name + "TopBlock", (w, top_h, d), frame, _a(p, b, 0, h / 2 - top_h / 2, d / 2), _r(b), bevel=0.01, segs=1)
+    L.box(name + "BottomBlock", (w, bot_h, d), frame, _a(p, b, 0, -h / 2 + bot_h / 2, d / 2), _r(b), bevel=0.01, segs=1)
+    for sx in (-1, 1):
+        L.box(f"{name}Cheek{sx}", ((w - dw) / 2, dh, d), frame, _a(p, b, sx * (w / 2 - (w - dw) / 4), dy, d / 2), _r(b), bevel=0.006, segs=1)
+    vert = L.basis(b.col[0], b.col[2], -b.col[1]) @ Matrix.Rotation(math.pi / 2, 3, "X")
+    for r_ in range(2):
+        ry = dy - dh / 2 + 0.02 + r_ * dh / 2
+        L.box(f"{name}Rack{r_}", (dw - 0.03, 0.005, d - 0.04), M["buckle"], _a(p, b, 0, ry, d / 2), _r(b))
+        for i in range(int((dw - 0.06) / 0.03)):
+            L.cylinder(f"{name}Tube{r_}_{i}", 0.008, min(0.09, dh / 2 - 0.04), M["food_red"] if (i + r_) % 3 == 0 else M["btn_soft"],
+                       _a(p, b, -dw / 2 + 0.04 + i * 0.03, ry + min(0.09, dh / 2 - 0.04) / 2 + 0.003, d * 0.55), vert, segs=8)
     L.box(name + "Gasket", (w * 0.84, h * 0.7, 0.01), M["handle"], _a(p, b, 0, -0.03, d + 0.004), _r(b), bevel=0.004, segs=1)
     leaf = L.box(name + "Door", (w * 0.8, h * 0.66, 0.02), dark, _a(p, b, 0, -0.03, d + 0.014), _r(b), bevel=0.008, segs=1)
     L.box(name + "ReadoutStrip", (w * 0.84, 0.05, 0.012), dark, _a(p, b, 0, h / 2 - 0.045, d + 0.006), _r(b), bevel=0.004, segs=1)

@@ -347,6 +347,7 @@ def platform(name, z, holes, ceiling=False):
 def build_decks():
     platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)], ceiling=True)
     ladder("LadderAft", 0.0, 1.3, FLOOR, DECK_Z + 0.55, 0.22)
+    S.floor_hatch("AftHatch", (0.0, 0.73), FLOOR, 0.5, 0.34)   # down through the heat shield end to the modules below
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
 
 
@@ -647,7 +648,7 @@ build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)],
-                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25))])
+                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, 0.73, FLOOR + 0.2))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
 print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; bulkhead at y {BULK_Y:.2f}")
