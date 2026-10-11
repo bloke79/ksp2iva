@@ -364,3 +364,32 @@ bay). Proposal: don't rebuild them. Keep the stock interior visible and add an i
 only what the mod needs (collision markers for floating, hatches, window views, interactive targets), seated at the
 game's own eye points. The Mk2's interior sits about (3.5, -1.5, -6.3) m from its part origin in the prefab, so the
 overlay must be placed from the stock interior's transform, not the part's.
+
+## Mk3-5 pod rework (2026-10-11): floorplan in the cockpit design language
+
+Matt asked for the 5-seat pod to get the shuttle-era design language and a fresh floorplan built on the lessons so far.
+Floorplan: `scratch/iva-redux/mk35_floorplan.png` (side section and both deck plans, drawn on the measured hull).
+
+**Lessons it's built on**
+- The hull is a cone: inner radius 1.83 m at the floor, 1.43 m at the upper deck, about 1.0 m at the docking windows.
+  Tall boxes against the wall clip (the old hygiene booth was 43 cm through the hull), so tall items go inboard and
+  wall kit is placed with the hull measurement and leans with the cone.
+- Review clean (`review.py`) before showing anything. The current model has 179 clips, 69 hull hits and 95 flicker pairs,
+  mostly from free-hanging cable drops and junction boxes, so those go.
+- Cockpit finish: grey legend panels, glareshield button beam, blue segmented cushions, cream padded walls with velcro,
+  off-white lockers in living areas, yellow grab bars, round hatches with wheels.
+
+**Lower (flight) deck**
+- Five couches where the crew already lie: blue cushions, shuttle-seat frames.
+- Five-section main display console overhead, with a button beam (warning strip and master alarms per section).
+- Pedestals between the couches; side consoles under the side windows.
+- EVA hatch in the front wall.
+- Round floor hatch down behind the feet.
+- Tapered aft bulkhead: ladder up in the middle, low off-white lockers on one side, ECS and power units on the other.
+
+**Upper (living) deck**
+- Docking station under the two docking windows.
+- Sleeping bags on the hull on both sides.
+- Low galley and toilet rack in the aft corners, either side of the ladder hatch.
+- Ergometer, and an open centre with a fold-out table.
+- Docking hatch in the top.
