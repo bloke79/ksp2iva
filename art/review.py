@@ -61,9 +61,9 @@ def word_prefix(a, b):
         n += 1
     if n == min(len(a), len(b)):
         return a[:n]
-    while n > 0 and not (a[n].isupper() or a[n] in "_-") and not (b[n].isupper() or b[n] in "_-"):
-        n -= 1
-    while n > 0 and not ((a[n].isupper() or a[n] in "_-") and (b[n].isupper() or b[n] in "_-")):
+    def edge(ch):   # a word starts here: a capital, a digit or a separator
+        return ch.isupper() or ch.isdigit() or ch in "_-"
+    while n > 0 and not (edge(a[n]) and edge(b[n])):
         n -= 1
     return a[:n]
 

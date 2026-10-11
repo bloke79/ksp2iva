@@ -1,5 +1,9 @@
 """Mk3-5 (pod_3v_conical_crew) interior: five crew on a lower deck, an upper deck with a docking station.
 
+2026-10-11 rework (PLAN.md "Mk3-5 pod rework"): the cockpits' shuttle-era finish; the aft bulkhead replaced by a toilet
+compartment (port, door on the aisle) and an equipment bay (starboard), both bounded by the hull; suit hoses from floor
+ports; low lockers in the front corners; the living deck laid out round a clear climb to the docking hatch.
+
 Usage: blender -b --python model_mk35.py -- <spec.json> <texture_dir> <out.blend>
 
 The game keeps the 3v's crew in the portrait booth, so the seats are ours: five couches in a row on one frame, eyes at
@@ -45,6 +49,15 @@ S.materials()
 import cabin as K  # noqa: E402
 K.materials()
 M["deckplate"] = L.material("IVA_DeckPlate", tex="deckplate_color.png", normal="deckplate_normal.png", rough=0.6, metal=0.35, normal_strength=0.8)
+import act as A  # noqa: E402
+# shuttle-era finish, as the Mk1 and Mk3 cockpits
+M["console"] = L.material("IVA_ShuttlePanel", tex="shuttle_panel_color.png", normal="panel_normal.png", rough=0.6, metal=0.2, normal_strength=0.4)
+M["module"] = M["console"]
+M["blanket"] = L.material("IVA_WallCream", tex="wall_cream_color.png", normal="wall_cream_normal.png", rough=0.8, metal=0.0, normal_strength=0.9)
+M["glare"] = L.material("IVA_Glareshield", (0.045, 0.046, 0.05), rough=0.85)
+M["cushion"] = L.material("IVA_SeatBlue", (0.10, 0.17, 0.42), rough=0.9, normal="canvas_normal.png", uv_scale=(5.0, 5.0), normal_strength=0.8)
+M["shell"] = L.material("IVA_SeatFrame", (0.42, 0.44, 0.47), rough=0.45, metal=0.5)
+M["locker"] = L.material("IVA_MidLocker", (0.78, 0.77, 0.72), rough=0.6, metal=0.05)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
 POSE = SPEC["pose"]
@@ -55,8 +68,10 @@ EYE_Z = SEATS[0]["eye"][2]
 FLOOR = C.Z_FLOOR
 DECK_Z = 2.0                      # upper (living and lab) deck floor
 HOLE_Y0, HOLE_Y1, HOLE_HW = 1.0, 1.38, 0.3    # ladder opening in the deck, at the back of the aisle
-BULK_Y, AISLE, BULK_TOP = 0.95, 0.34, 1.9     # aft equipment bulkhead: face plane, aisle half-width, top
-SIDE_PHI0, SIDE_PHI1, SIDE_Z0, SIDE_Z1 = 76, 118, 0.78, 1.18
+FACE_Y, AISLE, TOP = 0.55, 0.40, 1.95        # aft rooms: front face plane, aisle half-width, top (under the deck)
+HATCH_Y = 0.80                                # floor hatch down, in the aisle
+DOOR_Y0, DOOR_Y1, DOOR_H = 0.62, 1.16, 1.42   # toilet door in the port aisle wall
+SIDE_PHI0, SIDE_PHI1, SIDE_Z0, SIDE_Z1 = 78, 102, 0.78, 1.18
 
 
 def keep_clear(phi):
@@ -108,10 +123,11 @@ def build_mdc():
     # structure: seams between sections, hangers up to the deck, hood with floodlights and a handrail
     for x in (-0.93, -0.31, 0.31, 0.93):
         z = MDC_Z - abs(x) * 0.07 + 0.01
-        S.beam(f"MDC_Seam{x}", Vector((x, MDC_Y - MDC_H / 2 - 0.02, z)), Vector((x, MDC_Y + MDC_H / 2 + 0.02, z)), 0.05, 0.05, M["frame"], up=(0, 0, 1))
+        S.beam(f"MDC_Seam{x}", Vector((x, MDC_Y - MDC_H / 2 - 0.02, z)), Vector((x, MDC_Y + MDC_H / 2 - 0.005, z)), 0.05, 0.05, M["frame"], up=(0, 0, 1))
         for k, y in enumerate((MDC_Y - 0.17, MDC_Y + 0.17)):
-            S.beam(f"MDC_Hanger{x}_{k}", Vector((x, y, z + 0.02)), Vector((x, y, DECK_Z - 0.08)), 0.038, 0.038, M["frame"], up=(0, 1, 0))
-            for zz in (z + 0.16, DECK_Z - 0.16):
+            top = DECK_Z - (0.17 if abs(x) < 0.5 else 0.08)   # the inner pair stop under the ceiling hub ring
+            S.beam(f"MDC_Hanger{x}_{k}", Vector((x, y, z + 0.02)), Vector((x, y, top)), 0.038, 0.038, M["frame"], up=(0, 1, 0))
+            for zz in (z + 0.16, top - 0.08):
                 S.cbox(f"MDC_Collar{x}_{k}_{zz:.2f}", (0.054, 0.054, 0.035), M["frame_dark"], (x, y, zz), ch=0.006)
     hy = MDC_Y + MDC_H / 2 + 0.02
     S.cbox("MDC_Hood", (3.0, 0.04, 0.08), M["frame"], (0, hy, MDC_Z - 0.03), ch=0.012)
@@ -121,6 +137,25 @@ def build_mdc():
         L.cylinder(f"Flood_{k}", 0.022, 0.03, M["ring"], p, (-aim).to_track_quat("Z", "Y").to_matrix(), segs=20, radius2=0.017)
         L.disc(f"FloodLens_{k}", 0.014, M["light"], p + aim * 0.016, aim.to_track_quat("Z", "Y").to_matrix(), segs=20)
     L.plane("NamePlate", 0.3, 0.06, M["plate"], Vector((0, hy + 0.017, MDC_Z - 0.03)), L.basis(Vector((-1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))))
+    # button beam (the glareshield of a crew on their backs): along each section's head edge, hanging below the panel,
+    # its underside carrying the warning strip and the master-alarm buttons; clear of the sight line to the top row
+    for k, sct in secs.items():
+        up = sct.up.normalized()
+        down = -sct.right.cross(up).normalized()          # away from the crew is +n; the beam hangs towards them
+        if down.z > 0:
+            down = -down
+        edge = sct.c + up * (sct.h / 2 + 0.02)
+        rot = L.basis(sct.right, up, -down)
+        S.cbox(f"Beam{sct.name}", (sct.w - 0.04, 0.05, 0.07), M["glare"], edge + down * 0.02, rot, ch=0.01)
+        strip = C.Surface(f"Beam{sct.name}Strip", edge + down * 0.056, sct.right, up, sct.w - 0.06, 0.04, corner=0.005)
+        strip.n = (sct.right.cross(up)).normalized()
+        if strip.n.z > 0:
+            strip.right = -strip.right
+            strip.n = strip.right.cross(up).normalized()
+        strip.build(M["console"], thick=0.006, rim=False)
+        G.grid(strip, f"Beam{sct.name}Strip", 10, 1, [("buttons", 0, 0, 1, 1, {"n": 1}), ("annunciators", 1, 0, 8, 1, {"cols": 8, "rows": 1, "start": (abs(k) * 5) % 12}),
+                                                     ("buttons", 9, 0, 1, 1, {"n": 1})], border=0.003, gap=0.003)
+        strip.check()
 
 
 # ------------------------------------------------------------------ couches, pedestals, umbilicals
@@ -135,7 +170,7 @@ def build_lower_deck():
     for k, y in enumerate((prof[len(prof) // 4][0], prof[(3 * len(prof)) // 4][0])):
         z = min(zz for yy, zz, ww in prof if abs(yy - y) < 0.04) - 0.1
         S.beam(f"CouchFrameBeam_{k}", Vector((xs[0] - 0.16, y, z)), Vector((xs[-1] + 0.16, y, z)), 0.05, 0.06, M["frame"])
-        for x in (xs[0] - 0.14, -0.31, 0.31, xs[-1] + 0.14):
+        for x in (xs[0] - 0.14, xs[-1] + 0.14):   # (the pedestals carry the frame between the couches)
             S.beam(f"CouchFrameLeg_{k}_{x:.2f}", Vector((x, y, z)), Vector((x * 1.04, y, FLOOR + 0.02)), 0.045, 0.045, M["frame"], up=(0, 1, 0))
             S.cbox(f"CouchFrameFoot_{k}_{x:.2f}", (0.09, 0.09, 0.025), M["frame_dark"], (x * 1.04, y, FLOOR + 0.0125), ch=0.008)
             for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
@@ -152,144 +187,176 @@ def build_lower_deck():
         top.check()
         G.vent(f"PedestalVent{k}", Vector((x, PED_Y0 - 0.001, (FLOOR + z0p) / 2)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))),
                PED_W * 0.7, (z0p - FLOOR) * 0.5, slots=8)
-    # umbilicals to every suit, from the ports on the aft bulkhead
+    # suit umbilicals: a manifold under the floor from the equipment bay; each couch has a floor port behind its foot end
+    dz = EYE_Z - 0.718
     for i, seat in enumerate(SEATS):
         x = seat["x"]
-        dz = EYE_Z - 0.718
-        start = Vector((UMB_X[i], BULK_Y - 0.03, FLOOR + 0.3))
-        pts = [start, Vector((UMB_X[i], BULK_Y - 0.3, FLOOR + 0.34)), Vector((x - 0.25, 0.38, 0.38 + dz)), Vector((x - 0.25, 0.1, 0.5 + dz)), Vector((x - 0.2, -0.1, 0.58 + dz)), Vector((x - 0.13, -0.16, 0.6 + dz))]
+        port = Vector((x - 0.1, 0.42, FLOOR))
+        L.cylinder(f"UmbilicalPort{i}", 0.05, 0.02, M["frame_dark"], port + Vector((0, 0, 0.01)), segs=20, bevel=0.004)
+        L.cylinder(f"UmbilicalPortCollar{i}", 0.03, 0.04, M["buckle"], port + Vector((0, 0, 0.035)), segs=16)
+        pts = [port + Vector((0, 0, 0.05)), Vector((x - 0.12, 0.37, FLOOR + 0.16)), Vector((x - 0.19, 0.16, FLOOR + 0.26)),
+               Vector((x - 0.2, -0.04, 0.5 + dz)), Vector((x - 0.15, -0.12, 0.58 + dz)), Vector((x - 0.13, -0.16, 0.6 + dz))]
         G.hose(f"Umbilical{i}", pts, r=0.018, mat=M["umbilical"])
         L.cylinder(f"UmbilicalPlug{i}", 0.026, 0.04, M["buckle"], pts[-1], (pts[-1] - pts[-2]).normalized().to_track_quat("Z", "Y").to_matrix(), segs=16)
 
 
-# ------------------------------------------------------------------ aft equipment bulkhead (the shuttle mid-deck locker wall)
-UMB_X = [(-0.42 if s["x"] <= 0 else 0.42) + 0.0 for s in SEATS]
+# ------------------------------------------------------------------ aft rooms: toilet compartment (port) and equipment bay (starboard)
+def face_x(z):
+    """How far the front face (y = FACE_Y) reaches out before it meets the hull, at height z."""
+    return math.sqrt(max(0.0, C.r_in(z) ** 2 - FACE_Y ** 2)) - 0.015
 
 
-def bulk_x(z):
-    """Half-width of the bulkhead face at height z, where its plane meets the hull."""
-    return math.sqrt(max(0.0, C.r_in(z) ** 2 - BULK_Y ** 2)) - 0.015
+def aisle_y(z):
+    """How far aft the aisle wall (|x| = AISLE) runs before it meets the hull, at height z."""
+    return math.sqrt(max(0.0, C.r_in(z) ** 2 - AISLE ** 2)) - 0.015
 
 
-def bulk_frame(x, z):
-    """Frame on the bulkhead face: right +X (seen from the couches), up +Z, normal towards the couches (-Y)."""
-    return Vector((x, BULK_Y, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
-
-
-def slab(name, side, depth=0.35, x0=None, x1=None):
-    """One half of the bulkhead: a solid from the aisle edge to the hull, floor to BULK_TOP, front face at BULK_Y; its back
-    face (depth behind) is trimmed to the hull too, so the top closes off the space behind without poking through."""
+def fitted_wall(name, side, kind, hole=None, thick=0.03):
+    """A flat wall from the aisle corner out (or back) to the hull, floor to TOP, cut to the hull row by row.
+    kind 'face': the plane y = FACE_Y; 'aisle': the plane x = side * AISLE. hole: (u0, u1, z0, z1) left open.
+    Its face looks into the cabin (or the aisle); its thickness goes into the room behind."""
     import bmesh
-    x0 = AISLE if x0 is None else x0
-    zs = [FLOOR + (BULK_TOP - FLOOR) * k / 10 for k in range(11)]
-    lim = (lambda x: x) if x1 is None else (lambda x: min(x1, x))
-    outline = [(x0, FLOOR)] + [(max(x0 + 0.01, lim(bulk_x(z))), z) for z in zs] + [(x0, BULK_TOP)]
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
-    f = [bm.verts.new((side * x, BULK_Y, z)) for x, z in outline]
-    yb = BULK_Y + depth
-    back = [(x0, FLOOR)] + [(max(x0 + 0.01, lim(math.sqrt(max(0.0, C.r_in(z) ** 2 - yb ** 2)) - 0.015)), z) for z in zs] + [(x0, BULK_TOP)]
-    b = [bm.verts.new((side * x, yb, z)) for x, z in back]
-    faces = [bm.faces.new(f), bm.faces.new(b[::-1])]
-    n = len(outline)
-    for i in range(n):
-        faces.append(bm.faces.new((f[i], b[i], b[(i + 1) % n], f[(i + 1) % n])))
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    for face in bm.faces:
-        nx, ny = abs(face.normal.x), abs(face.normal.y)
-        for l in face.loops:
-            co = l.vert.co
-            l[uv].uv = ((co.x if ny >= nx else co.y) * 1.0, co.z * 1.0)
-    L.mesh_obj(name, bm, [M["blanket"]])
-    # trim: a frame strip along the aisle edge and the top
-    if x0 <= AISLE + 1e-6:
-        L.tube(name + "Trim", [Vector((side * AISLE, BULK_Y - 0.01, FLOOR)), Vector((side * AISLE, BULK_Y - 0.01, BULK_TOP)),
-                               Vector((side * bulk_x(BULK_TOP), BULK_Y - 0.01, BULK_TOP))], 0.012, M["couchframe"])
+    nz = 18
+    zs = [FLOOR + (TOP - FLOOR) * k / nz for k in range(nz + 1)]
+    u0 = AISLE if kind == "face" else FACE_Y + thick + 0.002
+    lim = face_x if kind == "face" else aisle_y
+    for i in range(nz):
+        za, zb = zs[i], zs[i + 1]
+        ua, ub = lim(za), lim(zb)
+        nu = max(2, int(round((max(ua, ub) - u0) / 0.06)))
+        for k in range(nu):
+            ta, tb = k / nu, (k + 1) / nu
+            um = u0 + (ta + tb) / 2 * ((ua + ub) / 2 - u0)
+            if hole and hole[0] < um < hole[1] and hole[2] < (za + zb) / 2 < hole[3]:
+                continue
+            q = [(u0 + ta * (ua - u0), za), (u0 + tb * (ua - u0), za), (u0 + tb * (ub - u0), zb), (u0 + ta * (ub - u0), zb)]
+            if kind == "face":
+                vs = [bm.verts.new((side * u, FACE_Y, z)) for u, z in q]
+            else:
+                vs = [bm.verts.new((side * AISLE, u, z)) for u, z in q]
+            f = bm.faces.new(vs)
+            for l in f.loops:
+                c = l.vert.co
+                l[uv].uv = ((c.x if kind == "face" else c.y) * 1.0, c.z * 1.0)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.normal_update()
+    want = Vector((0, -1, 0)) if kind == "face" else Vector((-side, 0, 0))
+    for f in bm.faces:
+        if f.normal.dot(want) < 0:
+            f.normal_flip()
+    o = L.mesh_obj(name, bm, [M["blanket"]])
+    L.solidify(o, thick, offset=-1.0)
+    return o
 
 
-HYG_X0, HYG_X1 = 0.4, 1.12   # hygiene compartment behind the left half of the bulkhead (|x|)
+def toilet_door():
+    """Hatch-style door in the port aisle wall, hinged on its aft edge, opening into the compartment."""
+    x = -AISLE + 0.012
+    w, h = DOOR_Y1 - DOOR_Y0, DOOR_H
+    yc, zc = (DOOR_Y0 + DOOR_Y1) / 2, FLOOR + DOOR_H / 2
+    face = L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((1, 0, 0)))    # seen from the aisle: right is forward
+    leaf = L.box("ToiletDoorLeaf", (w - 0.01, h - 0.01, 0.024), M["locker"], Vector((x, yc, zc)), face, bevel=0.006)
+    panel = L.box("ToiletDoorPanel", (w - 0.12, h * 0.42, 0.006), M["frame_dark"], Vector((x + 0.014, yc, zc + h * 0.14)), face, bevel=0.002)
+    parts = [leaf, panel]
+    for i in range(6):
+        parts.append(L.box(f"ToiletDoorLouvre{i}", (w - 0.16, 0.012, 0.008), M["frame_dark"], Vector((x + 0.016, yc, zc - h * 0.3 - i * 0.022)), face))
+    handle = L.tube("ToiletDoorHandle", [Vector((x + 0.012, DOOR_Y0 + 0.07, zc + 0.08)), Vector((x + 0.045, DOOR_Y0 + 0.07, zc + 0.08)),
+                                         Vector((x + 0.045, DOOR_Y0 + 0.07, zc - 0.08)), Vector((x + 0.012, DOOR_Y0 + 0.07, zc - 0.08))], 0.009, M["yellow"])
+    parts.append(handle)
+    A.hinge("Toilet", parts, Vector((x, DOOR_Y1, FLOOR)), Vector((0, 0, 1)), Vector((x, DOOR_Y0, FLOOR)), Vector((-1, 0, 0)),
+            act_at=Vector((x + 0.03, DOOR_Y0 + 0.07, zc)), half_h=h / 2)
+    # frame round the opening, and the engaged/vacant sign beside it
+    L.tube("ToiletDoorFrame", [Vector((-AISLE + 0.01, DOOR_Y0 - 0.01, FLOOR)), Vector((-AISLE + 0.01, DOOR_Y0 - 0.01, FLOOR + DOOR_H + 0.01)),
+                               Vector((-AISLE + 0.01, DOOR_Y1 + 0.01, FLOOR + DOOR_H + 0.01)), Vector((-AISLE + 0.01, DOOR_Y1 + 0.01, FLOOR))], 0.014, M["frame"])
+    sign = Vector((-AISLE + 0.006, DOOR_Y1 + 0.12, FLOOR + 1.32))
+    L.box("ToiletSign", (0.14, 0.07, 0.008), M["frame"], sign, face, bevel=0.002)
+    L.box("ToiletSignLamp", (0.04, 0.03, 0.006), M.get("lamp_green", M["light"]), sign + Vector((0.006, -0.04, 0)), face, bevel=0.002)
 
 
-def build_bulkhead():
-    slab("BulkheadL", -1, x1=HYG_X0)
-    slab("BulkheadLOuter", -1, x0=HYG_X1)
-    slab("BulkheadR", 1)
-    # hygiene compartment recessed into the bulkhead: its door flush with the bulkhead face, the hull behind it
-    hz = (FLOOR + BULK_TOP) / 2
-    hd = 0.6
-    K.hygiene_room("Hygiene", Vector((-(HYG_X0 + HYG_X1) / 2, BULK_Y + hd, hz)), bulk_frame(0, hz)[1], HYG_X1 - HYG_X0, BULK_TOP - FLOOR - 0.02,
-                   hd + 0.015, door_h=1.45, hull_side=-1)   # the cone cuts the outer side
-    # comms and mission station on the aisle wall beside it
-    s = C.Surface("CommsStation", (-AISLE + 0.03, 1.25, 1.6), (0, 1, 0), (0, 0, 1), 0.44, 0.28, corner=0.015)
+def build_aft_rooms():
+    # living spaces in a plain light finish (the switch-panel texture stays on the flight deck's consoles)
+    M["module"] = L.material("IVA_MidPanel", (0.62, 0.63, 0.64), rough=0.55, metal=0.2)
+    fitted_wall("ToiletFace", -1, "face")
+    fitted_wall("ToiletAisleWall", -1, "aisle", hole=(DOOR_Y0, DOOR_Y1, FLOOR - 0.01, FLOOR + DOOR_H))
+    fitted_wall("BayFace", 1, "face")
+    fitted_wall("BayAisleWall", 1, "aisle")
+    for side in (-1, 1):   # trim on the aisle corners and along the tops
+        L.tube(f"AftCorner{side}", [Vector((side * AISLE, FACE_Y, FLOOR)), Vector((side * AISLE, FACE_Y, TOP))], 0.016, M["frame"])
+    toilet_door()
+    # inside the compartment: toilet on the floor at the back, wash point, towels, handholds, light, vent
+    P.toilet("Toilet", *at(-150, FLOOR + 0.2, 0.025))
+    P.sink("ToiletSink", *at(-118, FLOOR + 0.95, 0.0))
+    P.towels("ToiletTowels", *at(-134, FLOOR + 1.3, 0.0))
+    for k, (deg, z) in enumerate(((-140, FLOOR + 0.75), (-128, FLOOR + 1.05))):
+        (pa, ba), (pb, bb) = at(deg, z, 0.012), at(deg + 8, z, 0.012)
+        L.tube(f"ToiletGrip{k}", [pa, pa + ba.col[2] * 0.05, pb + bb.col[2] * 0.05, pb], 0.009, M["yellow"])
+    S.light_fixture("ToiletLight", Vector((-0.85, 0.95, TOP - 0.01)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, -1))), w=0.22, h=0.07)
+    G.vent("ToiletVent", Vector((-0.75, FACE_Y + 0.031, 1.65)), L.basis(Vector((-1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), 0.24, 0.12, slots=6)
+    # front of the toilet compartment, facing the couches: lockers and a fire extinguisher
+    face = L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
+    k = 0
+    for row, z in enumerate((0.48, 0.76, 1.04, 1.32, 1.60)):
+        for col in range(4):
+            x = -AISLE - 0.18 - col * 0.31
+            if abs(x) + 0.16 > face_x(z + 0.13) - 0.01:
+                continue
+            G.box_unit(f"FaceLocker{k}", (x, FACE_Y - 0.035, z), (0.29, 0.07, 0.26), vents=False, lamps_n=0)
+            L.box(f"FaceLockerTag{k}", (0.07, 0.022, 0.002), M["btn_soft"], Vector((x + 0.06, FACE_Y - 0.0715, z + 0.1)), face)
+            k += 1
+    L.cylinder("Extinguisher", 0.05, 0.34, M["extinguisher"], Vector((AISLE - 0.065, 1.47, 1.05)), segs=24, bevel=0.01)
+    L.cylinder("ExtinguisherHead", 0.022, 0.05, M["rib"], Vector((AISLE - 0.065, 1.47, 1.245)), segs=12)
+    # equipment bay face: ECS and power panel above, CO2 cartridge drawers and lockers below
+    zc, h = 1.6, 0.46
+    w = face_x(zc + h / 2) - 0.03 - AISLE - 0.03
+    xc = AISLE + 0.03 + w / 2
+    ecs = C.Surface("EcsPanel", (xc, FACE_Y - 0.03, zc), (1, 0, 0), (0, 0, 1), w, h, corner=0.02)
+    ecs.build(M["console"], thick=0.03)
+    G.grid(ecs, "Ecs", 4, 3, [
+        ("annunciators", 0, 0, 2, 1, {"cols": 6, "rows": 2, "start": 4}), ("dial", 2, 0, 1, 1, {"kind": "press"}), ("dial", 3, 0, 1, 1, {"kind": "temp"}),
+        ("mfd", 0, 1, 2, 2, {"screen": "mfd_systems"}), ("toggles", 2, 1, 2, 1, {"cols": 6}), ("breakers", 2, 2, 2, 1, {"cols": 8, "rows": 2})], border=0.012)
+    ecs.check()
+    G.housing(ecs, "EcsPanel", depth=0.03)
+    P.drawer_stack("Co2Drawers", Vector((AISLE + 0.2, FACE_Y, 1.02)), face, 0.3, 0.5, 4)
+    k = 0
+    for row, z in enumerate((0.48, 0.76, 1.04)):
+        for col in range(3):
+            x = AISLE + 0.52 + col * 0.31
+            if x + 0.16 > face_x(z + 0.13) - 0.01 or (row == 2 and col == 0):
+                continue
+            G.box_unit(f"BayLocker{k}", (x, FACE_Y - 0.035, z), (0.29, 0.07, 0.26), vents=(row == 0), lamps_n=2 if row == 0 else 0)
+            k += 1
+    # the aisle: comms station on the starboard wall, handholds both sides, first aid
+    s = C.Surface("CommsStation", (AISLE - 0.03, 0.98, 1.5), (0, -1, 0), (0, 0, 1), 0.44, 0.28, corner=0.015)
     s.build(M["console"], thick=0.025)
     G.grid(s, "Comms", 4, 2, [("mfd", 0, 0, 2, 2, {"screen": "mfd_comms"}), ("keypad", 2, 0, 1, 2, {}),
                               ("annunciators", 3, 0, 1, 1, {"cols": 2, "rows": 2, "start": 10}), ("toggles", 3, 1, 1, 1, {"cols": 3})], border=0.01)
     s.check()
     G.housing(s, "CommsStation", depth=0.02)
-    P.headset("CommsHeadset", Vector((-AISLE + 0.005, 1.42, 1.38)), L.basis(Vector((0, 1, 0)), Vector((0, 0, 1)), Vector((1, 0, 0))))
-    # left: a wall of stowage lockers, every one labelled and latched
-    k = 0
-    for row, z in enumerate((0.25, 0.53, 0.81, 1.09, 1.37, 1.65)):
-        for col, x in enumerate((-0.52, -0.84, -1.16, -1.48)):
-            if abs(x) + 0.155 > bulk_x(z + 0.13) - 0.01 or HYG_X0 - 0.16 < abs(x) < HYG_X1 + 0.16:
-                continue
-            G.box_unit(f"MidLocker{k}", (x, BULK_Y - 0.035, z), (0.29, 0.07, 0.26), vents=(row == 0), lamps_n=2 if (row + col) % 3 == 0 else 0)
-            p, b = bulk_frame(x, z + 0.1)
-            L.box(f"MidLockerTag{k}", (0.07, 0.022, 0.002), M["btn_soft"], p + b.col[2] * 0.0745 + b.col[0] * 0.06, b)
-            k += 1
-    # right: avionics bay above a fold-down workstation; tanks and drawers below
-    zc, h = 1.55, 0.5
-    w = bulk_x(zc + h / 2) - 0.03 - AISLE - 0.02
-    xc = AISLE + 0.02 + w / 2
-    av = C.Surface("AvionicsBay", (xc, BULK_Y - 0.03, zc), (1, 0, 0), (0, 0, 1), w, h, corner=0.02)
-    av.build(M["console"], thick=0.03)
-    G.grid(av, "Avionics", 4, 2, [
-        ("breakers", 0, 0, 2, 1, {"cols": 10, "rows": 2}), ("mfd", 2, 0, 1, 2, {"screen": "mfd_systems"}), ("annunciators", 3, 0, 1, 1, {"cols": 2, "rows": 3, "start": 6}),
-        ("dial", 0, 1, 1, 1, {"kind": "press"}), ("toggles", 1, 1, 1, 1, {"cols": 4}), ("knobs", 3, 1, 1, 1, {"n": 2})], border=0.012)
-    av.check()
-    G.housing(av, "AvionicsBay", depth=0.03)
-    desk_z = 0.98
-    p, b = bulk_frame(0.72, desk_z)
-    L.box("WorkDesk", (0.56, 0.24, 0.022), M["module"], Vector((0.72, BULK_Y - 0.12, desk_z)), bevel=0.004)
-    for sx in (-1, 1):
-        L.tube(f"WorkDeskStay{sx}", [Vector((0.72 + sx * 0.25, BULK_Y - 0.005, desk_z - 0.18)), Vector((0.72 + sx * 0.25, BULK_Y - 0.22, desk_z - 0.012))], 0.006, M["handle"])
-    P.laptop("WorkLaptop", *bulk_frame(0.66, desk_z + 0.2), arm=0.16, screen="mfd_map")
-    P.binders("WorkBinders", *bulk_frame(0.98, desk_z + 0.12), n=4)
-    for k2, x in enumerate((0.62, 0.85)):   # water and oxygen (clear of the hose port at x 0.42)
-        c = Vector((x, BULK_Y - 0.12, FLOOR + 0.33))
-        L.cylinder(f"AftTank{k2}", 0.1, 0.52, M["tank"], c, segs=28, bevel=0.03)
-        for dz in (-0.16, 0.16):
-            L.torus(f"AftTankStrap{k2}{dz}", 0.103, 0.007, M["handle"], c + Vector((0, 0, dz)), Matrix.Identity(3), seg=28, mseg=6)
-        L.cylinder(f"AftTankValve{k2}", 0.018, 0.06, M["rib"], c + Vector((0, 0, 0.29)), segs=12)
-    G.cables("AftTankLines", (0.62, BULK_Y - 0.12, FLOOR + 0.62), (0.85, BULK_Y - 0.12, FLOOR + 0.62), droop=0.04, n=2)
-    P.drawer_stack("AftDrawers", *bulk_frame(1.12, 0.42), 0.3, 0.6, 5)
-    # safety kit on the aisle side of each half
-    L.cylinder("Extinguisher", 0.05, 0.34, M["extinguisher"], Vector((0.44, BULK_Y - 0.06, 1.12)), segs=24, bevel=0.01)
-    L.cylinder("ExtinguisherHead", 0.022, 0.05, M["rib"], Vector((0.44, BULK_Y - 0.06, 1.31)), segs=12)
-    p, b = bulk_frame(1.06, 1.12)
-    L.box("FirstAid", (0.16, 0.12, 0.08), M["btn_soft"], p + b.col[2] * 0.04, b, bevel=0.008)
-    L.box("FirstAidCrossH", (0.06, 0.018, 0.004), M["red"], p + b.col[2] * 0.081, b)
-    L.box("FirstAidCrossV", (0.018, 0.06, 0.004), M["red"], p + b.col[2] * 0.081, b)
-    # umbilical ports, low on each half
-    for i, x in enumerate(sorted(set(UMB_X))):
-        p, b = bulk_frame(x, FLOOR + 0.3)
-        L.box(f"UmbilicalPanel{i}", (0.12, 0.1, 0.02), M["module"], p + b.col[2] * 0.01, b, bevel=0.004)
-    # aisle walls back to the hull, with handholds; the ladder rises against the back wall
-    import bmesh
+    P.headset("CommsHeadset", Vector((AISLE - 0.005, 1.25, 1.3)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
     for side in (-1, 1):
-        y1 = math.sqrt(C.r_in(FLOOR) ** 2 - AISLE ** 2)
-        bm = bmesh.new()
-        uv = bm.loops.layers.uv.new("UVMap")
-        pts = [(BULK_Y, FLOOR), (y1, FLOOR)] + [(math.sqrt(max(0.0, C.r_in(z) ** 2 - AISLE ** 2)) - 0.01, z) for z in (0.6, 1.2, BULK_TOP)] + [(BULK_Y, BULK_TOP)]
-        vs = [bm.verts.new((side * (AISLE - 0.002), y, z)) for y, z in pts]   # 2 mm proud of the bulkhead slab (no z-fighting)
-        face = bm.faces.new(vs if side < 0 else vs[::-1])
-        for l in face.loops:
-            l[uv].uv = (l.vert.co.y, l.vert.co.z)
-        L.mesh_obj(f"AisleWall{side}", bm, [M["blanket"]])
-        for z in (0.7, 1.3):
-            L.tube(f"AisleHandhold{side}{z}", [Vector((side * AISLE, 1.05, z)), Vector((side * (AISLE - 0.05), 1.05, z)),
-                                                Vector((side * (AISLE - 0.05), 1.3, z)), Vector((side * AISLE, 1.3, z))], 0.009, M["yellow"])
-    G.wall("AisleBack", [("annunciators", 180, 1.6, 0.18, 0.07, {"cols": 4, "rows": 2, "start": 12})])
+        y0, y1 = (DOOR_Y1 + 0.05, DOOR_Y1 + 0.3) if side < 0 else (0.62, 0.86)
+        for z in (0.8, 1.45):
+            L.tube(f"AisleHandhold{side}{z}", [Vector((side * AISLE, y0, z)), Vector((side * (AISLE - 0.05), y0, z)),
+                                                Vector((side * (AISLE - 0.05), y1, z)), Vector((side * AISLE, y1, z))], 0.009, M["yellow"])
+    L.box("FirstAid", (0.16, 0.12, 0.08), M["btn_soft"], Vector((AISLE - 0.04, 1.25, 0.95)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))), bevel=0.008)
+    L.box("FirstAidCrossH", (0.06, 0.018, 0.004), M["red"], Vector((AISLE - 0.081, 1.25, 0.95)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
+    L.box("FirstAidCrossV", (0.018, 0.06, 0.004), M["red"], Vector((AISLE - 0.0812, 1.25, 0.95)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
+
+
+def build_front_lockers():
+    """Low lockers in the two front corners, below the side windows' sills, clear of the route to the EVA hatch."""
+    k = 0
+    for side in (-1, 1):
+        for deg in (29, 39, 49):
+            for z in (0.42, 0.64):
+                p, b = at(side * deg, z, 0.0)
+                d = 0.26
+                L.box(f"FrontLocker{k}", (0.27, 0.2, d), M["locker"], p + b.col[2] * (d / 2 + 0.005), b, bevel=0.006)
+                L.box(f"FrontLockerLatch{k}", (0.05, 0.016, 0.012), M["handle"], p + b.col[2] * (d + 0.011) + b.col[1] * 0.06, b, bevel=0.003)
+                L.box(f"FrontLockerTag{k}", (0.07, 0.02, 0.002), M["btn_soft"], p + b.col[2] * (d + 0.0062) - b.col[1] * 0.05, b)
+                k += 1
 
 
 # ------------------------------------------------------------------ side consoles under the two-pane windows
@@ -347,76 +414,50 @@ def platform(name, z, holes, ceiling=False):
 def build_decks():
     platform("DeckB", DECK_Z, [(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1)], ceiling=True)
     ladder("LadderAft", 0.0, 1.3, FLOOR, DECK_Z + 0.55, 0.22)
-    S.round_floor_hatch("Aft", 0.0, 0.66, FLOOR, r=0.27, hinge=(0.0, 1.0))   # down to the modules below (handwheel, lid opens down)
+    S.round_floor_hatch("Aft", 0.0, HATCH_Y, FLOOR, r=0.27, hinge=(0.0, 1.0))   # down to the modules below (handwheel, lid opens down)
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
 
 
-# ------------------------------------------------------------------ deck B: kitchen, dining, sleep stations, hygiene, exercise
-def build_hab_deck():
+# ------------------------------------------------------------------ living deck: docking and science forward, berths on the sides, galley aft
+def build_living_deck():
     D = DECK_Z
-    # kitchen along the front wall: counter cabinets with a worktop, oven, galley, utensils, food lockers above
-    for k, deg in enumerate((-36, -24, -12, 0, 12, 24, 36)):
-        p, b = at(deg, D + 0.2, 0.0)
-        P.cabinet(f"Counter{k}", p, b, 0.28, 0.38, 0.32, doors=1 if k % 2 else 2, top=M["module"])
-    P.oven("Oven", *at(-18, D + 0.52, 0.08))
-    P.galley("Galley", *at(10, D + 0.62, 0.0), w=0.3, h=0.42)
-    P.utensil_rack("Utensils", *at(-30, D + 0.68, 0.0))
-    for k, deg in enumerate((28, 38)):
-        P.cabinet(f"FoodLocker{k}", *at(deg, D + 0.72, 0.0), 0.24, 0.16, 0.18, doors=1)
-    P.table("DiningTable", (0.0, -0.45), r=0.26, h=0.42, floor_z=D)
-    # crew quarters on the left
-    for k, deg in enumerate((-100, -128)):
-        P.sleep_station(f"SleepStation{k}", *at(deg, D + 0.43, 0.0), 0.5, 0.78, 0.3)
-    P.drawer_stack("PersonalLockers", *at(-70, D + 0.25, 0.0), 0.3, 0.4, 4)
-    P.net_with_gear("QuartersNet", *at(-70, D + 0.66, 0.0), 0.34, 0.26)
-    # hygiene on the right, exercise bike on the deck
-    P.bike("Bike", (-0.62, 0.55), yaw=math.radians(35), floor_z=D)
-    # back wall either side of the ladder: tanks, tool board, cargo
-    P.tool_board("ToolBoard", *at(140, D + 0.52), 0.32, 0.3)
-    P.cargo_bag("BackBag", *at(-142, D + 1.0, 0.0), 0.28, 0.2, 0.12)
-    for side in (-1, 1):
-        p, b = at(158 if side > 0 else -158, D + 0.4, 0.13)
-        L.cylinder(f"HabTank{side}", 0.1, 0.56, M["tank"], p, L.basis(b.col[0], b.col[2], -b.col[1]), segs=28, bevel=0.025)
-        for dz in (-0.18, 0.18):
-            L.torus(f"HabTankStrap{side}{dz}", 0.104, 0.006, M["handle"], p + b.col[1] * dz, L.basis(b.col[0], b.col[2], -b.col[1]), seg=28, mseg=6)
-    for side in (-1, 1):
-        P.fan(f"HabFan{side}", *at(side * 52, D + 0.72))
-    G.wall("HabPanels", [("lamps", 52, D + 0.5, 0.12, 0.05, {"n": 3}), ("knobs", -52, D + 0.5, 0.14, 0.06, {"n": 3})])
-
-
-# ------------------------------------------------------------------ upper tier of the living deck: lab and docking station
-def build_lab_deck():
-    D = DECK_Z
-    # docking station: a wall console between the two docking windows, with a camera and binoculars
-    p, b = at(0, D + 1.08, 0.04)
-    s = C.Surface("DockStation", p, b.col[0], b.col[1], 0.26, 0.28, corner=0.02)
-    s.build(M["console"], thick=0.03)
-    G.grid(s, "Dock", 2, 2, [("navball", 0, 0, 1, 1, {}), ("mfd", 1, 0, 1, 1, {"screen": "mfd_map"}),
-                             ("toggles", 0, 1, 1, 1, {"cols": 3}), ("annunciators", 1, 1, 1, 1, {"cols": 2, "rows": 2, "start": 8})], border=0.008)
-    s.check()
-    G.housing(s, "DockStation", depth=0.04)
+    # docking station: a console band leaning with the cone under the two docking windows, hand controllers, foot loops
+    band = C.Band("DockStation", C.rad(-28), C.rad(28), D + 0.5, D + 0.92, 0.06)
+    band.build(M["console"])
+    G.band_grid(band, "DockStation", 0.0, D + 0.71, 8, 3, 0.14, 0.13, [
+        ("mfd", 0, 0, 2, 2, {"screen": "mfd_comms"}), ("navball", 2, 0, 2, 2, {}), ("mfd", 4, 0, 2, 2, {"screen": "mfd_map"}),
+        ("annunciators", 6, 0, 2, 1, {"cols": 4, "rows": 2, "start": 8}), ("keypad", 6, 1, 2, 2, {}),
+        ("toggles", 0, 2, 3, 1, {"cols": 8}), ("knobs", 3, 2, 1, 1, {"n": 2}), ("breakers", 4, 2, 2, 1, {"cols": 6, "rows": 2})])
+    band.check()
+    for k, deg in enumerate((-9, 9)):   # translation and rotation hand controllers under the console
+        p, b = at(deg, D + 0.42, 0.12)
+        S.cbox(f"DockRhcBase{k}", (0.08, 0.06, 0.08), M["frame_dark"], p, b, ch=0.008)
+        L.tube(f"DockRhcGrip{k}", [p + b.col[2] * 0.03, p + b.col[2] * 0.09 + b.col[1] * 0.02, p + b.col[2] * 0.12 + b.col[1] * 0.05], 0.018, M["rubber"] if "rubber" in M else M["frame_dark"])
+    for k, x in enumerate((-0.22, 0.22)):
+        K.foot_loop(f"DockFootLoop{k}", Vector((x, -0.78, D + 0.012)), Vector((0, 0, 1)), Vector((1, 0, 0)))
     w = next(w for w in C.WINDOWS if w["name"] == "DockingR")
     p, b = at(math.degrees(w["phi"]) + 14, w["z"] + 0.02, 0.02)
     P.camera("DockCamera", p, b, lens_dir=(C.polar(w["phi"], C.r_in(w["z"]) + 0.2, w["z"]) - p))
-    P.binoculars("Binoculars", *at(-math.degrees(w["phi"]) - 15, D + 1.3))
-    P.headset("Headset", *at(-9, D + 1.32))
-    # lab tier: glovebox, microscope shelf with a laptop, freezer, goo rack, sample drawers, whiteboard, racks
-    P.glovebox("Glovebox", *at(62, D + 1.12, 0.0), 0.42, 0.3, 0.26)
-    S.mount("GloveboxMount", *at(62, D + 1.12, 0.0), 0.42, 0.3)
-    P.cabinet("MicroscopeBench", *at(-62, D + 0.98, 0.0), 0.36, 0.26, 0.26, doors=2, top=M["module"])
-    S.mount("MicroscopeBenchMount", *at(-62, D + 0.98, 0.0), 0.36, 0.26)
-    P.microscope("Microscope", *at(-58, D + 1.18, 0.06))
-    P.laptop("LabLaptop", *at(-84, D + 1.25), arm=0.2, screen="mfd_systems")
-    P.freezer("SampleFreezer", *at(-128, D + 1.05, 0.0), 0.3, 0.3, 0.24)
-    S.mount("SampleFreezerMount", *at(-128, D + 1.05, 0.0), 0.3, 0.3)
-    P.science_rack("GooRack", *at(-106, D + 1.15), 0.28, 0.44)
-    P.drawer_stack("SampleDrawers", *at(140, D + 1.05, 0.0), 0.26, 0.32, 4)
-    S.mount("SampleDrawersMount", *at(140, D + 1.05, 0.0), 0.26, 0.32)
-    P.whiteboard("LabBoard", *at(-150, D + 1.25), 0.28, 0.22)
-    G.wall("LabRacks", [("mfd", 158, D + 1.22, 0.2, 0.2, {"screen": "mfd_engine"}), ("breakers", -168, D + 1.25, 0.2, 0.1, {"cols": 7, "rows": 2}),
-                        ("annunciators", 158, D + 0.98, 0.2, 0.08, {"cols": 6, "rows": 2, "start": 4})], inset=0.04)
-    for side in (-1, 1):
-        P.fan(f"LabFan{side}", *at(150 if side > 0 else -118, D + 1.45))
+    P.binoculars("Binoculars", *at(-44, D + 0.98, 0.02))
+    P.headset("Headset", *at(-40, D + 0.66, 0.02))
+    # science: the glovebox forward on the starboard side
+    P.glovebox("Glovebox", *at(52, D + 0.36, 0.05), 0.42, 0.3, 0.26)
+    S.mount("GloveboxMount", *at(52, D + 0.36, 0.05), 0.42, 0.3)
+    # exercise: the ergometer on the deck, front port
+    K.ergometer("Ergometer", Vector((-0.78, -0.52, D + 0.015)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))))
+    # berths: three sleeping bags to starboard, two to port with the crew lockers; a lamp and a small locker over each
+    for k, deg in enumerate((90, 108, 126, -98, -118)):
+        P.sleeping_bag(f"Berth{k}", *at(deg, D + 0.38, 0.045), w=0.38, h=0.64, d=0.12)
+        P.cabinet(f"BerthLocker{k}", *at(deg, D + 0.92, 0.03), 0.24, 0.14, 0.14, doors=1)
+    P.drawer_stack("CrewLockers", *at(-80, D + 0.3, 0.0), 0.3, 0.42, 4)
+    # galley aft-port, pantry aft-starboard, either side of the ladder hole; a fold-out table by the galley
+    P.galley("Galley", *at(-151, D + 0.34, 0.05), w=0.36, h=0.46)
+    P.oven("Oven", *at(-151, D + 0.78, 0.08))
+    P.utensil_rack("Utensils", *at(-138, D + 0.86, 0.0))
+    K.rail_table("FoldTable", Vector((-0.56, 0.58, D + 0.01)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))), w=0.42, l=0.34, stand=0.5)
+    P.cabinet("Pantry", *at(151, D + 0.3, 0.035), 0.34, 0.46, 0.3, doors=2)
+    P.cabinet("FoodLocker", *at(151, D + 0.78, 0.04), 0.28, 0.2, 0.2, doors=1)
+    P.whiteboard("Board", *at(140, D + 1.1), 0.28, 0.22)
 
 
 def ladder(name, x, y, z0, z1, w):
@@ -444,7 +485,7 @@ def build_lower_kit():
         P.cargo_bag(f"UnderCouchBag{i}", *flat(seat["x"], -0.48, FLOOR + 0.005), 0.34, 0.2, 0.2)
     # EVA jetpacks racked either side of the hatch
     for side in (-1, 1):
-        P.jetpack(f"Jetpack{side}", *at(side * 32, 1.15))
+        P.jetpack(f"Jetpack{side}", *at(side * 32, 1.15, 0.015))
     # camera bracketed at each upper side window, checklist binders on the back wall, handrails
     for side, wn in ((1, "SideHighR"), (-1, "SideHighL")):
         w = next(w for w in C.WINDOWS if w["name"] == wn)
@@ -456,6 +497,8 @@ def build_lower_kit():
 
 # ------------------------------------------------------------------ walls: lockers, stowage, safety kit, conduits
 def build_walls():
+    """(Retired: the front corners now hold the low lockers.)"""
+    return
     for side in (-1, 1):
         G.wall(f"WallFront{side}", [("breakers", side * 40, 1.7, 0.24, 0.12, {"cols": 8, "rows": 2}), ("lamps", side * 40, 1.86, 0.16, 0.05, {"n": 3})])
         for k2, z in enumerate((0.5, 0.72)):
@@ -500,26 +543,28 @@ def build_ceiling_below_deck(clear):
                 l[uv].uv = (l.vert.co.x, l.vert.co.y)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     L.mesh_obj("DeckCeiling", bm, [M["blanket"]])
-    S.beam("DeckCeilingHoleTrim", Vector((-HOLE_HW, HOLE_Y0, zc - 0.03)), Vector((HOLE_HW, HOLE_Y0, zc - 0.03)), 0.05, 0.06, M["frame_dark"])
+    S.beam("DeckCeilingHoleTrim", Vector((-HOLE_HW, HOLE_Y0, zc - 0.034)), Vector((HOLE_HW, HOLE_Y0, zc - 0.034)), 0.05, 0.06, M["frame_dark"])
     bz = zc - 0.045
     for k2 in range(8):
         phi = 2 * math.pi * (k2 + 0.5) / 8
         S.beam(f"CeilBeam{k2}", C.polar(phi, 0.3, bz), C.polar(phi, rr - 0.02, bz), 0.07, 0.09, M["frame"])
         for t in (0.45, 0.8):
             q = C.polar(phi, 0.3 + (rr - 0.32) * t, bz - 0.0)
+            if hidden(q):
+                continue
             S.cbox(f"CeilBeamClamp{k2}_{t}", (0.1, 0.1, 0.06), M["frame_dark"], q, Matrix.Rotation(-phi, 3, "Z"), ch=0.01)
     ring = [C.polar(2 * math.pi * j / 72, 0.62, bz) for j in range(72)]
     S.sweep("CeilRingBeam", ring, [(0, 0, 1)] * 72, S.chamfer_rect(0.07, 0.08), M["frame"], closed=True)
-    S.sweep("CeilHub", [C.polar(2 * math.pi * j / 48, 0.3, bz) for j in range(48)], [(0, 0, 1)] * 48, S.chamfer_rect(0.08, 0.1), M["frame_dark"], closed=True)
+    S.sweep("CeilBeamHub", [C.polar(2 * math.pi * j / 48, 0.3, bz) for j in range(48)], [(0, 0, 1)] * 48, S.chamfer_rect(0.08, 0.1), M["frame_dark"], closed=True)
     down = Vector((0, 0, -1))
     n = 0
     for k2 in range(8):
         phi = 2 * math.pi * k2 / 8
         for r in (0.46, 1.12):
-            p = C.polar(phi, r, zc)
+            p = C.polar(phi, r, zc - 0.006)
             if -HOLE_HW - 0.2 < p.x < HOLE_HW + 0.2 and HOLE_Y0 - 0.15 < p.y < HOLE_Y1 + 0.15:
                 continue
-            if -HYG_X1 - 0.1 < p.x < -HYG_X0 + 0.1 and abs(p.y - BULK_Y) < 0.3:   # over the hygiene door and its sign
+            if abs(p.x) > AISLE - 0.1 and p.y > FACE_Y - 0.1:   # over the aft rooms (the toilet has its own light)
                 continue
             tang = Vector((math.cos(phi), math.sin(phi), 0))
             S.light_fixture(f"CeilLight{n}", p, L.basis(tang, tang.cross(down), down), w=0.28 if r > 1 else 0.2, h=0.08)
@@ -534,20 +579,6 @@ def build_ceiling_below_deck(clear):
 
         for r_, seg in enumerate(S.runs(phis, ok, 6)):
             G.hose(f"Duct{side}_{r_}", [C.polar(p, C.r_in(zd) - 0.075, zd) for p in seg], r=0.045, mat=M["frame"], rib_mat=M["frame_dark"])
-    # cable bundles from the top of each console section up into the ceiling
-    for k2, x in enumerate((-1.24, -0.62, 0.0, 0.62, 1.24)):
-        z0 = MDC_Z - abs(x) * 0.07 + 0.115
-        sx = 0.14 if x >= 0 else -0.14
-        pts = [Vector((x + sx, MDC_Y + 0.08, z0)), Vector((x + sx * 1.1, MDC_Y + 0.12, z0 + 0.12)),
-               Vector((x * 0.95 + sx * 1.3, MDC_Y + 0.4, bz - 0.12)), Vector((x * 0.9 + sx * 1.4, MDC_Y + 0.62, bz - 0.06))]
-        S.bundle(f"MDC{k2}", pts, n=3 + (k2 % 2), colours=[S.CABLES[(k2 + i) % 4] for i in range(4)])
-    # risers from the side consoles up the wall into the ceiling
-    for side in (-1, 1):
-        for k2, deg in enumerate((86, 108)):
-            phi = C.rad(side * deg)
-            S.bundle(f"Riser{side}{k2}", S.wall_path(phi, SIDE_Z1 + 0.1, bz - 0.29, inset=0.04, n=5), n=3, colours=["cable_k", "cable_r" if k2 else "cable_g", "cable_y"], ends=(False, False))
-            S.junction(f"RiserBoxLo{side}{k2}", phi, SIDE_Z1 + 0.08)
-            S.junction(f"RiserBoxHi{side}{k2}", phi, bz - 0.29)   # below the ceiling duct
 
 
 def build_dome(clear):
@@ -568,26 +599,6 @@ def build_dome(clear):
         r = 0.5
         S.cbox(f"TunnelSegment{k2}", (0.2, 0.13, 0.025), M["frame"] if k2 % 2 else M["frame_dark"],
                Vector((r * math.cos(a), r * math.sin(a), dome_z(r) - 0.015)), Matrix.Rotation(a + math.pi / 2, 3, "Z"), ch=0.006)
-    n = 0
-    drops = [(70, 64, DECK_Z + 1.29), (-120, -127, DECK_Z + 1.22), (166, 160, DECK_Z + 1.34), (-12, -3, DECK_Z + 1.24), (-114, -108, DECK_Z + 1.39), (-70, -63, DECK_Z + 1.14)]
-    for deg in range(-165, 180, 30):
-        if any(min(a0, a1) - 12 <= deg <= max(a0, a1) + 12 for a0, a1, _ in drops):
-            continue   # a cable drop comes down here
-        phi = C.rad(deg)
-        p, b = at(deg, C.Z_CEIL - 0.2, 0.0)
-        size = (0.24, 0.12, 0.16)
-        rot = L.basis(b.col[0], -b.col[2], b.col[1])
-        c = p + b.col[2] * (size[1] / 2 + 0.005)
-        corners = [c + b.col[0] * sx * size[0] / 2 + b.col[1] * sz * size[2] / 2 for sx in (-1, 1) for sz in (-1, 1)]
-        if S.in_window(phi, C.Z_CEIL - 0.2, 0.08) or any(clear.blocked(q, 0.01) for q in corners + [c]):
-            continue
-        G.box_unit(f"Cassette{n}", c, size, rot, vents=n % 2 == 0, lamps_n=2)
-        n += 1
-    for k2, (a0, a1, z1) in enumerate(drops):   # each drop plugs into a junction box above its unit
-        zj = z1 + 0.1
-        S.bundle(f"Drop{k2}", S.wall_path(C.rad(a0), C.Z_CEIL - 0.08, zj, inset=0.04, n=5, phi1=C.rad(a1)), n=3,
-                 colours=[S.CABLES[(k2 + i) % 4] for i in range(3)], ends=(True, False))
-        S.junction(f"DropBox{k2}", C.rad(a1), zj)
 
 
 def build_floors():
@@ -595,8 +606,8 @@ def build_floors():
 
 
 def hidden(p):
-    """Behind the aft bulkhead (out of sight): build no structure there."""
-    return p.y > BULK_Y + 0.02 and abs(p.x) > AISLE + 0.02 and p.z < BULK_TOP + 0.02
+    """Inside the aft rooms (dressed on their own): build no structure there."""
+    return p.y > FACE_Y - 0.02 and abs(p.x) > AISLE - 0.02 and p.z < TOP + 0.04
 
 
 def build_structure():
@@ -608,13 +619,6 @@ def build_structure():
     clear = S.Clearance(zones=[hidden])
     D = DECK_Z
     bays = [2 * math.pi * k2 / 16 for k2 in range(16)]
-    S.wall_racks("Hab", clear, bays, D + 0.5, 0.36, 0.62, seed=5)
-    S.wall_racks("Flight", clear, bays, 1.5, 0.34, 0.44, seed=6, chance=0.7)
-    S.wall_racks("HabUpper", clear, [2 * math.pi * (k2 + 0.5) / 32 for k2 in range(32)], D + 1.28, 0.24, 0.28, seed=8, chance=0.9)
-    clear = S.Clearance(zones=[hidden])
-    S.cable_run("RunHabTop", C.Z_CEIL - 0.17, clear, seed=3)
-    S.cable_run("RunHabMid", D + 0.95, clear, seed=4, n=3)
-    S.cable_run("RunFlightTop", D - 0.31, clear, seed=5)   # below the ceiling duct (D - 0.195)
     clear = S.Clearance(zones=[hidden])
     S.ring_frame("Skirt", FLOOR + 0.05, clear, h=0.07, d=0.04)
     S.ring_frame("Cornice", D - 0.07, clear, h=0.09, d=0.05)
@@ -640,18 +644,17 @@ build_mdc()
 build_lower_deck()
 build_side_consoles()
 C.build_hatch(HATCH_PHI, HATCH_HALF, H["z0"], H["z1"])
-build_bulkhead()
+build_aft_rooms()
+build_front_lockers()
 build_decks()
-build_walls()
-build_hab_deck()
-build_lab_deck()
+build_living_deck()
 build_lower_kit()
 build_structure()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)],
-                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, 0.66, FLOOR + 0.2))])
+                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, HATCH_Y, FLOOR + 0.2))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
-print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; bulkhead at y {BULK_Y:.2f}")
+print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; aft rooms from y {FACE_Y:.2f}")
 L.save(OUT)
