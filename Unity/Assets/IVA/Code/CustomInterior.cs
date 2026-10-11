@@ -63,6 +63,9 @@ namespace IVA
             // Mk1 cockpit: shuttle-era flight deck built to the real hull (nose along the part's +Y, canopy up).
             new InteriorDesign { Name = "Mk1 Cockpit", Address = "IVA/Interior_cockpit_1v_m1_crew", Parts = new[] { "cockpit_1v_m1_crew" },
                                  Seats = 1, BaseRadius = 0.625f, Height = 2.1f, Yaw = 180f, OnHull = true, HullBaseY = -0.62f },
+            // Mk3 cockpit: orbiter flight deck (four seats at the stock eye points) over a mid-deck reached by a floor hatch.
+            new InteriorDesign { Name = "Mk3 Cockpit", Address = "IVA/Interior_cockpit_3v_m3_crew", Parts = new[] { "cockpit_3v_m3_crew" },
+                                 Seats = 4, BaseRadius = 1.879f, Height = 4.48f, Yaw = 180f, OnHull = true, HullBaseY = -1.275f },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
