@@ -36,6 +36,7 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _nextSeatKey;
         private ConfigValue<KeyboardShortcut> _windowKey;
         private ConfigValue<KeyboardShortcut> _unbuckleKey;
+        private ConfigValue<KeyboardShortcut> _doorKey;
         private ConfigValue<float> _floatSpeed;
         private ConfigValue<float> _windowFov;
         private ConfigValue<float> _glideTime;
@@ -108,6 +109,8 @@ namespace IVA
 
         // Unbuckled: floating round the cabin (null while seated).
         private FreeMove _free;
+        private Doors _doors;
+        private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
         private bool _flightInputLocked;
         private GUIStyle _promptStyle;
 
@@ -132,6 +135,8 @@ namespace IVA
             _glideTime = Bind(cfg, "Look", "Window glide time", 0.5f, "Seconds to move between the seat and a window (0 = instant).", new RangeConstraint<float>(0f, 3f));
             _unbuckleKey = Bind(cfg, "Keys", "Unbuckle", new KeyboardShortcut(KeyCode.U),
                 "Leave the couch and float round the cabin (WASD move, Shift/Ctrl up/down, Q/E roll); press again to sit in the nearest couch.");
+            _doorKey = Bind(cfg, "Keys", "Open door", new KeyboardShortcut(KeyCode.F),
+                "While floating round the cabin: open or close the door you're next to (the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
 
             _mouseSensitivity = Bind(cfg, "Look", "Mouse sensitivity", 2.0f,
@@ -245,6 +250,7 @@ namespace IVA
                 if (_free != null) Buckle();
                 NextWindow();
             }
+            if (_free != null && _doorKey.Value.Down) ToggleDoor();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -258,6 +264,12 @@ namespace IVA
             {
                 try { _session.Live.Update(Game, _vesselAtEntry.Model, _session.PodTransform, Time.deltaTime); }
                 catch (Exception e) { SWLogger.LogError("IVA: live instruments failed and are now off: " + e.Message); _session.DisableLive(); }
+            }
+            if (_doors != null)
+            {
+                _doors.Update(Time.unscaledDeltaTime);
+                if (_free != null)
+                    foreach (var kv in _doorBoxes) _free.SetDoorSolid(kv.Value, kv.Key.Open < 0.3f);
             }
             ApplyPose();
         }
@@ -661,6 +673,7 @@ namespace IVA
             SaveFlightCamera();
             ResetView();
             _session = session;
+            _doors = _session.Root != null ? Doors.Find(_session.Root.gameObject, _session.PodTransform, SWLogger) : null;
             _vesselAtEntry = PodLocator.ActiveVessel(Game);
             _seatIndex = 0;
             _mode = Mode.CustomInterior;
@@ -892,6 +905,9 @@ namespace IVA
         private void ExitIva()
         {
             _free = null;
+            _doors?.CloseAll();
+            _doors = null;
+            _doorBoxes.Clear();
             LockFlightInput(false);
             _loading = false;
             _loadingFor = null;
@@ -955,6 +971,10 @@ namespace IVA
             _yawLook = 0f;
             _pitch = 0f;
             _free = f;
+            _doorBoxes.Clear();
+            if (_doors != null)
+                foreach (Doors.Door d in _doors.All)
+                    _doorBoxes[d] = f.AddDoor(d.CentrePod, d.EdgePod * 0.5f, d.AxisPod, d.OutPod * 0.02f);
             _session.HideWholeKerbal(_seatIndex);   // you've left the couch
             LockFlightInput(true);                  // WASD, Shift and Ctrl move you, not the vessel
             SWLogger.LogInfo($"IVA: unbuckled from seat {_seatIndex + 1}.");
@@ -1002,11 +1022,23 @@ namespace IVA
             catch (Exception e) { SWLogger.LogWarning($"IVA: couldn't {(on ? "lock" : "unlock")} the flight controls: {e.Message}"); }
         }
 
+        private void ToggleDoor()
+        {
+            Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
+            if (d == null) return;
+            d.Target = d.Target > 0.5f ? 0f : 1f;
+            SWLogger.LogInfo($"IVA: {(d.Target > 0.5f ? "opening" : "closing")} door {d.Name}.");
+        }
+
         private void OnGUI()
         {
-            if (_free == null || !_free.NearHatch(0.6f, out string hatch)) return;
+            if (_free == null) return;
             if (_promptStyle == null) _promptStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18 };
-            GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), $"{hatch} hatch: going through hatches isn't possible yet", _promptStyle);
+            string text = null;
+            Doors.Door d = _doors?.Nearest(_free.Pos, 0.9f);
+            if (d != null) text = $"{_doorKey.Value}: {(d.Target > 0.5f ? "close" : "open")} the door";
+            else if (_free.NearHatch(0.6f, out string hatch)) text = $"{hatch} hatch: going through hatches isn't possible yet";
+            if (text != null) GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), text, _promptStyle);
         }
 
         private void NextSeat()

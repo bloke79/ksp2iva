@@ -27,6 +27,8 @@ namespace IVA
 
         private readonly List<Box> _boxes = new List<Box>();
         private readonly List<Box> _holes = new List<Box>();
+        private readonly List<Box> _doors = new List<Box>();
+        private readonly List<bool> _doorSolid = new List<bool>();
         private readonly List<float> _decks = new List<float>();
         private readonly List<Vector2> _hull = new List<Vector2>();   // (height along the axis, radius), sorted
         public readonly List<KeyValuePair<string, Vector3>> Hatches = new List<KeyValuePair<string, Vector3>>();
@@ -192,10 +194,11 @@ namespace IVA
                 }
             }
             if (_ghost) return;
-            // equipment boxes
-            for (int i = 0; i < _boxes.Count; i++)
+            // equipment boxes, then closed doors
+            for (int i = 0; i < _boxes.Count + _doors.Count; i++)
             {
-                Box b = _boxes[i];
+                if (i >= _boxes.Count && !_doorSolid[i - _boxes.Count]) continue;
+                Box b = i < _boxes.Count ? _boxes[i] : _doors[i - _boxes.Count];
                 Vector3 d = p - b.C;
                 if (d.sqrMagnitude > (b.Reach + Radius) * (b.Reach + Radius)) continue;
                 float lx = Vector3.Dot(d, b.X), ly = Vector3.Dot(d, b.Y), lz = Vector3.Dot(d, b.Z);
@@ -219,6 +222,21 @@ namespace IVA
                 }
                 Stop(n);
             }
+        }
+
+        // A door leaf (closed): centre and three half-axis vectors. Returns its index for SetDoorSolid.
+        public int AddDoor(Vector3 c, Vector3 hx, Vector3 hy, Vector3 hz)
+        {
+            var b = new Box { C = c, X = hx.normalized, Y = hy.normalized, Z = hz.normalized, E = new Vector3(hx.magnitude, hy.magnitude, hz.magnitude) };
+            b.Reach = b.E.magnitude;
+            _doors.Add(b);
+            _doorSolid.Add(true);
+            return _doors.Count - 1;
+        }
+
+        public void SetDoorSolid(int i, bool solid)
+        {
+            if (i >= 0 && i < _doorSolid.Count) _doorSolid[i] = solid;
         }
 
         // Nearest hatch within reach, for the prompt.

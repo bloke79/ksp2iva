@@ -604,6 +604,9 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None):
     leaf = L.box(f"IVA_Live_Door{name}", (door_w - 0.01, door_h - 0.01, 0.025), M["locker"], hinge, rot, bevel=0.004, segs=1)
     for v in leaf.data.vertices:   # origin on the hinge line
         v.co.x += (door_w - 0.01) / 2
+    C.marker(f"IVA_LiveAxis_Door{name}", hinge + u * (door_h / 2))        # up the hinge, half the door height
+    C.marker(f"IVA_LiveEdge_Door{name}", hinge + r * (door_w - 0.01))     # the free edge when closed
+    C.marker(f"IVA_LiveOut_Door{name}", hinge + n * 0.3)                  # it opens out into the cabin
     for k in range(2):
         L.cylinder(f"{name}Hinge{k}", 0.012, 0.06, M["buckle"], hinge + u * (door_h * 0.35 * (1 if k else -1)), L.basis(r, n, u) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=10)
     dc = fz + r * dx + u * dy + n * 0.025
