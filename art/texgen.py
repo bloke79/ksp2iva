@@ -893,6 +893,49 @@ def posters(w=512, h=768):
     save(frame(img), "poster_duna.png")
 
 
+def _detail(kind, size=1024):
+    """Neutral (near-white) detail maps, tinted by the material colour; one tile = 0.5 m."""
+    rng = np.random.default_rng({"painted": 61, "brushed": 62}[kind])
+    mott = 0.6 * _tile_noise(size, 3, 63) + 0.4 * _tile_noise(size, 9, 64)          # broad mottling
+    fine = rng.normal(0, 1, (size, size)).astype(np.float32)
+    if kind == "brushed":
+        img = Image.fromarray(((fine * 0.5 + 0.5).clip(0, 1) * 255).astype(np.uint8)).filter(ImageFilter.BoxBlur(0))
+        grain = np.asarray(img.resize((size, 8), Image.BILINEAR).resize((size, size), Image.BILINEAR)).astype(np.float32) / 255 - 0.5
+        grain = 0.7 * grain + 0.3 * (np.asarray(img.resize((size, 64), Image.BILINEAR).resize((size, size), Image.BILINEAR)).astype(np.float32) / 255 - 0.5)
+        tone = 0.88 + 0.10 * mott + 0.22 * grain
+        h = grain * 0.6
+    else:
+        peel = np.asarray(Image.fromarray(((fine * 0.5 + 0.5).clip(0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.6))).astype(np.float32) / 255 - 0.5
+        smudge = np.clip(_tile_noise(size, 5, 65) - 0.62, 0, 1) * 2.5
+        tone = 0.86 + 0.14 * mott - 0.12 * smudge + 0.05 * peel
+        h = peel * 0.45
+    # fine scratches: thin light lines in random directions
+    img = Image.fromarray((np.clip(tone, 0, 1) * 255).astype(np.uint8))
+    hi = Image.fromarray(((h * 0.5 + 0.5).clip(0, 1) * 255).astype(np.uint8))
+    d, dh = ImageDraw.Draw(img), ImageDraw.Draw(hi)
+    if kind == "painted":   # paint chips: small light flecks where the paint has knocked off
+        for _ in range(60):
+            x, y = rng.integers(0, size, 2)
+            pts = [(x + rng.normal(0, 5), y + rng.normal(0, 4)) for _ in range(6)]
+            d.polygon(pts, fill=int(255 * 1.0))
+            dh.polygon(pts, fill=60)
+    for _ in range(160 if kind == "painted" else 220):
+        x, y = rng.integers(0, size, 2)
+        a = rng.random() * np.pi if kind == "painted" else rng.normal(0, 0.08)
+        ln = rng.integers(15, 90)
+        x2, y2 = x + ln * np.cos(a), y + ln * np.sin(a)
+        d.line([(x, y), (x2, y2)], fill=int(255 * min(1.0, tone.mean() + 0.12)), width=int(rng.integers(1, 3)))
+        dh.line([(x, y), (x2, y2)], fill=90, width=1)
+    col = np.asarray(img).astype(np.float32) / 255
+    rgb = np.dstack([col, col, col * 0.995])
+    save(Image.fromarray((rgb.clip(0, 1) * 255).astype(np.uint8)), f"detail_{kind}_color.png")
+    hh = np.asarray(hi).astype(np.float32) / 255
+    gy, gx = np.gradient(hh * 6.0)
+    n = np.dstack([-gx, -gy, np.ones_like(hh)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), f"detail_{kind}_normal.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -906,7 +949,7 @@ ALL = {
     "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel, "food": food, "food_labels": food_labels, "deckplate": deckplate,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
-    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream, "wall_padded": wall_padded, "posters": posters,
+    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream, "wall_padded": wall_padded, "posters": posters, "detail_painted": lambda: _detail("painted"), "detail_brushed": lambda: _detail("brushed"),
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
 }
 # python texgen.py <out> [name ...]: only the named textures (default: all)

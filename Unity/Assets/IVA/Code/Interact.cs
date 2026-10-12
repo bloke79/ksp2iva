@@ -138,7 +138,8 @@ namespace IVA
                     ix.Targets.Add(new Target
                     {
                         Kind = "Curtain", Name = key, Pod = ActAt("Curtain", key.Substring(7), P(main)),
-                        Prompt = () => m.Target > 0.5f ? "open the curtain" : "close the curtain",
+                        Prompt = key.Contains("Door") ? (Func<string>)(() => m.Target > 0.5f ? "open the door" : "close the door")
+                                                      : () => m.Target > 0.5f ? "open the curtain" : "close the curtain",
                         Use = () => { m.Target = m.Target > 0.5f ? 0f : 1f; ix.Sounds?.Play(Sounds.Curtain); },
                     });
                 }

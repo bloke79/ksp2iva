@@ -186,6 +186,10 @@ def whiteboard(name, p, b, w=0.36, h=0.26):
     """Flight-plan whiteboard with marker lines and a marker on a cord."""
     L.box(name, (w, h, 0.012), M["whiteboard"], _a(p, b, 0, 0, 0.006), _r(b), bevel=0.003)
     L.box(name + "Frame", (w + 0.02, h + 0.02, 0.008), M["couchframe"], _a(p, b, 0, 0, 0.002), _r(b), bevel=0.003)
+    if "whiteboard_art" in M:   # the crew's scribbles (posters.py whiteboard)
+        L.plane(name + "Art", w - 0.01, h - 0.01, M["whiteboard_art"], _a(p, b, 0, 0, 0.0125), _r(b))
+        L.cylinder(name + "Marker", 0.006, 0.08, M["marker_blue"], _a(p, b, w / 2 - 0.03, -h / 2 - 0.03, 0.02), L.basis(b.col[1], b.col[2], b.col[0]), segs=10)
+        return
     for k in range(5):
         L.box(f"{name}Line{k}", (w * (0.4 + 0.1 * (k % 3)), 0.006, 0.002), M["marker_blue"] if k % 2 == 0 else M["red"],
               _a(p, b, -w * 0.08, h * 0.3 - k * 0.045, 0.013), _r(b))

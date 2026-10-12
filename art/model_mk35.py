@@ -253,34 +253,57 @@ def fitted_wall(name, side, kind, hole=None, thick=0.03):
 
 
 def toilet_door():
-    """Hatch-style door in the port aisle wall, hinged on its aft edge, opening into the compartment."""
-    x = -AISLE + 0.012
-    w, h = DOOR_Y1 - DOOR_Y0, DOOR_H
-    yc, zc = (DOOR_Y0 + DOOR_Y1) / 2, FLOOR + DOOR_H / 2
+    """Concertina door: a pleated screen just inside the port aisle wall, folded into a slim stack at the aft side of
+    the doorway when open; F draws it across (it stretches along its track, like the curtains)."""
+    w, h = DOOR_Y1 - DOOR_Y0, DOOR_H - 0.02
+    x0 = -AISLE - 0.052
+    zc = FLOOR + 0.01 + h / 2
+    stack = 0.12                                     # folded width
+    anchor = Vector((x0, DOOR_Y1 - 0.01, zc))
+    n = 12
+    parts = []
+    for k in range(n):                               # pleats, zig-zagging across the track, modelled folded
+        ya = anchor.y - stack * k / n
+        yb = anchor.y - stack * (k + 1) / n
+        xa, xb = x0 + (0.018 if k % 2 else -0.018), x0 + (-0.018 if k % 2 else 0.018)
+        c = Vector(((xa + xb) / 2, (ya + yb) / 2, zc))
+        d = Vector((xb - xa, yb - ya, 0.0))
+        r = d.normalized()
+        rot = L.basis(r, Vector((0, 0, 1)), r.cross(Vector((0, 0, 1))).normalized())
+        parts.append(L.box(f"ToiletDoorPleat{k}", (d.length + 0.002, h, 0.006), M["locker"], c, rot, bevel=0.0015))
+    post = L.box("ToiletDoorPost", (0.03, h + 0.01, 0.012), M["yellow"], Vector((x0 + 0.004, anchor.y - stack - 0.006, zc)),
+                 L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))), bevel=0.003)
+    parts.insert(0, post)
+    A.curtain("ToiletDoor", parts, anchor, anchor - Vector((0, stack + 0.012, 0)), Vector((x0, DOOR_Y0 + 0.004, zc)),
+              act_at=Vector((-AISLE + 0.01, DOOR_Y0 + 0.08, zc)))
+    for z_ in (FLOOR + 0.008, FLOOR + DOOR_H + 0.004):   # top and bottom tracks across the doorway
+        S.cbox(f"ToiletDoorTrack{z_:.2f}", (0.05, w + 0.03, 0.012), M["frame_dark"], Vector((x0, (DOOR_Y0 + DOOR_Y1) / 2, z_)), ch=0.002)
     face = L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((1, 0, 0)))    # seen from the aisle: right is forward
-    leaf = L.box("ToiletDoorLeaf", (w - 0.01, h - 0.01, 0.024), M["locker"], Vector((x, yc, zc)), face, bevel=0.006)
-    panel = L.box("ToiletDoorPanel", (w - 0.12, h * 0.42, 0.006), M["frame_dark"], Vector((x + 0.014, yc, zc + h * 0.14)), face, bevel=0.002)
-    parts = [leaf, panel]
-    for i in range(6):
-        parts.append(L.box(f"ToiletDoorLouvre{i}", (w - 0.16, 0.012, 0.008), M["frame_dark"], Vector((x + 0.016, yc, zc - h * 0.3 - i * 0.022)), face))
-    handle = L.tube("ToiletDoorHandle", [Vector((x + 0.012, DOOR_Y0 + 0.07, zc + 0.08)), Vector((x + 0.045, DOOR_Y0 + 0.07, zc + 0.08)),
-                                         Vector((x + 0.045, DOOR_Y0 + 0.07, zc - 0.08)), Vector((x + 0.012, DOOR_Y0 + 0.07, zc - 0.08))], 0.009, M["yellow"])
-    parts.append(handle)
-    A.hinge("Toilet", parts, Vector((x, DOOR_Y1, FLOOR)), Vector((0, 0, 1)), Vector((x, DOOR_Y0, FLOOR)), Vector((-1, 0, 0)),
-            act_at=Vector((x + 0.03, DOOR_Y0 + 0.07, zc)), half_h=h / 2)
-    # frame round the opening, and the engaged/vacant sign beside it
-    L.tube("ToiletDoorFrame", [Vector((-AISLE + 0.01, DOOR_Y0 - 0.01, FLOOR)), Vector((-AISLE + 0.01, DOOR_Y0 - 0.01, FLOOR + DOOR_H + 0.01)),
-                               Vector((-AISLE + 0.01, DOOR_Y1 + 0.01, FLOOR + DOOR_H + 0.01)), Vector((-AISLE + 0.01, DOOR_Y1 + 0.01, FLOOR))], 0.014, M["frame"])
+    # frame round the opening on the aisle side, and the engaged/vacant sign beside it
+    L.tube("ToiletDoorFrame", [Vector((-AISLE + 0.012, DOOR_Y0 - 0.012, FLOOR)), Vector((-AISLE + 0.012, DOOR_Y0 - 0.012, FLOOR + DOOR_H + 0.012)),
+                               Vector((-AISLE + 0.012, DOOR_Y1 + 0.012, FLOOR + DOOR_H + 0.012)), Vector((-AISLE + 0.012, DOOR_Y1 + 0.012, FLOOR))], 0.012, M["frame"])
     sign = Vector((-AISLE + 0.006, DOOR_Y1 + 0.12, FLOOR + 1.32))
     L.box("ToiletSign", (0.14, 0.07, 0.008), M["frame"], sign, face, bevel=0.002)
     L.box("ToiletSignLamp", (0.04, 0.03, 0.006), M.get("lamp_green", M["light"]), sign + Vector((0.006, -0.04, 0)), face, bevel=0.002)
+
+
+def toilet_wall_boxes():
+    """Collision for the toilet's aisle wall, leaving the doorway open (the wall mesh itself is NoCol)."""
+    x, t = -AISLE - 0.015, 0.02
+    y_end = 1.72
+    zc, hz = (FLOOR + TOP) / 2, (TOP - FLOOR) / 2
+    out = [((x, (FACE_Y + DOOR_Y0) / 2, zc), (t, 0, 0), (0, (DOOR_Y0 - FACE_Y) / 2, 0), (0, 0, hz)),
+           ((x, (DOOR_Y1 + y_end) / 2, zc), (t, 0, 0), (0, (y_end - DOOR_Y1) / 2, 0), (0, 0, hz))]
+    za = FLOOR + DOOR_H
+    out.append(((x, (DOOR_Y0 + DOOR_Y1) / 2, (za + TOP) / 2), (t, 0, 0), (0, (DOOR_Y1 - DOOR_Y0) / 2, 0), (0, 0, (TOP - za) / 2)))
+    return out
 
 
 def build_aft_rooms():
     # living spaces in a plain light finish (the switch-panel texture stays on the flight deck's consoles)
     M["module"] = L.material("IVA_MidPanel", (0.62, 0.63, 0.64), rough=0.55, metal=0.2)
     fitted_wall("ToiletFace", -1, "face")
-    fitted_wall("ToiletAisleWall", -1, "aisle", hole=(DOOR_Y0, DOOR_Y1, FLOOR - 0.01, FLOOR + DOOR_H))
+    fitted_wall("NoColToiletAisleWall", -1, "aisle", hole=(DOOR_Y0, DOOR_Y1, FLOOR - 0.01, FLOOR + DOOR_H))
     fitted_wall("BayFace", 1, "face")
     fitted_wall("BayAisleWall", 1, "aisle")
     for side in (-1, 1):   # trim on the aisle corners and along the tops
@@ -386,6 +409,41 @@ def build_side_consoles():
 
 
 # ------------------------------------------------------------------ decks: platforms, openings, ladders, ceiling lights
+def round_tiles(bm, uv, rr, z, step, skip, down=False):
+    import bmesh
+    """Square deck tiles filling a circle of radius rr at height z, the edge cells clipped to the circle (outside corners
+    pulled in onto it), so the deck's edge is round rather than stepped. skip(cx, cy): leave a cell out (openings)."""
+    k = int(rr / step) + 2
+    vs = {}
+
+    def vert(i, j):
+        if (i, j) not in vs:
+            x, y = i * step, j * step
+            r = math.hypot(x, y)
+            if r > rr:
+                x, y = x * rr / r, y * rr / r
+            vs[(i, j)] = bm.verts.new((x, y, z))
+        return vs[(i, j)]
+    for i in range(-k, k):
+        for j in range(-k, k):
+            cs = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
+            if all(math.hypot(a * step, b * step) >= rr for a, b in cs):
+                continue
+            cx, cy = (i + 0.5) * step, (j + 0.5) * step
+            if skip(cx, cy):
+                continue
+            q = [vert(a, b) for a, b in (cs[::-1] if down else cs)]
+            if len({v.co.to_tuple(5) for v in q}) < 3:
+                continue
+            try:
+                f = bm.faces.new(q)
+            except ValueError:
+                continue
+            for l in f.loops:
+                l[uv].uv = (l.vert.co.x, l.vert.co.y)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges)
+
+
 def platform(name, z, holes, ceiling=False):
     """Grated deck at height z filling the hull, with rectangular openings (x0, x1, y0, y1); rim, radial beams and
     downlights on its underside (the ceiling of the deck below)."""
@@ -393,19 +451,7 @@ def platform(name, z, holes, ceiling=False):
     rr = C.r_in(z) - 0.01
     tiles = bmesh.new()
     uv = tiles.loops.layers.uv.new("UVMap")
-    step = 0.1
-    k = int(rr / step) + 1
-    for i in range(-k, k):
-        for j in range(-k, k):
-            x0, y0 = i * step, j * step
-            cx, cy = x0 + step / 2, y0 + step / 2
-            if math.hypot(cx, cy) > rr - 0.03 or any(h[0] < cx < h[1] and h[2] < cy < h[3] for h in holes):
-                continue
-            vs = [tiles.verts.new((x, y, z)) for x, y in ((x0, y0), (x0 + step, y0), (x0 + step, y0 + step), (x0, y0 + step))]
-            face = tiles.faces.new(vs)
-            for l in face.loops:
-                l[uv].uv = (l.vert.co.x * 1.0, l.vert.co.y * 1.0)
-    bmesh.ops.remove_doubles(tiles, verts=tiles.verts, dist=1e-5)
+    round_tiles(tiles, uv, rr - 0.012, z, 0.1, lambda cx, cy: any(h[0] < cx < h[1] and h[2] < cy < h[3] for h in holes))
     L.solidify(L.mesh_obj(name, tiles, [M.get("deckplate", M["floor"])]), 0.03)
     L.tube(name + "Rim", [C.polar(2 * math.pi * j / 96, rr - 0.015, z - 0.015) for j in range(97)], 0.02, M["couchframe"])
     for k2 in range(0 if ceiling else 8):
@@ -548,7 +594,8 @@ def build_living_deck():
     K.rail_table("FoldTable", Vector((-0.36, 0.66, D + 0.01)), L.basis(Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))), w=0.42, l=0.34, stand=0.5)
     P.cabinet("Pantry", *at(151, D + 0.3, 0.035), 0.34, 0.46, 0.3, doors=2)
     P.cabinet("FoodLocker", *at(151, D + 0.78, 0.04), 0.28, 0.2, 0.2, doors=1)
-    P.whiteboard("Board", *at(140, D + 1.1), 0.28, 0.22)
+    M["whiteboard_art"] = L.material("IVA_WhiteboardArt", tex="whiteboard.png", rough=0.25, metal=0.0)
+    P.whiteboard("Board", *at(140, D + 1.1, 0.02), 0.33, 0.22)
     poster("PosterMun", "mun", *at(104, D + 1.12, 0.0))
     poster("PosterKerbin", "kerbin", *at(-98, D + 1.12, 0.0))
     poster("PosterCrew", "crew", *at(-166, D + 1.02, 0.0), w=0.2, h=0.3)
@@ -627,19 +674,7 @@ def build_ceiling_below_deck(clear):
     rr = C.r_in(zc) - 0.012
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
-    step = 0.1
-    k = int(rr / step) + 1
-    for i in range(-k, k):
-        for j in range(-k, k):
-            x0, y0 = i * step, j * step
-            cx, cy = x0 + step / 2, y0 + step / 2
-            if math.hypot(cx, cy) > rr - 0.03 or (-HOLE_HW < cx < HOLE_HW and HOLE_Y0 < cy < HOLE_Y1):
-                continue
-            vs = [bm.verts.new((x, y, zc)) for x, y in ((x0, y0), (x0, y0 + step), (x0 + step, y0 + step), (x0 + step, y0))]
-            f = bm.faces.new(vs)
-            for l in f.loops:
-                l[uv].uv = (l.vert.co.x, l.vert.co.y)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    round_tiles(bm, uv, rr, zc, 0.1, lambda cx, cy: -HOLE_HW < cx < HOLE_HW and HOLE_Y0 < cy < HOLE_Y1, down=True)
     L.mesh_obj("DeckCeiling", bm, [M["blanket"]])
     S.beam("DeckCeilingHoleTrim", Vector((-HOLE_HW, HOLE_Y0, zc - 0.034)), Vector((HOLE_HW, HOLE_Y0, zc - 0.034)), 0.05, 0.06, M["frame_dark"])
     bz = zc - 0.045
@@ -695,8 +730,36 @@ def build_dome(clear):
     for k2 in range(16):
         a = 2 * math.pi * (k2 + 0.5) / 16
         r = 0.5
-        S.cbox(f"TunnelSegment{k2}", (0.2, 0.13, 0.025), M["frame"] if k2 % 2 else M["frame_dark"],
-               Vector((r * math.cos(a), r * math.sin(a), dome_z(r) - 0.015)), Matrix.Rotation(a + math.pi / 2, 3, "Z"), ch=0.006)
+        radial = Vector((math.cos(a), math.sin(a), 0.0))
+        slope = Vector((radial.x * 0.02, radial.y * 0.02, dome_z(r + 0.01) - dome_z(r - 0.01))).normalized()   # down the dome, outward
+        tang = Vector((-math.sin(a), math.cos(a), 0.0))
+        nrm = tang.cross(slope).normalized()
+        if nrm.z > 0:
+            nrm = -nrm                                   # out of the dome, into the cabin
+        S.cbox(f"TunnelSegment{k2}", (0.16, 0.12, 0.022), M["frame"] if k2 % 2 else M["frame_dark"],
+               Vector((r * math.cos(a), r * math.sin(a), dome_z(r))) + nrm * 0.02, L.basis(tang, slope, -nrm), ch=0.005)
+
+
+def build_flight_floor():
+    """The floor between the couch heads and the front wall: tie-down tracks, flush stowage lids, strapped bags; and
+    handrails under the deck above, for pulling yourself along overhead."""
+    for sx in (-1, 1):   # tie-down tracks either side of the route to the EVA hatch
+        x = sx * 0.6
+        S.cbox(f"FloorTrack{sx}", (0.045, 0.95, 0.012), M["frame_dark"], Vector((x, -1.0, FLOOR + 0.006)), ch=0.002)
+        for k in range(8):
+            L.cylinder(f"FloorTrackBolt{sx}_{k}", 0.008, 0.006, M["buckle"], Vector((x, -1.42 + k * 0.12, FLOOR + 0.014)), segs=8)
+    for k, (x, y) in enumerate(((-0.82, -0.98), (0.0, -1.2), (0.82, -0.98))):   # flush stowage lids with recessed pulls
+        S.cbox(f"FloorLid{k}", (0.42, 0.3, 0.008), M["locker"], Vector((x, y, FLOOR + 0.004)), ch=0.002)
+        S.cbox(f"FloorLidPull{k}", (0.12, 0.03, 0.006), M["frame_dark"], Vector((x, y - 0.1, FLOOR + 0.0095)), ch=0.002)
+        L.box(f"FloorLidTag{k}", (0.08, 0.025, 0.002), M["btn_soft"], Vector((x, y + 0.08, FLOOR + 0.009)))
+    up = L.basis(Vector((1, 0, 0)), Vector((0, -1, 0)), Vector((0, 0, 1)))
+    for sx in (-1, 1):   # bags strapped down on the tracks
+        P.cargo_bag(f"FloorBag{sx}", Vector((sx * 0.6, -0.75, FLOOR + 0.008)), up, 0.26, 0.2, 0.15)
+    zr = DECK_Z - 0.035 - 0.2
+    for sx in (-1, 1):   # overhead handrails, fore-aft over the route
+        x = sx * 0.47
+        L.tube(f"OverheadRail{sx}", [Vector((x, -0.92, DECK_Z - 0.035)), Vector((x, -0.92, zr)), Vector((x, 0.16, zr)), Vector((x, 0.16, DECK_Z - 0.035))],
+               0.013, M["yellow"])
 
 
 def build_floors():
@@ -747,10 +810,14 @@ build_front_lockers()
 build_decks()
 build_living_deck()
 build_lower_kit()
+build_flight_floor()
 build_structure()
+import surfaces  # noqa: E402
+if not os.environ.get("IVA_NO_DETAIL"):
+    surfaces.apply()
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
-S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)],
+S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)], boxes=toilet_wall_boxes(),
                     hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, HATCH_Y, FLOOR + 0.2))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])

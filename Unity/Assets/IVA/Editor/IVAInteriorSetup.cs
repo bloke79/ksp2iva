@@ -41,6 +41,7 @@ namespace IVA.EditorTools
             public float normalStrength = 1f;
             public float[] tiling;
             public bool emissionFromTexture;
+            public bool tint;              // the texture is a neutral detail map, tinted by color
         }
 
         [Serializable]
@@ -350,7 +351,7 @@ namespace IVA.EditorTools
                 mat.SetTexture("_OcclusionMap", DimOcclusion());
                 mat.SetFloat("_OcclusionStrength", 1f);
             }
-            mat.SetColor("_Color", string.IsNullOrEmpty(m.texture) ? FromLinear(m.color) : Color.white);
+            mat.SetColor("_Color", string.IsNullOrEmpty(m.texture) || m.tint ? FromLinear(m.color) : Color.white);
             mat.SetFloat("_Metallic", Mathf.Clamp01(m.metallic));
             mat.SetFloat("_Glossiness", Mathf.Clamp01(1f - m.roughness));
 

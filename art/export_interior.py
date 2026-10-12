@@ -113,6 +113,11 @@ def principled_info(mat):
     nt = mat.node_tree
     bsdf = nt.nodes.get("Principled BSDF")
     info["color"] = list(bsdf.inputs["Base Color"].default_value)[:3]
+    info["tint"] = bool(mat.get("tint", False))
+    if info["tint"]:   # the colour lives on the multiply node
+        mix = next((n for n in nt.nodes if n.type == "MIX"), None)
+        if mix is not None:
+            info["color"] = list(mix.inputs[7].default_value)[:3]
     info["metallic"] = bsdf.inputs["Metallic"].default_value
     info["roughness"] = bsdf.inputs["Roughness"].default_value
     info["emission"] = list(bsdf.inputs["Emission Color"].default_value)[:3]

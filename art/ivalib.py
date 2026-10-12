@@ -48,7 +48,7 @@ def image(name, colour=True):
 
 
 def material(name, colour=(0.8, 0.8, 0.8), rough=0.5, metal=0.0, tex=None, normal=None,
-             emit=0.0, emit_tex=False, uv_scale=None, normal_strength=1.0):
+             emit=0.0, emit_tex=False, uv_scale=None, normal_strength=1.0, tint=False):
     m = bpy.data.materials.new(name)
     if m.node_tree is None:  # node trees are always on from Blender 6; use_nodes is deprecated in 5.x
         m.use_nodes = True
@@ -68,7 +68,17 @@ def material(name, colour=(0.8, 0.8, 0.8), rough=0.5, metal=0.0, tex=None, norma
         ti.image = image(tex)
         if mapping:
             nt.links.new(mapping.outputs["Vector"], ti.inputs["Vector"])
-        nt.links.new(ti.outputs["Color"], bsdf.inputs["Base Color"])
+        if tint:   # a neutral detail texture multiplied by the colour (the game does the same with _Color)
+            mix = nt.nodes.new("ShaderNodeMix")
+            mix.data_type = "RGBA"
+            mix.blend_type = "MULTIPLY"
+            mix.inputs["Factor"].default_value = 1.0
+            mix.inputs[7].default_value = (*colour, 1.0)
+            nt.links.new(ti.outputs["Color"], mix.inputs[6])
+            nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+            m["tint"] = True
+        else:
+            nt.links.new(ti.outputs["Color"], bsdf.inputs["Base Color"])
         if emit_tex:
             nt.links.new(ti.outputs["Color"], bsdf.inputs["Emission Color"])
     if normal:

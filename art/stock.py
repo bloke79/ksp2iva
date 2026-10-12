@@ -412,7 +412,7 @@ def mount(name, p, b, w, h, rail_ext=0.08):
 
 
 # ------------------------------------------------------------------ collision markers for moving around inside (unbuckle)
-COL_SKIP = ("Shell", "Dome", "Floor", "Deck", "Rib_", "RingFrame", "Plate_", "REF_", "IVA_", "Stringer", "Rivet", "CeilingBulkhead",
+COL_SKIP = ("NoCol", "Shell", "Dome", "Floor", "Deck", "Rib_", "RingFrame", "Plate_", "REF_", "IVA_", "Stringer", "Rivet", "CeilingBulkhead",
             "RingLight", "Bundle", "Duct", "Window", "Glass", "Porthole", "Hatch", "Rung", "Ladder", "Seal", "Sleeve", "Flange",
             "NamePlate", "Label", "Food", "Tag", "Stripe", "Junction", "CeilRing", "CeilHub", "TunnelRing")
 

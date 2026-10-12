@@ -325,13 +325,78 @@ def missing_kerbal(rng):
     return frame(img, (60, 60, 60))
 
 
-ALL = {"crew": crew, "boosters": boosters, "eve": eve, "jool": jool, "minmus": minmus, "staging": staging, "struts": struts,
+def whiteboard(rng):
+    """The crew's whiteboard (768 x 512): a scribbled Mun transfer, a snack rota, a doodle and a safety counter."""
+    w, h = 768, 512
+    img = Image.new("RGB", (w, h), (246, 247, 244))
+    d = ImageDraw.Draw(img)
+    try:
+        hand = lambda sz: ImageFont.truetype("C:/Windows/Fonts/Inkfree.ttf", sz)
+        hand(10)
+    except OSError:
+        hand = font
+    BLUE, RED, GRN, BLK = (30, 70, 170), (190, 40, 40), (30, 130, 60), (40, 40, 45)
+    for _ in range(30):   # ghosts of old scribbles
+        x, y = rng.integers(0, w), rng.integers(0, h)
+        d.line([(x, y), (x + rng.integers(20, 120), y + rng.integers(-8, 8))], fill=(232, 234, 230), width=3)
+
+    def wob(pts, col, width=4):
+        q = [(x + rng.normal(0, 1.2), y + rng.normal(0, 1.2)) for x, y in pts]
+        d.line(q, fill=col, width=width, joint="curve")
+
+    d.text((24, 14), "MUN MISSION v7", font=hand(40), fill=BLUE)
+    d.line([(24, 62), (300, 60)], fill=BLUE, width=3)
+    # transfer diagram
+    cx, cy = 200, 280
+    wob([(cx + 30 * math.cos(t / 20 * 6.283), cy + 30 * math.sin(t / 20 * 6.283)) for t in range(21)], GRN, 5)
+    d.text((cx - 28, cy - 12), "K", font=hand(26), fill=GRN)
+    wob([(cx + 150 * math.cos(t / 60 * 6.283), cy + 150 * math.sin(t / 60 * 6.283)) for t in range(61)], BLK, 2)
+    mx, my = cx + 150 * math.cos(-0.6), cy + 150 * math.sin(-0.6)
+    wob([(mx + 14 * math.cos(t / 14 * 6.283), my + 14 * math.sin(t / 14 * 6.283)) for t in range(15)], BLK, 4)
+    d.text((mx + 16, my - 30), "Mun", font=hand(24), fill=BLK)
+    for k in range(0, 40, 2):   # dashed transfer ellipse
+        a0, a1 = math.pi * k / 40, math.pi * (k + 1) / 40
+        p0 = (cx - 45 + 100 * math.cos(math.pi - a0) * -1, cy + 70 * math.sin(math.pi - a0) * -1)
+        p1 = (cx - 45 + 100 * math.cos(math.pi - a1) * -1, cy + 70 * math.sin(math.pi - a1) * -1)
+        d.line([p0, p1], fill=RED, width=4)
+    d.text((cx - 60, cy + 92), "dv = ???", font=hand(34), fill=RED)
+    d.text((cx + 70, cy + 100), "(Bill: 'enough')", font=hand(22), fill=RED)
+    # snack rota
+    x0 = 430
+    d.text((x0, 20), "SNACK ROTA", font=hand(32), fill=BLK)
+    for k, (who, what) in enumerate((("Jeb", "ALL OF THEM"), ("Bill", "crackers"), ("Bob", "crackers?"), ("Val", "fuel bar"))):
+        y = 66 + k * 38
+        d.text((x0, y), f"{who} - {what}", font=hand(26), fill=BLUE if k else RED)
+        d.line([(x0, y + 34), (x0 + 300, y + 34)], fill=(200, 205, 215), width=1)
+    d.line([(x0 + 70, 80), (x0 + 220, 80)], fill=RED, width=3)   # someone crossed Jeb's out
+    # days since last explosion
+    bx, by = 450, 250
+    d.rectangle([bx, by, bx + 290, by + 110], outline=BLK, width=4)
+    d.text((bx + 12, by + 8), "DAYS SINCE LAST", font=hand(26), fill=BLK)
+    d.text((bx + 12, by + 38), "EXPLOSION:", font=hand(26), fill=BLK)
+    d.text((bx + 190, by + 22), "0", font=hand(80), fill=RED)
+    d.text((bx + 186, by + 4), "3", font=hand(40), fill=(215, 215, 215))   # the old number, half rubbed out
+    # doodled kerbal
+    kx, ky = 640, 440
+    d.rounded_rectangle([kx - 26, ky - 34, kx + 26, ky + 34], radius=16, outline=GRN, width=4)
+    for ex in (-11, 11):
+        d.ellipse([kx + ex - 9, ky - 20, kx + ex + 9, ky - 2], outline=BLK, width=3)
+        d.ellipse([kx + ex - 2, ky - 13, kx + ex + 3, ky - 8], fill=BLK)
+    d.arc([kx - 16, ky - 4, kx + 16, ky + 22], 20, 160, fill=BLK, width=3)
+    d.text((kx - 110, ky - 14), "me ->", font=hand(26), fill=GRN)
+    # don't touch
+    d.text((40, 440), "DO NOT TOUCH THE", font=hand(28), fill=RED)
+    d.text((40, 472), "BIG RED BUTTON (Jeb)", font=hand(28), fill=RED)
+    return img
+
+
+ALL = {"whiteboard": whiteboard, "crew": crew, "boosters": boosters, "eve": eve, "jool": jool, "minmus": minmus, "staging": staging, "struts": struts,
        "munholiday": mun_holiday, "lostpart": lost_part, "safety": safety_third, "missing": missing_kerbal}
 
 if __name__ == "__main__":
     rng = np.random.default_rng(81)
     for key in (sys.argv[2:] or list(ALL)):
         img = ALL[key](rng)
-        path = os.path.join(OUT, f"poster_{key}.png")
+        path = os.path.join(OUT, f"{'' if key == 'whiteboard' else 'poster_'}{key}.png")
         img.save(path)
         print("wrote", path)
