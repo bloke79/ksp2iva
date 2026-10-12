@@ -152,7 +152,7 @@ def build_fill():
 
     # stowage bags low on the front wall, either side of the head; first-aid kit and extinguisher on the side walls
     for side in (-1, 1):
-        p, b = C.frame_at(C.rad(side * 28), 0.2, 0.01)
+        p, b = C.frame_at(C.rad(side * 13), 0.2, 0.01)   # clear of the hatch (45 deg, +-22)
         L.box(f"Bag{side}", (0.16, 0.12, 0.07), M["canvas"], p + b.col[2] * 0.035, b, bevel=0.025, segs=4)
         for sx in (-0.3, 0.3):
             L.box(f"Bag{side}Strap{sx}", (0.016, 0.13, 0.078), M["strap"], p + b.col[2] * 0.035 + b.col[0] * (0.16 * sx), b, bevel=0.003)

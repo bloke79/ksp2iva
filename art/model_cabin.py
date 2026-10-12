@@ -156,12 +156,14 @@ _clear = S.Clearance(zones=[K.kept_out])
 K.end_bulkhead(R, "aft", "AftEnd", hatch_r=LAY.get("hatch_r", 0.45), clear=_clear)
 K.end_bulkhead(R, "fore", "ForeEnd", hatch_r=LAY.get("hatch_r", 0.45), clear=_clear)
 build_ceiling()
+EVA = LAY.get("eva")
+eva_at = K.eva_hatch(R, "EvaHatch", EVA["z"], EVA.get("kind", "round"), EVA.get("r", 0.34), EVA.get("porthole", 0.0)) if EVA else None
 K.dress_room(R, seed=len(SEATS))
 for k, v in enumerate(LAY.get("views", [])):
     K.view(v["name"], v["from"], v["at"])
 for i, s in enumerate(SEATS):
     C.eye_marker(i, s)
 S.collision_markers(decks=[d[4] for d in DOORWAYS], holes=DOORWAYS,
-                    hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25))])
+                    hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25))] + ([("Side", tuple(eva_at))] if eva_at else []))
 print(f"{SPEC['name']}: room x +-{R.xw}, y {R.yf}..{R.yc}, z {R.z0}..{R.z1}; {len(SEATS)} seats")
 L.save(OUT)

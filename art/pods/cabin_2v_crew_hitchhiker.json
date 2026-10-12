@@ -189,7 +189,14 @@
    }
   ],
   "ceiling_vents": [],
-  "hatch_r": 0.42
+  "hatch_r": 0.42,
+  "eva": {
+   "z": 1.353,
+   "kind": "square",
+   "r": 0.31,
+   "porthole": 0.13,
+   "_source": "stock airlock_triggers at part (0, 0.012, 1.19): the +Y side (our ceiling), mid-length"
+  }
  },
  "preview_lights": [
   {
@@ -347,6 +354,24 @@
     0
    ],
    "fov": 100
+  },
+  "eva_hatch": {
+   "loc": [
+    0.45,
+    -0.19999999999999996,
+    0.603
+   ],
+   "target": [
+    0.0,
+    0.8,
+    1.353
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 85
   }
  }
 }

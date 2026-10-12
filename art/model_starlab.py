@@ -72,7 +72,7 @@ def build_ceiling():
         for k, z in enumerate((0.95, 1.55, 2.15, 2.75, 3.35, 3.85)):
             S.light_fixture(f"CeilLight{side}_{k}", Vector((x, R.yc, z)), L.basis(Vector((0, 0, 1)), Vector((1, 0, 0)), down), w=0.22, h=0.07)
         S.bundle(f"CeilRun{side}", [Vector((side * 0.68, R.yc - 0.04, R.z0 + 0.15)), Vector((side * 0.68, R.yc - 0.04, R.z1 - 0.15))], n=4, ends=(False, False))
-    for k, z in enumerate((0.9, 3.8)):
+    for k, z in enumerate((0.9,)):   # (the EVA hatch takes the forward end of the ceiling)
         p, b = R.frame("ceil", 0, z - R.zm)
         S.grille(f"CeilVent{k}", p, b, 0.5, 0.2, slats=8)
 
@@ -92,6 +92,9 @@ build_floor()
 K.dress(R, walls=("aft", "fore"), seed=3)
 for i, s in enumerate(SEATS):
     C.eye_marker(i, s)
-S.collision_markers(hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25))])
+# EVA airlock: the stock part's is on its +Y side (our ceiling) at z 3.0, under the greenhouse pod; the greenhouse window
+# fills the ceiling there, so the hatch sits just forward of it
+eva_at = K.eva_hatch(R, "EvaHatch", GH_Z1 + 0.32, "round", 0.24)
+S.collision_markers(hatches=[("Aft", (0.0, -0.1, R.z0 + 0.25)), ("Fore", (0.0, -0.1, R.z1 - 0.25)), ("Side", tuple(eva_at))])
 print(f"room x +-{R.xw}, y {R.yf}..{R.yc}, z {R.z0}..{R.z1}; {len(SEATS)} seats")
 L.save(OUT)

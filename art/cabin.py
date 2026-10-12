@@ -138,6 +138,47 @@ def end_bulkhead(room, wall, name, hatch_r=0.45, clear=None):
 KEEP_OUT = []   # (lo, hi) world boxes nothing else may be built in (the insides of hygiene rooms and quarters)
 
 
+def eva_hatch(room, name, z, kind="round", r=0.34, porthole=0.0):
+    """The EVA airlock in the ceiling, where the stock part has its outer hatch (its +Y side). kind 'round' (a hatch
+    with a rim, dogs and a handle) or 'square' (a square leaf; porthole > 0 leaves a square window of that half-size
+    open in its middle, for a ceiling porthole that's already there). Grab rails either side; keeps the area clear."""
+    p, b = room.frame("ceil", 0.0, z - room.zm, 0.006)
+    r_, u, n = b.col[0], b.col[1], b.col[2]
+    rot = L.basis(r_, u, n)
+    KEEP_OUT.append((Vector((-r - 0.2, room.yc - 0.25, z - r - 0.12)), Vector((r + 0.2, room.yc + 0.05, z + r + 0.12))))
+    if kind == "square":
+        ring = [p + r_ * x + u * y for x, y in ((-r, -r), (r, -r), (r, r), (-r, r))]
+        S.sweep(name + "Frame", ring, [n] * 4, S.chamfer_rect(0.07, 0.04, 0.01), M["frame"], closed=True)
+        w = r - 0.03
+        if porthole > 0:   # leaf as four bars round the porthole
+            k = porthole + 0.03
+            for (cx, cy, sx, sy) in ((0, (w + k) / 2, 2 * w, w - k), (0, -(w + k) / 2, 2 * w, w - k), ((w + k) / 2, 0, w - k, 2 * k), (-(w + k) / 2, 0, w - k, 2 * k)):
+                L.box(f"{name}Leaf{cx:.2f}{cy:.2f}", (sx, sy, 0.03), M["hatch"], p + r_ * cx + u * cy + n * 0.012, rot, bevel=0.004)
+            S.sweep(name + "PortRim", [p + r_ * x + u * y + n * 0.03 for x, y in ((-k, -k), (k, -k), (k, k), (-k, k))], [n] * 4,
+                    S.chamfer_rect(0.03, 0.02, 0.005), M["frame"], closed=True)
+        else:
+            L.box(name + "Leaf", (2 * w, 2 * w, 0.03), M["hatch"], p + n * 0.012, rot, bevel=0.004)
+        dogs = [(-w + 0.04, 0), (w - 0.04, 0), (0, -w + 0.04), (0, w - 0.04)]
+    else:
+        ring = [p + (r_ * math.cos(a) + u * math.sin(a)) * r for a in [2 * math.pi * j / 48 for j in range(48)]]
+        S.sweep(name + "Ring", ring, [n] * 48, S.chamfer_rect(0.07, 0.04, 0.01), M["frame"], closed=True)
+        L.cylinder(name + "Door", r - 0.03, 0.035, M["hatch"], p + n * 0.012, rot, segs=48, bevel=0.006)
+        L.torus(name + "Rim", (r - 0.03) * 0.7, 0.01, M["frame"], p + n * 0.032, rot, seg=40, mseg=8)
+        dogs = [((r - 0.07) * math.cos(a), (r - 0.07) * math.sin(a)) for a in [2 * math.pi * (k + 0.5) / 6 for k in range(6)]]
+    for k, (dx, dy) in enumerate(dogs):
+        S.cbox(f"{name}Dog{k}", (0.04, 0.02, 0.014), M["yellow"], p + r_ * dx + u * dy + n * 0.034, rot, ch=0.003)
+    h0 = p + n * 0.03 + u * (-0.06 if kind == "square" and porthole > 0 else 0.0) + r_ * (0.0 if not porthole else 0.0)
+    hy = -(porthole + 0.08) if porthole > 0 else 0.0
+    L.tube(name + "Handle", [p + n * 0.03 + r_ * -0.08 + u * hy, p + n * 0.07 + r_ * -0.08 + u * hy, p + n * 0.07 + r_ * 0.08 + u * hy,
+                             p + n * 0.03 + r_ * 0.08 + u * hy], 0.01, M["yellow"])
+    for sx in (-1, 1):   # grab rails along the hatch, to pull yourself through
+        q = p + r_ * sx * (r + 0.14)
+        L.tube(f"{name}Rail{sx}", [q - u * r * 0.7, q - u * r * 0.7 + n * 0.07, q + u * r * 0.7 + n * 0.07, q + u * r * 0.7], 0.011, M["yellow"])
+    sign = p + r_ * (r + 0.3)   # beside the hatch, past the grab rail
+    L.box(name + "Sign", (0.16, 0.05, 0.006), M["red"], sign + n * 0.003, rot, bevel=0.002)
+    return p + n * 0.25
+
+
 def keep_out_prefix(prefix, grow=0.02):
     """Register the bounding box of everything named prefix* as a keep-out volume."""
     import bpy

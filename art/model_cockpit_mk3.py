@@ -39,7 +39,7 @@ import hullshell as HS  # noqa: E402
 # shuttle-era finishes (as the Mk1 cockpit)
 M["console"] = L.material("IVA_ShuttlePanel", tex="shuttle_panel_color.png", normal="panel_normal.png", rough=0.6, metal=0.2, normal_strength=0.4)
 M["module"] = M["console"]
-M["wall_cream"] = L.material("IVA_WallCream", tex="wall_cream_color.png", normal="wall_cream_normal.png", rough=0.8, metal=0.0, normal_strength=0.9)
+M["wall_cream"] = L.material("IVA_WallPadded", tex="wall_padded_color.png", normal="wall_padded_normal.png", rough=0.85, metal=0.0, normal_strength=1.0, uv_scale=(0.5, 0.5))
 M["glare"] = L.material("IVA_Glareshield", (0.045, 0.046, 0.05), rough=0.85)
 M["seat_blue"] = L.material("IVA_SeatBlue", (0.10, 0.17, 0.42), rough=0.9, normal="canvas_normal.png", uv_scale=(5.0, 5.0), normal_strength=0.8)
 M["rubber"] = L.material("IVA_Rubber", (0.05, 0.05, 0.055), rough=0.75)
@@ -115,9 +115,9 @@ def build_shell():
     HS.build("Shell", SPEC["exterior"], SPEC["hull_base_y"], Z_BACK, Z_FRONT, wall=SPEC["wall"], dz=0.01, seg=520, wells=True,
              centre=tuple(SPEC["shell_centre"]), mat=M["wall_cream"], frame_mat=M["frame_dark"])
     holes = [(HATCH.x, HATCH.z, HATCH_R + 0.005)]
-    slab("FlightDeck", FLOOR_Y, DECK_T, Z_BACK + 0.005, Z_FRONT - 0.005, M["deckplate"], holes)
-    slab("MidDeckCeiling", FLOOR_Y + DECK_T, 0.015, Z_BACK + 0.005, Z_FRONT - 0.005, M["wall_cream"], holes)
-    slab("MidDeck", MID_Y, 0.05, Z_BACK + 0.005, Z_FRONT - 0.005, M["deckplate"])
+    slab("DeckFlight", FLOOR_Y, DECK_T, Z_BACK + 0.005, Z_FRONT - 0.005, M["deckplate"], holes)
+    slab("DeckMidCeiling", FLOOR_Y + DECK_T, 0.015, Z_BACK + 0.005, Z_FRONT - 0.005, M["wall_cream"], holes)
+    slab("DeckMid", MID_Y, 0.05, Z_BACK + 0.005, Z_FRONT - 0.005, M["deckplate"])
 
 
 # ------------------------------------------------------------------ round hatch (ring, door, dogs, handle) on any surface
@@ -333,9 +333,13 @@ def build_flight_walls():
 
 
 # ------------------------------------------------------------------ mid-deck
+SIDE_HATCH_Z, SIDE_HATCH_Y, SIDE_HATCH_R = 0.57, 0.02, 0.27   # the part's two airlocks (stock hatch_l / hatch_r)
+AFT_HATCH_Y, AFT_HATCH_R = 0.0, 0.31                          # the node to the module behind: on the part's axis
+
+
 def build_mid_deck():
-    # the orbiter's mid-deck is off-white: lockers, booth, galley and bunk panels in a light finish
-    M["locker"] = L.material("IVA_MidLocker", (0.78, 0.77, 0.72), rough=0.6, metal=0.05)
+    # grey lockers and plain grey panels, as the Mk3-5
+    M["locker"] = L.material("IVA_GreyLocker", (0.40, 0.41, 0.43), rough=0.55, metal=0.15)
     M["module"] = L.material("IVA_MidPanel", (0.62, 0.63, 0.64), rough=0.55, metal=0.2)
     # ladder from the interdeck hatch down to the floor, against the aft side of the opening
     lz = HATCH.z - HATCH_R + 0.03
@@ -347,22 +351,24 @@ def build_mid_deck():
     round_hatch("DeckHatchBelow", Vector((HATCH.x, FLOOR_Y + DECK_T + 0.017, HATCH.z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, -1)), Vector((0, 1, 0))),
                 r=HATCH_R + 0.03, door=False)
 
-    # port wall: toilet booth, galley, side hatch
-    def on_port(z, y, depth=0.0):
-        return Vector((-half_width(y, z, 0.01) + depth, y, z))
-    yb = MID_Y - 0.62
-    back_x = -min(half_width(y, z, 0.03) for y in (MID_Y - 0.02, yb - 0.6) for z in (0.66, 1.26))
-    P.hygiene_booth("Toilet", Vector((back_x, yb, 0.96)), PORT, w=0.6, h=1.22, d=0.56)
-    gx = -min(half_width(y, z, 0.04) for y in (0.18, 0.76) for z in (1.32, 1.80))
-    P.galley("Galley", Vector((gx, 0.47, 1.56)), PORT, w=0.46, h=0.54)
-    hc = on_port(2.05, 0.45, 0.0)
-    round_hatch("SideHatch", hc + Vector((0.09, 0, 0)), PORT, r=0.26)
+    # the two airlocks, port and starboard at the aft end, where the stock part has them (EVA goes out here)
+    for side, b in ((-1, PORT), (1, STBD)):
+        x = half_width(SIDE_HATCH_Y, SIDE_HATCH_Z, 0.0) - 0.05
+        round_hatch(f"SideHatch{'L' if side < 0 else 'R'}", Vector((side * x, SIDE_HATCH_Y, SIDE_HATCH_Z)), b, r=SIDE_HATCH_R)
 
-    # starboard wall: two sleep stations and the ergometer aft
-    sx_ = min(half_width(y, z, 0.01) for y in (MID_Y - 0.02, MID_Y - 1.17) for z in (1.0, 2.1))
-    for k, z in enumerate((1.30, 1.84)):
+    # port wall: toilet booth, then the galley
+    yb = MID_Y - 0.62
+    back_x = -min(half_width(y, z, 0.03) for y in (MID_Y - 0.02, yb - 0.6) for z in (0.95, 1.55))
+    P.hygiene_booth("Toilet", Vector((back_x, yb, 1.25)), PORT, w=0.6, h=1.22, d=0.56)
+    gx = -min(half_width(y, z, 0.04) for y in (0.18, 0.76) for z in (1.62, 2.08))
+    P.galley("Galley", Vector((gx, 0.47, 1.85)), PORT, w=0.46, h=0.54)
+
+    # starboard wall: two curtained sleep stations
+    sx_ = min(half_width(y, z, 0.01) for y in (MID_Y - 0.02, MID_Y - 1.17) for z in (0.99, 2.06))
+    for k, z in enumerate((1.25, 1.80)):
         P.sleep_station(f"Sleep{k}", Vector((sx_, MID_Y - 0.6, z)), STBD, w=0.52, h=1.15, d=0.32)
-    K.ergometer("Ergometer", Vector((0.72, MID_Y, 0.52)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
+    # ergometer on the open floor, forward
+    K.ergometer("Ergometer", Vector((0.0, MID_Y, 1.75)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
 
     # forward wall of lockers (the orbiter's middeck lockers), fitted row by row to the hull
     zf = Z_FRONT - 0.03
@@ -386,22 +392,21 @@ def build_mid_deck():
             L.box(f"FwdLockerTag{k}", (0.08, 0.022, 0.003), M["btn_soft"], p + Vector((0, 0.0, -0.0415)), FWD_WALL)
             k += 1
 
-    # kick panels along the open wall runs: the hull curves out above the floor edge into a stepped ledge; a low
-    # vertical panel with a capping shelf hides it (and reads as floor-level stowage)
+    # kick panel under the galley, where the hull curves out above the floor edge into a ledge
     kick_h = 0.34
-    for side, (za, zb) in ((-1, (1.28, 2.36)), (1, (0.14, 0.92))):
-        n = 8
-        for k in range(n):
-            z0_, z1_ = za + (zb - za) * k / n, za + (zb - za) * (k + 1) / n
-            zc = (z0_ + z1_) / 2
-            x_floor = min(half_width(MID_Y - 0.01, z, 0.03) for z in (z0_, z1_))
-            x_top = half_width(MID_Y - kick_h - 0.02, zc, 0.02)
-            S.cbox(f"Kick{side}_{k}", (0.03, kick_h, z1_ - z0_ - 0.004), M["locker"], Vector((side * (x_floor - 0.015), MID_Y - kick_h / 2, zc)), ch=0.004)
-            cap_w = max(0.03, x_top - x_floor + 0.03)
-            S.cbox(f"KickCap{side}_{k}", (cap_w, 0.02, z1_ - z0_ - 0.004), M["frame"], Vector((side * (x_floor - 0.03 + cap_w / 2), MID_Y - kick_h - 0.01, zc)), ch=0.004)
+    za, zb = 1.6, 2.36
+    n = 6
+    for k in range(n):
+        z0_, z1_ = za + (zb - za) * k / n, za + (zb - za) * (k + 1) / n
+        zc = (z0_ + z1_) / 2
+        x_floor = min(half_width(MID_Y - 0.01, z, 0.03) for z in (z0_, z1_))
+        x_top = half_width(MID_Y - kick_h - 0.02, zc, 0.02)
+        S.cbox(f"Kick-1_{k}", (0.03, kick_h, z1_ - z0_ - 0.004), M["locker"], Vector((-(x_floor - 0.015), MID_Y - kick_h / 2, zc)), ch=0.004)
+        cap_w = max(0.03, x_top - x_floor + 0.03)
+        S.cbox(f"KickCap-1_{k}", (cap_w, 0.02, z1_ - z0_ - 0.004), M["frame"], Vector((-(x_floor - 0.03 + cap_w / 2), MID_Y - kick_h - 0.01, zc)), ch=0.004)
 
-    # fuselage hatch on the aft bulkhead, mid-deck height
-    round_hatch("AftHatch", Vector((0.0, 0.48, Z_BACK + 0.04)), AFT_WALL, r=0.34)
+    # hatch to the module behind: centred on the aft bulkhead, on the part's axis (the stock node)
+    round_hatch("AftHatch", Vector((0.0, AFT_HATCH_Y, Z_BACK + 0.04)), AFT_WALL, r=AFT_HATCH_R)
     # lights along the mid-deck ceiling
     for k, z in enumerate((0.6, 1.4, 2.1)):
         S.light_fixture(f"MidLight{k}", Vector((0.0, FLOOR_Y + DECK_T + 0.02, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.4, h=0.08)
@@ -425,11 +430,12 @@ def build_posters():
     fr = HS.wall_frame((0.0, -0.15, 0.95), (-1, 0, 0), 0.004, up=(0, -1, 0))
     if fr:
         poster("PosterLostPart", "lostpart", fr[0], fr[1], w=0.2, h=0.3)
+    poster("PosterStruts", "struts", Vector((-0.58, 0.72, Z_BACK + 0.022)), AFT_WALL, w=0.2, h=0.3)
 
 
 def build_velcro():
     """Velcro strips where the crew work: flight-deck side walls, by the galley and the sleep stations."""
-    spots = [(-1, -0.9, 0.45), (1, -0.9, 0.45), (-1, -0.6, 0.85), (1, -0.6, 0.85), (-1, 0.1, 1.55), (1, 0.0, 1.0)]
+    spots = [(-1, -0.9, 0.45), (1, -0.9, 0.45), (-1, -0.6, 0.85), (1, -0.6, 0.85), (-1, 0.05, 2.25), (1, -0.05, 2.25)]
     for k, (sx, y, z) in enumerate(spots):
         fr = HS.wall_frame((0.0, y, z), (sx, 0, 0), 0.004, up=(0, -1, 0))
         if fr:
@@ -459,5 +465,19 @@ build_mid_deck()
 build_velcro()
 build_posters()
 build_lights_and_markers()
-S.collision_markers(hatches=[("Aft", (0.0, 0.48, Z_BACK + 0.3)), ("Side", (-1.0, 0.45, 2.05)), ("Deck", (HATCH.x, FLOOR_Y, HATCH.z))])
+def deck_boxes():
+    """Collision boxes for the two decks, leaving the interdeck hatch open (centre, three half-axis vectors)."""
+    hw, r = 1.6, HATCH_R + 0.03
+    yc, hy = FLOOR_Y + (DECK_T + 0.015) / 2, (DECK_T + 0.015) / 2
+    zc, hz = (Z_BACK + Z_FRONT) / 2, (Z_FRONT - Z_BACK) / 2
+    out = []
+    for x0, x1 in ((-hw, HATCH.x - r), (HATCH.x + r, hw)):
+        out.append((((x0 + x1) / 2, yc, zc), ((x1 - x0) / 2, 0, 0), (0, hy, 0), (0, 0, hz)))
+    for z0, z1 in ((Z_BACK, HATCH.z - r), (HATCH.z + r, Z_FRONT)):
+        out.append(((HATCH.x, yc, (z0 + z1) / 2), (r, 0, 0), (0, hy, 0), (0, 0, (z1 - z0) / 2)))
+    out.append(((0.0, MID_Y + 0.025, zc), (hw, 0, 0), (0, 0.025, 0), (0, 0, hz)))
+    return out
+
+
+S.collision_markers(hatches=[("Aft", (0.0, AFT_HATCH_Y, Z_BACK + 0.3)), ("Side", (-1.25, SIDE_HATCH_Y, SIDE_HATCH_Z))], boxes=deck_boxes())
 L.save(OUT)

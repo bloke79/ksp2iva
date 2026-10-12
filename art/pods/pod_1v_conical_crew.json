@@ -67,11 +67,12 @@
   }
  ],
  "hatch": {
-  "angle": -55,
+  "angle": -45,
   "z0": 0.16,
   "z1": 0.62,
   "half_deg": 22,
-  "window": -1
+  "window": -1,
+  "_source": "stock airlock_triggers at part (0.347, 0.04, -0.35): 45 deg round from the front"
  },
  "generator": "model_mk1.py",
  "texgen": "texgen_mk1.py",

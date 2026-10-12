@@ -435,7 +435,7 @@ def _fitted_box(o):
     return Vector(centre), axes, float(np.prod(np.maximum(hi - lo, 1e-3)))
 
 
-def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15):
+def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15, boxes=()):
     """Position-only empties the mod reads to let the player float round the cabin without Unity physics:
     IVA_ColAxis_0/1 (pod axis, floor to top), IVA_ColHull_<k> (a point on the hull at each height: radius profile),
     IVA_ColDeck_<k> (deck heights), IVA_ColHole_<k>_c/x/y/z and IVA_ColBox_<k>_c/x/y/z (oriented boxes: centre and the
@@ -467,6 +467,8 @@ def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15):
         box(f"IVA_ColHole_{k}", ((x0 + x1) / 2, (y0 + y1) / 2, z), [((x1 - x0) / 2, 0, 0), (0, (y1 - y0) / 2, 0), (0, 0, 0.4)])
     for name, p in hatches:
         mark(f"IVA_Hatch_{name}", p)
+    for k, (c, ax, ay, az) in enumerate(boxes):   # explicit boxes (decks that aren't across the pod axis, ...)
+        box(f"IVA_ColBox_X{k:03d}", c, [Vector(ax), Vector(ay), Vector(az)])
     door = L.COLL.objects.get("HatchDoor")
     if door is not None:
         cs = [door.matrix_world @ Vector(c) for c in door.bound_box]
