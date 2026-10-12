@@ -226,126 +226,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Cable",
-      "color": [
-        0.05000000074505806,
-        0.05000000074505806,
-        0.05000000074505806
-      ],
-      "metallic": 0.0,
-      "roughness": 0.6000000238418579,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_CableBlack",
-      "color": [
-        0.019999999552965164,
-        0.019999999552965164,
-        0.02199999988079071
-      ],
-      "metallic": 0.0,
-      "roughness": 0.44999998807907104,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_CableGreen",
-      "color": [
-        0.03500000014901161,
-        0.2800000011920929,
-        0.05999999865889549
-      ],
-      "metallic": 0.0,
-      "roughness": 0.44999998807907104,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_CableRed",
-      "color": [
-        0.41999998688697815,
-        0.03500000014901161,
-        0.02500000037252903
-      ],
-      "metallic": 0.0,
-      "roughness": 0.44999998807907104,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_CableYellow",
-      "color": [
-        0.6800000071525574,
-        0.5199999809265137,
-        0.03999999910593033
-      ],
-      "metallic": 0.0,
-      "roughness": 0.44999998807907104,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_Canvas",
       "color": [
         0.27000001072883606,
@@ -370,30 +250,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Console",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.25,
-      "roughness": 0.6200000047683716,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": "panel_color.png",
-      "normal": "panel_normal.png",
-      "normalStrength": 0.6000000238418579,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_CouchFrame",
       "color": [
         0.2199999988079071,
@@ -414,30 +270,6 @@
       "tiling": [
         1.0,
         1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_Cushion",
-      "color": [
-        0.30000001192092896,
-        0.10999999940395355,
-        0.07000000029802322
-      ],
-      "metallic": 0.0,
-      "roughness": 0.75,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": "quilt_normal.png",
-      "normalStrength": 0.699999988079071,
-      "tiling": [
-        2.5,
-        2.5
       ],
       "emissionFromTexture": false
     },
@@ -625,30 +457,6 @@
       ],
       "emissionStrength": 0.0,
       "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_FoodLabels",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.0,
-      "roughness": 0.6000000238418579,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": "food_labels.png",
       "normal": null,
       "normalStrength": 1.0,
       "tiling": [
@@ -898,6 +706,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Glareshield",
+      "color": [
+        0.04500000178813934,
+        0.04600000008940697,
+        0.05000000074505806
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8500000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Goo",
       "color": [
         0.25,
@@ -912,6 +744,30 @@
         0.3499999940395355
       ],
       "emissionStrength": 1.2000000476837158,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_GreyLocker",
+      "color": [
+        0.4000000059604645,
+        0.4099999964237213,
+        0.4300000071525574
+      ],
+      "metallic": 0.15000000596046448,
+      "roughness": 0.550000011920929,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
       "texture": null,
       "normal": null,
       "normalStrength": 1.0,
@@ -1090,30 +946,6 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_Locker",
-      "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
-      ],
-      "metallic": 0.15000000596046448,
-      "roughness": 0.6200000047683716,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": "locker_color.png",
-      "normal": "panel_normal.png",
-      "normalStrength": 0.5,
-      "tiling": [
-        1.5,
-        1.5
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_MarkerBlue",
       "color": [
         0.10000000149011612,
@@ -1234,14 +1066,14 @@
       "emissionFromTexture": true
     },
     {
-      "name": "IVA_ModulePlate",
+      "name": "IVA_MidPanel",
       "color": [
-        0.054999999701976776,
-        0.057999998331069946,
-        0.06199999898672104
+        0.6200000047683716,
+        0.6299999952316284,
+        0.6399999856948853
       ],
-      "metallic": 0.44999998807907104,
-      "roughness": 0.5,
+      "metallic": 0.20000000298023224,
+      "roughness": 0.550000011920929,
       "emission": [
         1.0,
         1.0,
@@ -1402,6 +1234,198 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Poster_Boosters",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_boosters.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Crew",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_crew.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Duna",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_duna.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Kerbin",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_kerbin.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Minmus",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_minmus.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Mun",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_mun.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Safety",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_safety.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Staging",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_staging.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_ScreenData",
       "color": [
         0.800000011920929,
@@ -1450,14 +1474,38 @@
       "emissionFromTexture": true
     },
     {
-      "name": "IVA_SeatShell",
+      "name": "IVA_SeatBlue",
       "color": [
-        0.2199999988079071,
-        0.23000000417232513,
-        0.25
+        0.10000000149011612,
+        0.17000000178813934,
+        0.41999998688697815
       ],
-      "metallic": 0.550000011920929,
-      "roughness": 0.4000000059604645,
+      "metallic": 0.0,
+      "roughness": 0.8999999761581421,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": "canvas_normal.png",
+      "normalStrength": 0.800000011920929,
+      "tiling": [
+        5.0,
+        5.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_SeatFrame",
+      "color": [
+        0.41999998688697815,
+        0.4399999976158142,
+        0.4699999988079071
+      ],
+      "metallic": 0.5,
+      "roughness": 0.44999998807907104,
       "emission": [
         1.0,
         1.0,
@@ -1467,6 +1515,30 @@
       "texture": null,
       "normal": null,
       "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_ShuttlePanel",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.20000000298023224,
+      "roughness": 0.6000000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "shuttle_panel_color.png",
+      "normal": "panel_normal.png",
+      "normalStrength": 0.4000000059604645,
       "tiling": [
         1.0,
         1.0
@@ -1642,26 +1714,50 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_WallPanel",
+      "name": "IVA_Velcro",
       "color": [
-        0.800000011920929,
-        0.800000011920929,
-        0.800000011920929
+        0.3799999952316284,
+        0.550000011920929,
+        0.7799999713897705
       ],
-      "metallic": 0.30000001192092896,
-      "roughness": 0.550000011920929,
+      "metallic": 0.0,
+      "roughness": 1.0,
       "emission": [
         1.0,
         1.0,
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": "wallpanel_color.png",
-      "normal": "wallpanel_normal.png",
-      "normalStrength": 0.800000011920929,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
       "tiling": [
         1.0,
         1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_WallPadded",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8500000238418579,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "wall_padded_color.png",
+      "normal": "wall_padded_normal.png",
+      "normalStrength": 1.0,
+      "tiling": [
+        0.5,
+        0.5
       ],
       "emissionFromTexture": false
     },
@@ -1749,6 +1845,11 @@
     3.55,
     -0.0,
     1.8,
-    0.55
+    0.55,
+    0.85,
+    1.8,
+    -0.95,
+    1.3,
+    0.6
   ]
 }

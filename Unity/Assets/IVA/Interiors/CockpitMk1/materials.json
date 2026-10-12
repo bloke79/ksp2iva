@@ -898,6 +898,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_Velcro",
+      "color": [
+        0.3799999952316284,
+        0.550000011920929,
+        0.7799999713897705
+      ],
+      "metallic": 0.0,
+      "roughness": 1.0,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_WallCream",
       "color": [
         0.800000011920929,

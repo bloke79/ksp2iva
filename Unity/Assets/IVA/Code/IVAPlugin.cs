@@ -61,6 +61,8 @@ namespace IVA
         private ConfigValue<bool> _anyPod;
         private ConfigValue<bool> _fitToPod;
         private ConfigValue<bool> _hideExterior;
+        private ConfigValue<bool> _cabinAo;
+        private ConfigValue<float> _cabinAoStrength;
 
         private ConfigValue<float> _offX, _offY, _offZ, _yaw, _scale;
         private ConfigValue<float> _eyeX, _eyeY, _eyeZ;
@@ -193,6 +195,11 @@ namespace IVA
                 "Measure the pod and size the interior to match.");
             _hideExterior = Bind(cfg, "Interior", "Hide pod exterior in IVA", false,
                 "Turn on if parts of the pod's outer model show inside the cabin. The cabin then gets direct sunlight with no shadows.");
+
+            _cabinAo = Bind(cfg, "Interior", "Ambient occlusion", true,
+                "Darken corners, seams and gaps inside the cabin (the game's own post-processing). Turn off if it looks wrong or costs too much.");
+            _cabinAoStrength = Bind(cfg, "Interior", "Ambient occlusion strength", 1.0f,
+                "How dark the ambient occlusion gets.", new RangeConstraint<float>(0f, 2f));
 
             var off = new RangeConstraint<float>(-3f, 3f);
             _offX = Bind(cfg, "Alignment", "Offset X", 0f, "Shifts the interior inside the pod (metres). Set with the numpad in IVA.", off);
@@ -739,6 +746,7 @@ namespace IVA
             StartCameraGuard();
             TryStartShotOverride();
             ApplyPose();
+            if (_cabinAo.Value) CabinAo.Begin(_flightCam, _cabinAoStrength.Value, SWLogger);
             _session.ShowSeat(_seatIndex, _hideOwnKerbal.Value, SWLogger);
             if (_soundOn.Value)
             {
@@ -975,6 +983,7 @@ namespace IVA
 
         private void ExitIva()
         {
+            CabinAo.End();
             _free = null;
             _interact?.Reset();
             _interact = null;

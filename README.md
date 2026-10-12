@@ -109,6 +109,8 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Interior | Use for pods without their own interior | off | Put the Mk1-3 interior in other crewed pods too |
 | Interior | Fit to pod | on | Size the interior to the pod's measured shape |
 | Interior | Hide pod exterior in IVA | off | Turn on if bits of the pod's outer model poke through |
+| Interior | Ambient occlusion | on | Darkens corners, seams and gaps inside the cabin (the game's post-processing) |
+| Interior | Ambient occlusion strength | 1.0 | How dark it gets (0 to 2) |
 | Alignment | Offset X/Y/Z, Yaw, Scale, Eye X/Y/Z | 0 / 0 / 1 / 0 | Set by the numpad tool |
 | General | Hide own kerbal | on | Hides your own kerbal's head (custom interiors) or whole body (portrait view) |
 

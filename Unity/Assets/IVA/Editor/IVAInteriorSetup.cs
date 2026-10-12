@@ -178,9 +178,11 @@ namespace IVA.EditorTools
             // soft shadows from the cabin lamp give the modules, switches and housings their depth
             light.shadows = LightShadows.Soft;
             light.shadowStrength = 0.85f;
-            light.shadowBias = 0.02f;
-            light.shadowNormalBias = 0.2f;
-            light.shadowNearPlane = 0.05f;
+            // sharp, close shadows: the highest point-light resolution, and small biases so shadows touch what casts them
+            light.shadowResolution = UnityEngine.Rendering.LightShadowResolution.VeryHigh;
+            light.shadowBias = 0.008f;
+            light.shadowNormalBias = 0.06f;
+            light.shadowNearPlane = 0.03f;
 
             // Our own reflection probe: without it the shiny parts reflect the game's probes, i.e. the bright sky outside,
             // and the whole cabin reads as white. Box-sized to the model, it wins over the game's probes inside it.
@@ -217,7 +219,17 @@ namespace IVA.EditorTools
                     l.range = sheet.extraLights[i + 3];
                     l.intensity = Mathf.Clamp(sheet.extraLights[i + 4] * 1.6f, 0.4f, 1.4f);
                     l.color = new Color(1f, 0.9f, 0.76f);
-                    l.shadows = LightShadows.None;
+                    // the main lamp of another deck casts shadows too; small local lamps (a toilet, a dome) don't
+                    if (sheet.extraLights[i + 3] >= 2f)
+                    {
+                        l.shadows = LightShadows.Soft;
+                        l.shadowStrength = 0.8f;
+                        l.shadowResolution = UnityEngine.Rendering.LightShadowResolution.VeryHigh;
+                        l.shadowBias = 0.008f;
+                        l.shadowNormalBias = 0.06f;
+                        l.shadowNearPlane = 0.03f;
+                    }
+                    else l.shadows = LightShadows.None;
                 }
 
             string prefabPath = $"{dir}/{sheet.interior}.prefab";
@@ -358,6 +370,8 @@ namespace IVA.EditorTools
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 // Blender strengths (up to 6 for lamps) bloom badly in the game's post-processing: scale them down
                 float k = Mathf.Clamp(m.emissionStrength * 0.25f, 0.2f, 1.2f);
+                if (m.name != null && m.name.IndexOf("Light", StringComparison.OrdinalIgnoreCase) >= 0)
+                    k = Mathf.Clamp(m.emissionStrength * 0.45f, 1.0f, 2.2f);   // light panels glow (and catch the bloom) more than screens
                 if (m.emissionFromTexture && main != null)
                 {
                     mat.SetTexture("_EmissionMap", main);
