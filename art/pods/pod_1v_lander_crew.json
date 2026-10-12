@@ -1,0 +1,244 @@
+{
+ "part": "pod_1v_lander_crew",
+ "name": "Lander Can 1v",
+ "interior": "Lander1vInterior",
+ "address": "IVA/Interior_pod_1v_lander_crew",
+ "seats": 1,
+ "yaw": 180,
+ "generator": "model_lander.py",
+ "hull_base_y": -0.701,
+ "shell_centre": [
+  0.0,
+  0.0
+ ],
+ "exterior": "C:/Games/KSP2Mods/reference/pod_1v_lander_crew/pod_1v_lander_crew.obj",
+ "profile": [
+  [
+   0.0,
+   0.891
+  ],
+  [
+   0.14,
+   0.914
+  ],
+  [
+   0.281,
+   0.899
+  ],
+  [
+   0.421,
+   0.903
+  ],
+  [
+   0.561,
+   0.903
+  ],
+  [
+   0.701,
+   1.068
+  ],
+  [
+   0.841,
+   1.068
+  ],
+  [
+   0.981,
+   1.068
+  ],
+  [
+   1.121,
+   0.914
+  ],
+  [
+   1.262,
+   0.891
+  ],
+  [
+   1.402,
+   0.891
+  ]
+ ],
+ "wall": 0.04,
+ "floor": 0.12,
+ "ceiling": 1.32,
+ "plate": {
+  "title": "LANDER CAN 1V",
+  "subtitle": "CREW 1   |   STAND CLEAR OF THE HATCH   |   CHECK LANDING LEGS"
+ },
+ "lander": {
+  "kind": "1v",
+  "floor": 0.12,
+  "ceiling": 1.32,
+  "top_r": 0.24,
+  "windows": [
+   [
+    -0.12,
+    0.12,
+    0.32,
+    1.21,
+    -1
+   ]
+  ],
+  "hatch": {
+   "side": 1,
+   "w": 0.42,
+   "z0": 0.26,
+   "z1": 1.1
+  },
+  "glass_y": -1.0
+ },
+ "pose": {
+  "seats": [
+   {
+    "x": 0.0,
+    "eye": [
+     0.0,
+     -0.33,
+     0.97
+    ],
+    "fwd": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "up": [
+     0.0,
+     0.0,
+     1.0
+    ]
+   }
+  ]
+ },
+ "cameras": {
+  "eye": {
+   "loc": [
+    0,
+    -0.33,
+    0.97
+   ],
+   "target": [
+    0,
+    -1.2,
+    0.85
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 95
+  },
+  "back": {
+   "loc": [
+    0,
+    -0.45,
+    1.05
+   ],
+   "target": [
+    0,
+    0.9,
+    0.6
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 100
+  },
+  "left": {
+   "loc": [
+    0.2,
+    -0.2,
+    1.0
+   ],
+   "target": [
+    -1.0,
+    -0.5,
+    0.7
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 100
+  },
+  "right": {
+   "loc": [
+    -0.2,
+    -0.2,
+    1.0
+   ],
+   "target": [
+    1.0,
+    -0.5,
+    0.7
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 100
+  },
+  "down": {
+   "loc": [
+    0,
+    0.3,
+    1.25
+   ],
+   "target": [
+    0,
+    -0.6,
+    0.2
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "fov": 100
+  }
+ },
+ "cabin_light": {
+  "position": [
+   0.0,
+   -0.1,
+   1.2
+  ],
+  "range": 1.8,
+  "intensity": 0.9
+ },
+ "preview_lights": [
+  {
+   "loc": [
+    0.0,
+    -0.1,
+    1.25
+   ],
+   "dir": [
+    0,
+    0,
+    -1
+   ],
+   "energy": 4,
+   "size": 0.4
+  },
+  {
+   "loc": [
+    0.0,
+    0.4,
+    0.9
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "energy": 2,
+   "size": 0.3
+  }
+ ],
+ "texgen": "labelgen.py"
+}

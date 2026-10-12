@@ -156,28 +156,34 @@ for i, a in enumerate(parts):
 # ------------------------------------------------------------------ through the hull wall (rays out from the part axis)
 walls = [o for o in objs if o["struct"] and o["big"] and not re.search(r"Floor|Deck|Ceiling|Bulkhead|Plate_|Backdrop|Sky", o["name"])]
 if walls:
-    wv, wt = [], []
+    wv, wt, owner = [], [], []
     for o in walls:
         base = len(wv)
         wv += o["verts"]
         wt += [tuple(base + i for i in p) for p in o["polys"]]
+        owner += [o["name"]] * len(o["polys"])
     wall_bvh = BVHTree.FromPolygons(wv, wt)
     cx, cy = SPEC.get("shell_centre", (0.0, 0.0))
     for o in parts:
         step = max(1, len(o["verts"]) // 150)
-        worst, at = 0.0, None
+        worst, at, by = 0.0, None, ""
         for p in o["verts"][::step]:
             org = Vector((cx, cy, p.z))
             d = p - org
             if d.length < 0.05:
                 continue
-            h = wall_bvh.ray_cast(org, d.normalized(), d.length)
+            dn, start, h = d.normalized(), org, (None,)
+            while True:   # the part's own assembly (a panel's housing behind its face) is not the hull
+                h = wall_bvh.ray_cast(start, dn, (p - start).length)
+                if h[0] is None or not related(owner[h[2]], o["name"]):
+                    break
+                start = h[0] + dn * 0.002
             if h[0] is not None and abs(h[1].z) < 0.7:   # end caps don't count: the ray runs along them
-                past = d.length - h[3]
+                past = (p - h[0]).length
                 if past > worst:
-                    worst, at = past, p
+                    worst, at, by = past, p, owner[h[2]]
         if worst > (0.05 if "Frame" in o["name"] else 0.012):   # window frames overlap the wall by design
-            report["wall"].append((worst, f"{o['name']} pokes {worst * 100:.1f} cm through the hull at ({at.x:.2f}, {at.y:.2f}, {at.z:.2f})"))
+            report["wall"].append((worst, f"{o['name']} pokes {worst * 100:.1f} cm through the hull at ({at.x:.2f}, {at.y:.2f}, {at.z:.2f}){'' if by.startswith('Shell') else ' (' + by + ')'}"))
 
 # ------------------------------------------------------------------ one BVH of everything opaque, for sight lines
 sv, st, sowner = [], [], []
