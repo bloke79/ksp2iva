@@ -430,6 +430,7 @@ def build_forward_wall():
     P.drawer_stack("FwdDrawers1", Vector((0.22, 0.96, zf)), FWD_WALL, 0.34, 0.5, 4)
     P.laptop("FwdLaptop", Vector((0.62, 0.32, zf)), FWD_WALL, arm=0.22, screen="mfd_systems")
     P.net_with_gear("FwdNet", Vector((0.66, 0.85, zf)), FWD_WALL, 0.3, 0.32)
+    P.net_with_gear("FwdNetHigh", Vector((0.7, -0.16, zf)), FWD_WALL, 0.32, 0.26)   # the top corner, over the laptop
     P.velcro("FwdVelcro0", Vector((0.62, 0.05, zf)), FWD_WALL)
     for sx in (-1, 1):   # handrails either side of the galley
         x = -0.05 + sx * 0.32

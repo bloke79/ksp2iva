@@ -310,6 +310,56 @@
       "tint": false
     },
     {
+      "name": "IVA_Canvas",
+      "color": [
+        0.27000001072883606,
+        0.2800000011920929,
+        0.23000000417232513
+      ],
+      "metallic": 0.0,
+      "roughness": 0.9200000166893005,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": "canvas_normal.png",
+      "normalStrength": 0.800000011920929,
+      "tiling": [
+        6.0,
+        6.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_CouchFrame",
+      "color": [
+        0.2199999988079071,
+        0.23000000417232513,
+        0.25
+      ],
+      "metallic": 0.699999988079071,
+      "roughness": 0.4000000059604645,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
       "name": "IVA_CouchFrameDetail",
       "color": [
         0.2199999988079071,
@@ -333,6 +383,31 @@
       ],
       "emissionFromTexture": false,
       "tint": true
+    },
+    {
+      "name": "IVA_DarkGlass",
+      "color": [
+        0.029999999329447746,
+        0.03999999910593033,
+        0.05000000074505806
+      ],
+      "metallic": 0.0,
+      "roughness": 0.05999999865889549,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_DeckPlate",
@@ -735,6 +810,31 @@
       "tint": true
     },
     {
+      "name": "IVA_JetpackDetail",
+      "color": [
+        0.8199999928474426,
+        0.8199999928474426,
+        0.800000011920929
+      ],
+      "metallic": 0.20000000298023224,
+      "roughness": 0.44999998807907104,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": true
+    },
+    {
       "name": "IVA_Keys",
       "color": [
         0.800000011920929,
@@ -1050,6 +1150,31 @@
       ],
       "emissionStrength": 0.0,
       "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_Poster_Duna",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_duna.png",
       "normal": null,
       "normalStrength": 1.0,
       "tiling": [
