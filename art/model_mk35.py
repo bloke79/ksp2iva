@@ -351,6 +351,8 @@ def build_aft_rooms():
 
 def build_front_lockers():
     """Low lockers in the two front corners, below the side windows' sills, clear of the route to the EVA hatch."""
+    poster("PosterSafety", "safety", *at(45, 1.62, 0.0), w=0.22, h=0.33)      # either side of the EVA hatch
+    poster("PosterStaging", "staging", *at(-45, 1.62, 0.0), w=0.22, h=0.33)
     for side in (-1, 1):   # velcro above the lockers and beside the side consoles, where checklists go
         P.velcro(f"FrontVelcro{side}", *at(side * 39, 0.86, 0.0))
         P.velcro(f"SideVelcro{side}", *at(side * 108, 1.32, 0.0))
@@ -550,6 +552,8 @@ def build_living_deck():
     poster("PosterMun", "mun", *at(104, D + 1.12, 0.0))
     poster("PosterKerbin", "kerbin", *at(-98, D + 1.12, 0.0))
     poster("PosterCrew", "crew", *at(-166, D + 1.02, 0.0), w=0.2, h=0.3)
+    poster("PosterBoosters", "boosters", *at(-62, D + 1.12, 0.0), w=0.2, h=0.3)
+    poster("PosterMinmus", "minmus", *at(62, D + 1.12, 0.0), w=0.2, h=0.3)
     for k, (deg, z) in enumerate(((-34, D + 0.72), (34, D + 0.72), (64, D + 0.66), (-140, D + 0.9), (162, D + 0.62), (-62, D + 0.6))):
         P.velcro(f"LivingVelcro{k}", *at(deg, z, 0.0))
 

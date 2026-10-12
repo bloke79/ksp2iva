@@ -407,6 +407,26 @@ def build_mid_deck():
         S.light_fixture(f"MidLight{k}", Vector((0.0, FLOOR_Y + DECK_T + 0.02, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.4, h=0.08)
 
 
+def poster(name, tex, p, b, w=0.24, h=0.36):
+    """A crew poster on a wall: a thin dark backing board and the print."""
+    key = "poster_" + tex
+    if key not in M:
+        M[key] = L.material(f"IVA_Poster_{tex.capitalize()}", tex=f"poster_{tex}.png", rough=0.7, metal=0.0)
+    L.box(name + "Board", (w + 0.02, h + 0.02, 0.006), M["frame_dark"], p + b.col[2] * 0.003, b, bevel=0.002)
+    L.plane(name, w, h, M[key], p + b.col[2] * 0.0065, b)
+
+
+def build_posters():
+    """Mid-deck posters: on the aft bulkhead beside the fuselage hatch, and over the sleep stations."""
+    poster("PosterMunHoliday", "munholiday", Vector((0.82, 0.28, Z_BACK + 0.022)), AFT_WALL, w=0.24, h=0.36)
+    fr = HS.wall_frame((0.0, -0.2, 1.55), (1, 0, 0), 0.02, up=(0, -1, 0))
+    if fr:
+        poster("PosterMissing", "missing", fr[0], fr[1], w=0.2, h=0.3)
+    fr = HS.wall_frame((0.0, -0.15, 0.95), (-1, 0, 0), 0.004, up=(0, -1, 0))
+    if fr:
+        poster("PosterLostPart", "lostpart", fr[0], fr[1], w=0.2, h=0.3)
+
+
 def build_velcro():
     """Velcro strips where the crew work: flight-deck side walls, by the galley and the sleep stations."""
     spots = [(-1, -0.9, 0.45), (1, -0.9, 0.45), (-1, -0.6, 0.85), (1, -0.6, 0.85), (-1, 0.1, 1.55), (1, 0.0, 1.0)]
@@ -437,6 +457,7 @@ build_aft_flight_deck()
 build_flight_walls()
 build_mid_deck()
 build_velcro()
+build_posters()
 build_lights_and_markers()
 S.collision_markers(hatches=[("Aft", (0.0, 0.48, Z_BACK + 0.3)), ("Side", (-1.0, 0.45, 2.05)), ("Deck", (HATCH.x, FLOOR_Y, HATCH.z))])
 L.save(OUT)
