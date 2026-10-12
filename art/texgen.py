@@ -735,6 +735,164 @@ def wall_cream(size=1024, cells=2):
     save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "wall_cream_normal.png")
 
 
+def wall_padded(size=1024, cells=2):
+    """Medium-grey padded closeout panels (the grey of the stock-style walls): each panel a grid of puffy cushions with
+    deep stitched seams between them, darker gaps round the panels, fabric grain and a little wear."""
+    rng = np.random.default_rng(51)
+    grime = 0.6 * _tile_noise(size, 4, 52) + 0.4 * _tile_noise(size, 14, 53)
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    step = size / cells
+    cu, cv = 2, 3                                     # cushions per panel across, down
+    pu, pv = step / cu, step / cv
+    # distance to the nearest cushion edge, normalised to 0 at the seam and 1 in the middle
+    du = np.minimum(xx % pu, pu - xx % pu) / (pu / 2)
+    dv = np.minimum(yy % pv, pv - yy % pv) / (pv / 2)
+    d = np.minimum(du, dv)
+    pillow = np.clip(d, 0, 1) ** 0.45                  # puffed up quickly from the seam, flat-ish on top
+    gap_u = np.minimum(xx % step, step - xx % step)
+    gap_v = np.minimum(yy % step, step - yy % step)
+    panel_gap = np.minimum(gap_u, gap_v) < 6
+    h = pillow * 1.0
+    h[panel_gap] = -0.6
+    grain = np.random.default_rng(54).normal(0, 1, (size, size)).astype(np.float32)
+    grain = np.asarray(Image.fromarray(((grain * 0.5 + 0.5).clip(0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))).astype(np.float32) / 255 - 0.5
+    base = np.array([0.40, 0.41, 0.43])
+    shade = 0.72 + 0.32 * pillow                       # seams in shadow, cushion tops catching the light
+    col = base[None, None, :] * shade[..., None] * (0.92 + 0.12 * grime[..., None]) * (1 + 0.05 * grain[..., None])
+    col[panel_gap] *= 0.45
+    # stitching: a dashed line just inside each cushion seam
+    stitch = ((np.abs(d - 0.12) < 0.02) & ((((xx + yy) / 7).astype(int) % 2) == 0))
+    col[stitch] *= 0.78
+    save(Image.fromarray((col.clip(0, 1) * 255).astype(np.uint8)), "wall_padded_color.png")
+    hh = h + 0.04 * grain
+    gy, gx = np.gradient(hh * 9.0)
+    n = np.dstack([-gx, -gy, np.ones_like(hh)])
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2)), "wall_padded_normal.png")
+
+
+def posters(w=512, h=768):
+    """Crew posters for the cabin walls, all drawn here (no game art): Kerbin from orbit, a retro Mün travel poster, a
+    crew-corps poster with a kerbal, and a Duna travel poster."""
+    import math as _m
+
+    def font(sz):
+        for f in ("C:/Windows/Fonts/impact.ttf", "C:/Windows/Fonts/bahnschrift.ttf", "C:/Windows/Fonts/arialbd.ttf"):
+            try:
+                return ImageFont.truetype(f, sz)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    def stars(d, rng, n=160):
+        for _ in range(n):
+            x, y = rng.integers(0, w), rng.integers(0, h)
+            r = rng.choice([0, 0, 0, 1])
+            v = int(rng.integers(150, 255))
+            d.ellipse([x - r, y - r, x + r, y + r], fill=(v, v, v))
+
+    def title(d, text, y, sz, fill=(245, 235, 210)):
+        f = font(sz)
+        tw = d.textlength(text, font=f)
+        d.text(((w - tw) / 2, y), text, font=f, fill=fill)
+
+    def frame(img):
+        d = ImageDraw.Draw(img)
+        d.rectangle([6, 6, w - 7, h - 7], outline=(245, 235, 210), width=4)
+        return img
+
+    rng = np.random.default_rng(71)
+    # 1. Kerbin from orbit
+    img = Image.new("RGB", (w, h), (6, 8, 20))
+    d = ImageDraw.Draw(img)
+    stars(d, rng)
+    cx, cy, R = w // 2, int(h * 0.95), int(w * 0.95)
+    for k in range(18, 0, -1):   # atmosphere glow
+        a = k / 18
+        d.ellipse([cx - R - k * 3, cy - R - k * 3, cx + R + k * 3, cy + R + k * 3], fill=(int(40 + 60 * (1 - a)), int(90 + 80 * (1 - a)), int(160 + 80 * (1 - a))))
+    planet = Image.new("RGB", (w, h), (24, 70, 150))
+    land = (0.6 * _tile_noise(max(w, h), 7, 72) + 0.4 * _tile_noise(max(w, h), 19, 74))[:h, :w]
+    cloud = (0.5 * _tile_noise(max(w, h), 14, 73) + 0.5 * _tile_noise(max(w, h), 31, 75))[:h, :w]
+    arr = np.array(planet).astype(np.float32) / 255
+    arr[land > 0.55] = [0.24, 0.50, 0.22]
+    arr[land > 0.63] = [0.36, 0.44, 0.22]
+    arr[land > 0.70] = [0.55, 0.50, 0.36]
+    cw = np.clip((cloud - 0.58) * 5, 0, 0.85)
+    arr = arr * (1 - cw)[..., None] + cw[..., None] * 0.96
+    yy_, xx_ = np.mgrid[0:h, 0:w]
+    limb = np.clip(np.hypot(xx_ - cx, yy_ - cy) / R, 0, 1)
+    arr *= (1.0 - 0.45 * limb ** 6)[..., None]
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).ellipse([cx - R, cy - R, cx + R, cy + R], fill=255)
+    img.paste(Image.fromarray((arr.clip(0, 1) * 255).astype(np.uint8)), (0, 0), mask)
+    d = ImageDraw.Draw(img)
+    title(d, "KERBIN", 60, 110)
+    title(d, "HOME, SWEET HOME", 190, 34, (180, 210, 240))
+    save(frame(img), "poster_kerbin.png")
+    # 2. Visit the Mun
+    img = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(img)
+    for y in range(h):
+        t = y / h
+        d.line([(0, y), (w, y)], fill=(int(20 + 30 * t), int(18 + 40 * t), int(50 + 70 * t)))
+    stars(d, rng, 90)
+    mx, my, mr = w // 2, int(h * 0.48), int(w * 0.36)
+    d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=(176, 174, 168))
+    for _ in range(26):
+        a, r = rng.random() * 6.283, rng.random() ** 0.6 * mr * 0.85
+        x, y = mx + r * _m.cos(a), my + r * _m.sin(a)
+        cr = rng.integers(6, 26)
+        d.ellipse([x - cr, y - cr, x + cr, y + cr], fill=(150, 148, 142), outline=(198, 196, 190), width=2)
+    # rocket climbing past
+    rx, ry = int(w * 0.22), int(h * 0.74)
+    d.polygon([(rx, ry - 70), (rx - 16, ry - 30), (rx + 16, ry - 30)], fill=(235, 225, 205))
+    d.rectangle([rx - 16, ry - 30, rx + 16, ry + 40], fill=(235, 225, 205))
+    d.polygon([(rx - 16, ry + 10), (rx - 34, ry + 46), (rx - 16, ry + 40)], fill=(200, 70, 50))
+    d.polygon([(rx + 16, ry + 10), (rx + 34, ry + 46), (rx + 16, ry + 40)], fill=(200, 70, 50))
+    d.polygon([(rx - 10, ry + 40), (rx + 10, ry + 40), (rx, ry + 90)], fill=(250, 180, 60))
+    d.ellipse([rx - 7, ry - 22, rx + 7, ry - 8], fill=(90, 150, 200))
+    title(d, "VISIT THE MUN", 40, 70)
+    title(d, "ONLY THREE DAYS AWAY*", h - 120, 32, (250, 190, 90))
+    title(d, "*FUEL PERMITTING", h - 70, 20, (200, 200, 210))
+    save(frame(img), "poster_mun.png")
+    # 3. Crew corps: a kerbal in a helmet
+    img = Image.new("RGB", (w, h), (225, 120, 40))
+    d = ImageDraw.Draw(img)
+    for k in range(12):   # sunburst
+        a0 = k * 30
+        d.pieslice([-w, -h // 2, 2 * w, int(h * 1.4)], a0, a0 + 15, fill=(235, 145, 60))
+    hx, hy = w // 2, int(h * 0.48)
+    d.ellipse([hx - 170, hy - 170, hx + 170, hy + 170], fill=(240, 240, 235), outline=(60, 60, 70), width=6)   # helmet
+    d.ellipse([hx - 140, hy - 140, hx + 140, hy + 140], fill=(40, 70, 110))                                      # visor
+    d.ellipse([hx - 105, hy - 115, hx + 105, hy + 120], fill=(120, 190, 70))                                     # head
+    for ex in (-48, 48):
+        d.ellipse([hx + ex - 36, hy - 70, hx + ex + 36, hy + 6], fill=(250, 250, 250), outline=(30, 30, 30), width=3)
+        d.ellipse([hx + ex - 12 + (8 if ex < 0 else -8), hy - 44, hx + ex + 12 + (8 if ex < 0 else -8), hy - 18], fill=(20, 20, 20))
+    d.arc([hx - 70, hy - 20, hx + 70, hy + 80], 20, 160, fill=(30, 40, 20), width=7)                              # grin
+    d.chord([hx - 52, hy + 30, hx + 52, hy + 78], 0, 180, fill=(250, 250, 250))                                 # teeth
+    d.arc([hx - 128, hy - 128, hx + 128, hy + 128], 200, 250, fill=(170, 200, 230), width=6)                    # visor glint
+    title(d, "KERBAL", 36, 92, (30, 30, 40))
+    title(d, "ASTRONAUT CORPS", 140, 38, (30, 30, 40))
+    title(d, "FOR SCIENCE!", h - 110, 64, (250, 245, 230))
+    save(frame(img), "poster_crew.png")
+    # 4. Duna
+    img = Image.new("RGB", (w, h), (30, 14, 18))
+    d = ImageDraw.Draw(img)
+    stars(d, rng, 120)
+    px, py, pr = w // 2, int(h * 0.5), int(w * 0.38)
+    for k in range(pr, 0, -2):   # shaded red sphere
+        t = k / pr
+        c = (int(200 * (0.55 + 0.45 * (1 - t))), int(80 * (0.6 + 0.4 * (1 - t))), int(50 * (0.6 + 0.4 * (1 - t))))
+        off = int((1 - t) * pr * 0.25)
+        d.ellipse([px - k - off, py - k - off, px + k - off, py + k - off], fill=c)
+    d.ellipse([px - 40, py - pr + 6, px + 40, py - pr + 34], fill=(240, 235, 230))                              # polar cap
+    d.ellipse([px + pr * 0.75, py - pr * 0.95, px + pr * 0.95, py - pr * 0.75], fill=(150, 140, 130))           # Ike
+    title(d, "DUNA", 50, 120, (255, 220, 190))
+    title(d, "THE RED FRONTIER", h - 140, 40, (255, 190, 150))
+    title(d, "BRING A JACKET", h - 85, 26, (230, 200, 190))
+    save(frame(img), "poster_duna.png")
+
+
 ALL = {
     "navball": navball, "crt_orbit": crt_orbit, "crt_data": crt_data, "crt_attitude": crt_attitude,
     "gauge_alt": lambda: gauge("gauge_alt.png", "ALT km", 0.62),
@@ -748,7 +906,7 @@ ALL = {
     "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel, "food": food, "food_labels": food_labels, "deckplate": deckplate,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
-    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream,
+    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream, "wall_padded": wall_padded, "posters": posters,
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
 }
 # python texgen.py <out> [name ...]: only the named textures (default: all)

@@ -53,11 +53,11 @@ import act as A  # noqa: E402
 # shuttle-era finish, as the Mk1 and Mk3 cockpits
 M["console"] = L.material("IVA_ShuttlePanel", tex="shuttle_panel_color.png", normal="panel_normal.png", rough=0.6, metal=0.2, normal_strength=0.4)
 M["module"] = M["console"]
-M["blanket"] = L.material("IVA_WallCream", tex="wall_cream_color.png", normal="wall_cream_normal.png", rough=0.8, metal=0.0, normal_strength=0.9)
+M["blanket"] = L.material("IVA_WallPadded", tex="wall_padded_color.png", normal="wall_padded_normal.png", rough=0.85, metal=0.0, normal_strength=1.0, uv_scale=(0.5, 0.5))
 M["glare"] = L.material("IVA_Glareshield", (0.045, 0.046, 0.05), rough=0.85)
 M["cushion"] = L.material("IVA_SeatBlue", (0.10, 0.17, 0.42), rough=0.9, normal="canvas_normal.png", uv_scale=(5.0, 5.0), normal_strength=0.8)
 M["shell"] = L.material("IVA_SeatFrame", (0.42, 0.44, 0.47), rough=0.45, metal=0.5)
-M["locker"] = L.material("IVA_MidLocker", (0.78, 0.77, 0.72), rough=0.6, metal=0.05)
+M["locker"] = L.material("IVA_GreyLocker", (0.40, 0.41, 0.43), rough=0.55, metal=0.15)
 M["velcro"] = L.material("IVA_Velcro", (0.38, 0.55, 0.78), rough=1.0)
 
 C.setup(SPEC, wall=SPEC["wall"], ceil=SPEC["ceiling"], top=SPEC["ceiling"] + 0.1, seg=192)
@@ -337,6 +337,7 @@ def build_aft_rooms():
     G.housing(s, "CommsStation", depth=0.02)
     P.headset("CommsHeadset", Vector((AISLE - 0.005, 1.25, 1.3)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
     P.velcro("ToiletVelcro", *at(-126, FLOOR + 1.55, 0.0))
+    poster("PosterDuna", "duna", *at(-143, 1.68, 0.0), w=0.2, h=0.3)
     P.velcro("CommsVelcro", Vector((AISLE - 0.001, 0.72, 1.5)), L.basis(Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))), w=0.05, h=0.14)
     for side in (-1, 1):
         y0, y1 = (DOOR_Y1 + 0.05, DOOR_Y1 + 0.3) if side < 0 else (0.62, 0.86)
@@ -422,6 +423,15 @@ def build_decks():
     ladder("LadderAft", 0.0, 1.3, FLOOR, DECK_Z + 0.55, 0.22)
     S.round_floor_hatch("Aft", 0.0, HATCH_Y, FLOOR, r=0.27, hinge=(0.0, 1.0))   # down to the modules below (handwheel, lid opens down)
     ladder("LadderTunnel", 0.0, 0.3, DECK_Z, C.Z_TOP - 0.08, 0.18)
+
+
+def poster(name, tex, p, b, w=0.24, h=0.36):
+    """A crew poster on a wall (p, b from at()): a thin dark backing board and the print."""
+    key = "poster_" + tex
+    if key not in M:
+        M[key] = L.material(f"IVA_Poster_{tex.capitalize()}", tex=f"poster_{tex}.png", rough=0.7, metal=0.0)
+    L.box(name + "Board", (w + 0.02, h + 0.02, 0.006), M["frame_dark"], p + b.col[2] * 0.003, b, bevel=0.002)
+    L.plane(name, w, h, M[key], p + b.col[2] * 0.0065, b)
 
 
 # ------------------------------------------------------------------ sleep pods: crew quarters fitted into the cone
@@ -537,6 +547,9 @@ def build_living_deck():
     P.cabinet("Pantry", *at(151, D + 0.3, 0.035), 0.34, 0.46, 0.3, doors=2)
     P.cabinet("FoodLocker", *at(151, D + 0.78, 0.04), 0.28, 0.2, 0.2, doors=1)
     P.whiteboard("Board", *at(140, D + 1.1), 0.28, 0.22)
+    poster("PosterMun", "mun", *at(104, D + 1.12, 0.0))
+    poster("PosterKerbin", "kerbin", *at(-98, D + 1.12, 0.0))
+    poster("PosterCrew", "crew", *at(-166, D + 1.02, 0.0), w=0.2, h=0.3)
     for k, (deg, z) in enumerate(((-34, D + 0.72), (34, D + 0.72), (64, D + 0.66), (-140, D + 0.9), (162, D + 0.62), (-62, D + 0.6))):
         P.velcro(f"LivingVelcro{k}", *at(deg, z, 0.0))
 
