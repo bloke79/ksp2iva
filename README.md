@@ -97,6 +97,7 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Look | sensitivity, invert, hold right mouse, max angle | 2 / off / off / 85 | |
 | Look | Window glide time | 0.5 | Seconds to move between seat and window (0 = instant) |
 | Look | Float speed | 1.2 | Top speed when floating round the cabin (m/s) |
+| Look | Walk speed | 0.9 | Walking speed in a landed lander (m/s): WASD walk, Space jump, Ctrl crouch |
 | Sound | Interior sounds | on | Cabin sounds (thrusters, doors, buckles) from the game's own sound events |
 | Sound | Thruster sound | on | Moving while floating plays the EVA jetpack's thruster sound |
 | Sound | Volume | 0.6 | Volume of the cabin sounds (0 to 1) |

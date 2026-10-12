@@ -435,11 +435,13 @@ def _fitted_box(o):
     return Vector(centre), axes, float(np.prod(np.maximum(hi - lo, 1e-3)))
 
 
-def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15, boxes=()):
+def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15, boxes=(), hull=None, floors=()):
     """Position-only empties the mod reads to let the player float round the cabin without Unity physics:
     IVA_ColAxis_0/1 (pod axis, floor to top), IVA_ColHull_<k> (a point on the hull at each height: radius profile),
     IVA_ColDeck_<k> (deck heights), IVA_ColHole_<k>_c/x/y/z and IVA_ColBox_<k>_c/x/y/z (oriented boxes: centre and the
-    three half-axis tips) and IVA_Hatch_<name> (hatch positions, for a prompt). Positions only, so no axis conventions."""
+    three half-axis tips), IVA_Hatch_<name> (hatch positions, for a prompt) and IVA_Floor_<k>_p/_n (floors you can walk
+    on under gravity: a point on the plane and that point plus 0.1 m along its up normal). Positions only, so no axis
+    conventions. hull: radius at a height (default: the capsule profile, C.r_in), for interiors with their own shell."""
     import bpy
     bpy.context.view_layer.update()
 
@@ -457,10 +459,14 @@ def collision_markers(decks=(), holes=(), hatches=(), min_size=0.15, boxes=()):
     mark("IVA_ColAxis_0", (0, 0, C.Z_FLOOR))
     mark("IVA_ColAxis_1", (0, 0, C.Z_TOP))
     n = 24
+    r_at = hull or C.r_in
     for k in range(n + 1):
         z = C.Z_FLOOR + (C.Z_CEIL - C.Z_FLOOR) * k / n
-        mark(f"IVA_ColHull_{k:02d}", C.polar(0.0, C.r_in(z), z))
-    mark(f"IVA_ColHull_{n + 1:02d}", C.polar(0.0, C.r_in(C.Z_CEIL) * 0.35, C.Z_TOP))   # the dome closes in
+        mark(f"IVA_ColHull_{k:02d}", C.polar(0.0, r_at(z), z))
+    mark(f"IVA_ColHull_{n + 1:02d}", C.polar(0.0, r_at(C.Z_CEIL) * 0.35, C.Z_TOP))   # the dome closes in
+    for k, (fp, fn) in enumerate(floors):
+        mark(f"IVA_Floor_{k}_p", fp)
+        mark(f"IVA_Floor_{k}_n", Vector(fp) + Vector(fn).normalized() * 0.1)
     for k, z in enumerate(decks):
         mark(f"IVA_ColDeck_{k}", (0, 0, z))
     for k, (x0, x1, y0, y1, z) in enumerate(holes):

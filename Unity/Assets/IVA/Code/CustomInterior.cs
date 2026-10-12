@@ -67,6 +67,15 @@ namespace IVA
             // Mk3 cockpit: orbiter flight deck (four seats at the stock eye points) over a mid-deck reached by a floor hatch.
             new InteriorDesign { Name = "Mk3 Cockpit", Address = "IVA/Interior_cockpit_3v_m3_crew", Parts = new[] { "cockpit_3v_m3_crew" },
                                  Seats = 4, BaseRadius = 1.879f, Height = 4.48f, Yaw = 180f, OnHull = true, HullBaseY = -1.275f },
+            // Lander cans: KSP1-style cramped cabins (seats at the panels, drawer banks, a ladder to the docking hatch).
+            // No stock interiors, so the crew come from the portrait booth; the windows are painted on the hull, which
+            // stays visible (one-sided: the openings in our shell show the world through it). You walk in them when landed.
+            new InteriorDesign { Name = "Lander 1v", Address = "IVA/Interior_pod_1v_lander_crew", Parts = new[] { "pod_1v_lander_crew" },
+                                 Seats = 1, BaseRadius = 0.89f, Height = 1.40f, Yaw = 180f, OnHull = true, HullBaseY = -0.701f, UprightCrew = true },
+            new InteriorDesign { Name = "Lander 2v", Address = "IVA/Interior_pod_2v_lander_crew", Parts = new[] { "pod_2v_lander_crew" },
+                                 Seats = 2, BaseRadius = 1.44f, Height = 1.40f, Yaw = 180f, OnHull = true, HullBaseY = -0.578f, UprightCrew = true },
+            new InteriorDesign { Name = "Lander 3v", Address = "IVA/Interior_pod_3v_lander_crew", Parts = new[] { "pod_3v_lander_crew" },
+                                 Seats = 4, BaseRadius = 2.05f, Height = 2.24f, Yaw = 180f, OnHull = true, HullBaseY = -1.119f, UprightCrew = true },
         };
 
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).

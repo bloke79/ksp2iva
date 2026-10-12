@@ -610,7 +610,16 @@ top_at = top_hatch()
 lights()
 for i, st in enumerate(SEATS):
     C.eye_marker(i, st)
-S.collision_markers(hatches=[("Side", tuple(eva_at)), ("Tunnel", tuple(top_at))])
+def hull_radius(z):
+    """The lining's nearest approach at a height (it isn't round everywhere: pillars, the window recesses)."""
+    z = min(max(z, DECK + 0.05), CEIL - 0.03)
+    rs = [reach(math.sin(a), math.cos(a), z) for a in [2 * math.pi * k / 48 for k in range(48)]]
+    rs = [r for r in rs if r > 0.2]
+    return min(rs) if rs else 0.5
+
+
+S.collision_markers(hatches=[("Side", tuple(eva_at)), ("Tunnel", tuple(top_at))], hull=hull_radius,
+                    floors=[((0.0, 0.0, DECK), (0.0, 0.0, 1.0))])
 import surfaces  # noqa: E402
 if not os.environ.get("IVA_NO_DETAIL"):
     surfaces.apply()

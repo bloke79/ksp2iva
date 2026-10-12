@@ -38,6 +38,9 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _unbuckleKey;
         private ConfigValue<KeyboardShortcut> _doorKey;
         private ConfigValue<float> _floatSpeed;
+        private ConfigValue<float> _walkSpeed;
+        private string _toast;           // a short message on screen (e.g. "no floor to stand on")
+        private float _toastUntil;
         private ConfigValue<bool> _soundOn;
         private ConfigValue<bool> _thrusterSound;
         private ConfigValue<float> _soundVolume;
@@ -155,10 +158,11 @@ namespace IVA
             _windowFov = Bind(cfg, "Zoom", "Window view field of view", 60f, "Field of view at a window.", new RangeConstraint<float>(20f, 120f));
             _glideTime = Bind(cfg, "Look", "Window glide time", 0.5f, "Seconds to move between the seat and a window (0 = instant).", new RangeConstraint<float>(0f, 3f));
             _unbuckleKey = Bind(cfg, "Keys", "Unbuckle", new KeyboardShortcut(KeyCode.U),
-                "Leave the couch and float round the cabin (WASD move, Shift/Ctrl up/down, Q/E roll); press again to sit in the nearest couch.");
+                "Leave the couch and float round the cabin (WASD move, Shift/Ctrl up/down, Q/E roll), or walk in a landed lander (WASD, Space jump, Ctrl crouch); press again to sit in the nearest couch.");
             _doorKey = Bind(cfg, "Keys", "Open door", new KeyboardShortcut(KeyCode.F),
                 "While floating round the cabin: use what you're looking at (doors, lockers, drawers, curtains, lamps, screens, lights, the toilet; the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
+            _walkSpeed = Bind(cfg, "Look", "Walk speed", 0.9f, "Walking speed in a landed lander (metres per second).", new RangeConstraint<float>(0.3f, 3f));
 
             _soundOn = Bind(cfg, "Sound", "Interior sounds", true, "Sounds inside the cabin (thrusters, doors, buckles), using the game's own sound events.");
             _thrusterSound = Bind(cfg, "Sound", "Thruster sound", true, "While floating, moving plays the EVA jetpack's thruster sound.");
@@ -1044,6 +1048,14 @@ namespace IVA
             if (_session == null || _session.Root == null || _session.PodTransform == null) return;
             FreeMove f = FreeMove.Build(_session.Root, _session.PodTransform, SWLogger);
             if (!f.Valid) return;
+            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why);
+            int floor = heavy ? f.FloorFor(upPod) : -1;
+            SWLogger.LogInfo($"IVA: gravity {why}; {(heavy ? floor >= 0 ? $"walking on floor {floor}" : "no floor faces up" : "floating")}.");
+            if (heavy && floor < 0)
+            {
+                Toast("No floor to stand on here");
+                return;
+            }
             if (!ComputeIvaPose(out Vector3 posW, out Quaternion rotW, out float _)) return;
             Transform pod = _session.PodTransform;
             f.Begin(pod.InverseTransformPoint(posW), Quaternion.Inverse(pod.rotation) * rotW);
@@ -1053,6 +1065,7 @@ namespace IVA
             _yawLook = 0f;
             _pitch = 0f;
             _free = f;
+            if (heavy) f.SetWalking(true, upPod, g);
             _doorBoxes.Clear();
             if (_interact?.Doors != null)
                 foreach (Doors.Door d in _interact.Doors.All)
@@ -1088,10 +1101,54 @@ namespace IVA
             SWLogger.LogInfo($"IVA: buckled into seat {_seatIndex + 1}.");
         }
 
+        // Gravity you'd feel standing in the pod: only when landed, splashed or on the pad (in flight you float, thrust or
+        // not). up: pod space, opposite to the pull. why: for the log.
+        private bool FeltGravity(out Vector3 up, out float g, out string why)
+        {
+            up = Vector3.up;
+            g = 0f;
+            why = "unknown";
+            try
+            {
+                VesselComponent v = _vesselAtEntry != null ? _vesselAtEntry.Model : null;
+                var space = Game?.UniverseView?.PhysicsSpace;
+                if (v == null || space == null || _session?.PodTransform == null) { why = "no vessel"; return false; }
+                bool landed = v.LandedOrSplashed || v.Situation == VesselSituations.PreLaunch;
+                Vector3 gW = (Vector3)space.VectorToPhysics(v.gravityForPos);
+                g = gW.magnitude;
+                if (g > 1e-4f) up = _session.PodTransform.InverseTransformDirection(-gW).normalized;
+                why = $"{g:F2} m/s2 ({g / 9.81f:F3} g), up (pod) {up.ToString("F2")}, {v.Situation}{(landed ? ", landed" : "")}";
+                return landed && g > 0.3f;
+            }
+            catch (Exception e) { why = "error: " + e.Message; return false; }
+        }
+
+        private void Toast(string text, float secs = 3f)
+        {
+            _toast = text;
+            _toastUntil = Time.unscaledTime + secs;
+            SWLogger.LogInfo("IVA: " + text + ".");
+        }
+
         private void MoveFree()
         {
             float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
+            if (heavy != _free.Walking)
+            {
+                _free.SetWalking(heavy, upPod, g);
+                SWLogger.LogInfo($"IVA: {(heavy ? "walking" : "floating")} now (gravity {why}).");
+            }
+            if (_free.Walking)
+            {
+                _free.SetWalking(true, upPod, g);   // follow slow changes (the vessel settling)
+                var walk = new Vector2(K(KeyCode.D) - K(KeyCode.A), K(KeyCode.W) - K(KeyCode.S));
+                if (walk.sqrMagnitude > 1f) walk.Normalize();
+                _free.StepWalk(walk, Input.GetKeyDown(KeyCode.Space), Input.GetKey(KeyCode.LeftControl), dt, _walkSpeed.Value);
+                _sounds?.SetThrust(false);
+                return;
+            }
             var move = new Vector3(K(KeyCode.D) - K(KeyCode.A), K(KeyCode.LeftShift) - K(KeyCode.LeftControl), K(KeyCode.W) - K(KeyCode.S));
             if (move.sqrMagnitude > 1f) move.Normalize();
             float roll = K(KeyCode.Q) - K(KeyCode.E);
@@ -1129,6 +1186,8 @@ namespace IVA
                 GUI.Label(new Rect(0f, Screen.height * 0.08f, Screen.width, 30f),
                           (_auditionIndex >= 0 ? $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}" : "[ / ]  play a sound") +
                           $"     \\  source: {_sounds.Current}", _promptStyle);
+            if (_toast != null && Time.unscaledTime < _toastUntil)
+                GUI.Label(new Rect(0f, Screen.height * 0.55f, Screen.width, 30f), _toast, _promptStyle);
             if (_free == null) return;
             // a small dot where you're looking
             GUI.Label(new Rect(Screen.width / 2f - 10f, Screen.height / 2f - 15f, 20f, 30f), "\u00b7", _dotStyle ?? (_dotStyle = new GUIStyle(_promptStyle) { fontSize = 28 }));

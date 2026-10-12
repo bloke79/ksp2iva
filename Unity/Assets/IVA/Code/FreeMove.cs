@@ -7,7 +7,12 @@
 //   IVA_ColDeck_<k>      deck heights; IVA_ColHole_<k>_c/x/y/z are the openings you can pass through
 //   IVA_ColBox_<k>_c/x/y/z  oriented boxes round the larger equipment (centre and three half-axis tips)
 //   IVA_Hatch_<name>     hatch positions, for a prompt
+//   IVA_Floor_<k>_p/_n   floors you can walk on under gravity (a point on the plane, and 0.1 m along its up normal)
 // Everything is converted to pod space once, when you unbuckle; the interior doesn't move inside the pod.
+//
+// Two modes. Floating (zero g): the sphere is the eye, it moves where you look. Walking (landed, with a floor that
+// faces up): the eye stands EyeStand above the feet, gravity pulls the feet to the highest support under them (a floor,
+// or the top of a box no more than StepUp up), walls and equipment push sideways only, and the view turns about up.
 
 using System;
 using System.Collections.Generic;
@@ -40,6 +45,18 @@ namespace IVA
         private Vector3 _vel;
         private bool _ghost;                // ignore equipment until clear of it (you start inside your couch)
         public float Radius = 0.13f;
+
+        // walking
+        public const float EyeStand = 0.86f, EyeCrouch = 0.55f, StepUp = 0.12f, JumpSpeed = 2.0f;
+        private readonly List<KeyValuePair<Vector3, Vector3>> _floors = new List<KeyValuePair<Vector3, Vector3>>();   // point, up normal
+        public bool Walking { get; private set; }
+        public bool Grounded { get; private set; }
+        private Vector3 _up = Vector3.up;
+        private float _g;
+        private Vector3 _heading = Vector3.forward;   // level look direction (perpendicular to up)
+        private float _pitch;                         // degrees, + looks down
+        private float _eyeH = EyeStand;
+        public int FloorCount => _floors.Count;
 
         public bool Valid => _hull.Count >= 2 && _hMax > 0.1f;
         public int BoxCount => _boxes.Count;
@@ -74,8 +91,11 @@ namespace IVA
             ReadBoxes(pts, "IVA_ColBox_", f._boxes);
             foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_Hatch_", StringComparison.Ordinal)))
                 f.Hatches.Add(new KeyValuePair<string, Vector3>(kv.Key.Substring("IVA_Hatch_".Length), kv.Value));
+            foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_Floor_", StringComparison.Ordinal) && p.Key.EndsWith("_p", StringComparison.Ordinal)))
+                if (pts.TryGetValue(kv.Key.Substring(0, kv.Key.Length - 2) + "_n", out Vector3 n))
+                    f._floors.Add(new KeyValuePair<Vector3, Vector3>(kv.Value, (n - kv.Value).normalized));
             log?.LogInfo($"IVA: free movement ready: hull {f._hull.Count} rings over {f._hMax:F2} m, {f._decks.Count} deck(s), " +
-                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es).");
+                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s).");
             return f;
         }
 
@@ -106,10 +126,144 @@ namespace IVA
             _ghost = true;
         }
 
-        // Look: yaw and pitch round the view's own axes (no horizon in zero g), roll from the keys.
+        // Look: floating, yaw and pitch round the view's own axes (no horizon in zero g), roll from the keys; walking, yaw
+        // about up and pitch clamped, no roll.
         public void Turn(float yawDeg, float pitchDeg, float rollDeg)
         {
-            Rot = Rot * Quaternion.Euler(pitchDeg, yawDeg, rollDeg);
+            if (!Walking) { Rot = Rot * Quaternion.Euler(pitchDeg, yawDeg, rollDeg); return; }
+            _heading = Quaternion.AngleAxis(yawDeg, _up) * _heading;
+            _pitch = Mathf.Clamp(_pitch + pitchDeg, -85f, 85f);
+            WalkRot();
+        }
+
+        private void WalkRot()
+        {
+            _heading = Vector3.ProjectOnPlane(_heading, _up);
+            if (_heading.sqrMagnitude < 1e-6f) _heading = Vector3.ProjectOnPlane(Rot * Vector3.up, _up);
+            if (_heading.sqrMagnitude < 1e-6f) _heading = Vector3.ProjectOnPlane(Vector3.forward, _up);
+            _heading.Normalize();
+            Rot = Quaternion.LookRotation(_heading, _up) * Quaternion.Euler(_pitch, 0f, 0f);
+        }
+
+        // The floor that faces up (within maxDeg), or -1.
+        public int FloorFor(Vector3 up, float maxDeg = 35f)
+        {
+            float cos = Mathf.Cos(maxDeg * Mathf.Deg2Rad);
+            int best = -1;
+            float bestDot = cos;
+            for (int i = 0; i < _floors.Count; i++)
+            {
+                float d = Vector3.Dot(_floors[i].Value, up.normalized);
+                if (d >= bestDot) { bestDot = d; best = i; }
+            }
+            return best;
+        }
+
+        // Gravity from outside (pod space): on with up (opposite to the pull) and g in m/s^2, or off to float.
+        public void SetWalking(bool on, Vector3 up, float g)
+        {
+            if (on)
+            {
+                _up = up.normalized;
+                _g = g;
+                if (!Walking)
+                {
+                    Vector3 fwd = Rot * Vector3.forward;
+                    _heading = Vector3.ProjectOnPlane(fwd, _up);
+                    _pitch = Mathf.Clamp(Vector3.Angle(fwd, _up) - 90f, -85f, 85f);
+                    _eyeH = EyeStand;
+                    Grounded = false;
+                    Walking = true;
+                }
+                WalkRot();
+            }
+            else Walking = false;
+        }
+
+        // Walking: move x right / y forward (-1..1), relative to where you face.
+        public void StepWalk(Vector2 move, bool jump, bool crouch, float dt, float speed)
+        {
+            if (dt <= 0f) return;
+            dt = Mathf.Min(dt, 0.05f);
+            Vector3 right = Vector3.Cross(_up, _heading).normalized;
+            Vector3 wish = (_heading * move.y + right * move.x) * speed;
+            float vUp = Vector3.Dot(_vel, _up);
+            Vector3 vFlat = _vel - _up * vUp;
+            vFlat = Vector3.MoveTowards(vFlat, wish, (Grounded ? 6f : 1f) * dt);
+            if (Grounded && jump) { vUp = JumpSpeed; Grounded = false; }
+            if (!Grounded) vUp = Mathf.Max(vUp - _g * dt, -10f);
+            _vel = vFlat + _up * vUp;
+
+            // eye height: crouch when asked, or when the cabin top is too low to stand
+            float target = crouch ? EyeCrouch : EyeStand;
+            Vector3 feetNow = Pos - _up * _eyeH;
+            float headroom = (_hMax - Radius) - Height(feetNow) - 0.02f;   // along the pod axis (landers: the same as up)
+            if (Vector3.Dot(_up, _u) > 0.8f) target = Mathf.Min(target, Mathf.Max(EyeCrouch, headroom));
+            float eyeH = Mathf.MoveTowards(_eyeH, target, 1.5f * dt);
+
+            Vector3 p = feetNow + _up * eyeH + _vel * dt;
+            // walls and equipment: probe the head, chest and knees; keep only the sideways push
+            float[] probes = { 0f, eyeH * 0.5f, eyeH - 0.27f };
+            for (int it = 0; it < 3; it++)
+                foreach (float o in probes)
+                {
+                    Vector3 q0 = p - _up * o, q = q0;
+                    Resolve(q0 - _vel * dt, ref q);
+                    Vector3 push = q - q0;
+                    p += push - _up * Vector3.Dot(push, _up);
+                }
+            // ground
+            Vector3 feet = p - _up * eyeH;
+            float t = GroundBelow(feet);
+            if (t > -0.02f && Vector3.Dot(_vel, _up) <= 0.01f)
+            {
+                p += _up * t;
+                _vel -= _up * Vector3.Dot(_vel, _up);
+                Grounded = true;
+            }
+            else Grounded = false;
+            // head against the top
+            if (Vector3.Dot(_up, _u) > 0.8f && Height(p) + Radius > _hMax && Vector3.Dot(_vel, _up) > 0f) _vel -= _up * Vector3.Dot(_vel, _up);
+            _eyeH = eyeH;
+            Pos = p;
+            if (_ghost && !InsideAnyBox(Pos - _up * (eyeH * 0.5f)) && !InsideAnyBox(Pos)) _ghost = false;
+        }
+
+        // How far up (along up, from the feet) the highest support is, within StepUp above the feet; -inf if none.
+        private float GroundBelow(Vector3 feet)
+        {
+            float best = float.NegativeInfinity;
+            foreach (var fl in _floors)
+            {
+                float dn = Vector3.Dot(_up, fl.Value);
+                if (dn < 0.5f) continue;
+                float t = Vector3.Dot(fl.Key - feet, fl.Value) / dn;
+                if (t > StepUp || t <= best) continue;
+                Vector3 at = feet + _up * t;
+                if (_holes.Any(b => Inside(b, at, -Radius * 0.5f))) continue;
+                best = t;
+            }
+            if (_ghost) return best;
+            foreach (Box b in _boxes)
+            {
+                Vector3 d = b.C - feet;
+                if (d.sqrMagnitude > (b.Reach + 0.3f) * (b.Reach + 0.3f)) continue;
+                float ext = 0f, flatMin = float.MaxValue;
+                for (int i = 0; i < 3; i++)
+                {
+                    Vector3 ax = i == 0 ? b.X : i == 1 ? b.Y : b.Z;
+                    float e = i == 0 ? b.E.x : i == 1 ? b.E.y : b.E.z;
+                    float a = Mathf.Abs(Vector3.Dot(ax, _up));
+                    ext += e * a;
+                    if (a < 0.5f) flatMin = Mathf.Min(flatMin, e);
+                }
+                if (flatMin < 0.04f) continue;   // panels, labels, strips: not something to stand on
+                float t = Vector3.Dot(d, _up) + ext;
+                if (t > StepUp || t <= best) continue;
+                if (!Inside(b, feet + _up * (t - 0.02f), 0.02f)) continue;
+                best = t;
+            }
+            return best;
         }
 
         // move: thrust direction in view space (x right, y up, z forward), each -1..1.
