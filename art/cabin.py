@@ -100,8 +100,19 @@ def corners(room, name="Corner", depth=0.16):
             S.bundle(f"{name}{k}Run", [q + Vector((0, 0, 0.2)), q + Vector((0, 0, (room.z1 - room.z0) - 0.2))], n=4, ends=(False, False))
 
 
-def end_bulkhead(room, wall, name, hatch_r=0.45, clear=None):
-    """End wall with a round hatch (frame, door with a small window, handle, latches) and equipment round it."""
+def poster(name, tex, p, b, w=0.2, h=0.3):
+    """A crew poster on a wall (p, b: point and basis, normal out of the wall): dark backing board and the print."""
+    key = "poster_" + tex
+    if key not in M:
+        M[key] = L.material(f"IVA_Poster_{tex.capitalize()}", tex=f"poster_{tex}.png", rough=0.7, metal=0.0)
+    L.box(name + "Board", (w + 0.02, h + 0.02, 0.006), M["frame_dark"], p + b.col[2] * 0.003, b, bevel=0.002)
+    L.plane(name, w, h, M[key], p + b.col[2] * 0.0065, b)
+
+
+def end_bulkhead(room, wall, name, hatch_r=0.45, clear=None, eva=False, posters=()):
+    """End wall with a round hatch (frame, door with a small window, handle, latches) and equipment round it.
+    eva=True adds the EVA lever panel beside the hatch and returns where its marker goes (pull it to go outside
+    through the part's own airlock; the cabin's hatches all lead to other parts)."""
     w, h = room.size(wall)
     p, b = room.frame(wall, 0, 0)
     S.cbox(name, (w, h, 0.03), M["blanket"], p - b.col[2] * 0.015, b, ch=0.0)
@@ -133,6 +144,27 @@ def end_bulkhead(room, wall, name, hatch_r=0.45, clear=None):
     G.grid(s, name + "Panel", 4, 1, [("annunciators", 0, 0, 2, 1, {"cols": 4, "rows": 2, "start": 2}), ("toggles", 2, 0, 1, 1, {"cols": 3}),
                                       ("lamps", 3, 0, 1, 1, {"n": 3})], border=0.01)
     s.check()
+    w_, h_ = room.size(wall)
+    for side, tex in zip((-1, 1), posters):   # posters above the equipment either side of the hatch, where there's room
+        ph = 0.3 if h_ / 2 - 0.26 - 0.16 >= 0.4 else 0.24          # a smaller print on a low wall
+        pw = ph * 2 / 3
+        u, v = side * min(hatch_r + 0.3, w_ / 2 - 0.21 - pw / 2), min(0.66, h_ / 2 - 0.08 - ph / 2)
+        if abs(u) + pw / 2 + 0.03 > w_ / 2 - 0.17 or v - ph / 2 - 0.01 < 0.39:
+            continue
+        q, qb = room.frame(wall, u, v, 0.002)
+        if not _taken(clear, q, qb, pw + 0.02, ph + 0.02, 0.03):
+            poster(f"{name}Poster{side}", tex, q, qb, pw, ph)
+    if eva:   # EVA lever panel: in the gap between the starboard unit and vent
+        q, qb = room.frame(wall, hatch_r + 0.32, -0.06)
+        r_, u, n = qb.col[0], qb.col[1], qb.col[2]
+        rot = L.basis(r_, u, n)
+        S.cbox(name + "EvaPanel", (0.2, 0.2, 0.03), M["frame_dark"], q + n * 0.015, rot, ch=0.004)
+        L.box(name + "EvaStripe", (0.18, 0.03, 0.004), M["yellow"], q + u * 0.08 + n * 0.032, rot)
+        L.box(name + "EvaSign", (0.12, 0.035, 0.004), M["red"], q - u * 0.075 + n * 0.032, rot)
+        L.tube(name + "EvaLever", [q + n * 0.03, q + n * 0.09, q + n * 0.09 + u * 0.05], 0.009, M["frame"])
+        L.tube(name + "EvaHandle", [q + n * 0.09 + u * 0.05 - r_ * 0.05, q + n * 0.09 + u * 0.05 + r_ * 0.05], 0.014, M["red"])
+        return q + n * 0.25
+    return None
 
 
 KEEP_OUT = []   # (lo, hi) world boxes nothing else may be built in (the insides of hygiene rooms and quarters)

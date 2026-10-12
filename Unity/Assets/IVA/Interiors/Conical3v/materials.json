@@ -810,7 +810,7 @@
       "tint": false
     },
     {
-      "name": "IVA_Glareshield",
+      "name": "IVA_GlareshieldDetail",
       "color": [
         0.04500000178813934,
         0.04600000008940697,
@@ -824,15 +824,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
       "emissionFromTexture": false,
-      "tint": false
+      "tint": true
     },
     {
       "name": "IVA_Goo",
@@ -910,7 +910,7 @@
       "tint": false
     },
     {
-      "name": "IVA_Hatch",
+      "name": "IVA_HatchDetail",
       "color": [
         0.6200000047683716,
         0.6299999952316284,
@@ -924,15 +924,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
       "emissionFromTexture": false,
-      "tint": false
+      "tint": true
     },
     {
       "name": "IVA_Hazard",
@@ -960,7 +960,7 @@
       "tint": false
     },
     {
-      "name": "IVA_Jetpack",
+      "name": "IVA_JetpackDetail",
       "color": [
         0.8199999928474426,
         0.8199999928474426,
@@ -974,15 +974,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
       "emissionFromTexture": false,
-      "tint": false
+      "tint": true
     },
     {
       "name": "IVA_Keys",
@@ -1760,7 +1760,7 @@
       "tint": false
     },
     {
-      "name": "IVA_Tank",
+      "name": "IVA_TankDetail",
       "color": [
         0.7799999713897705,
         0.7900000214576721,
@@ -1774,15 +1774,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_brushed_color.png",
+      "normal": "detail_brushed_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
       "emissionFromTexture": false,
-      "tint": false
+      "tint": true
     },
     {
       "name": "IVA_Toggle",

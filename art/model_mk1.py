@@ -208,4 +208,7 @@ C.eye_marker(0, SEAT)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])
 e = Vector(SEAT["eye"])
 print(f"eye at {e.x:.3f}, {e.y:.3f}, {e.z:.3f}; ceiling console {0.772 - e.z:.3f} m above the eye")
+import surfaces  # noqa: E402  (detail textures on plain painted, brushed and fabric materials)
+if not os.environ.get("IVA_NO_DETAIL"):
+    surfaces.apply()
 L.save(OUT)

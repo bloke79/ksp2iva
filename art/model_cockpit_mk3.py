@@ -431,6 +431,8 @@ def build_posters():
     if fr:
         poster("PosterLostPart", "lostpart", fr[0], fr[1], w=0.2, h=0.3)
     poster("PosterStruts", "struts", Vector((-0.58, 0.72, Z_BACK + 0.022)), AFT_WALL, w=0.2, h=0.3)
+    M["whiteboard_art"] = L.material("IVA_WhiteboardArt", tex="whiteboard_flight.png", rough=0.25, metal=0.0)
+    P.whiteboard("Board", Vector((0.52, 0.75, Z_BACK + 0.012)), AFT_WALL, 0.33, 0.22)
 
 
 def build_velcro():
@@ -480,4 +482,7 @@ def deck_boxes():
 
 
 S.collision_markers(hatches=[("Aft", (0.0, AFT_HATCH_Y, Z_BACK + 0.3)), ("Side", (-1.25, SIDE_HATCH_Y, SIDE_HATCH_Z))], boxes=deck_boxes())
+import surfaces  # noqa: E402  (detail textures on plain painted, brushed and fabric materials)
+if not os.environ.get("IVA_NO_DETAIL"):
+    surfaces.apply()
 L.save(OUT)

@@ -390,13 +390,112 @@ def whiteboard(rng):
     return img
 
 
-ALL = {"whiteboard": whiteboard, "crew": crew, "boosters": boosters, "eve": eve, "jool": jool, "minmus": minmus, "staging": staging, "struts": struts,
+def _board():
+    w, h = 768, 512
+    img = Image.new("RGB", (w, h), (246, 247, 244))
+    d = ImageDraw.Draw(img)
+
+    def hand(sz):
+        try:
+            return ImageFont.truetype("C:/Windows/Fonts/Inkfree.ttf", sz)
+        except OSError:
+            return font(sz)
+    return img, d, hand, (30, 70, 170), (190, 40, 40), (30, 130, 60), (40, 40, 45)
+
+
+def whiteboard_lab(rng):
+    img, d, hand, BLUE, RED, GRN, BLK = _board()
+    d.text((24, 14), "EXPERIMENT LOG", font=hand(40), fill=BLUE)
+    d.line([(24, 62), (330, 60)], fill=BLUE, width=3)
+    rows = (("Goo #3", "it moved", RED), ("Seed tray B", "sprouted!", GRN), ("Materials bay", "DO NOT OPEN", RED),
+            ("Crystal growth", "pretty", BLUE), ("Bob's sandwich", "day 41", BLK))
+    for k, (what, note, col) in enumerate(rows):
+        y = 80 + k * 46
+        d.text((30, y), what, font=hand(28), fill=BLK)
+        d.text((250, y), note, font=hand(28), fill=col)
+        d.line([(28, y + 40), (430, y + 40)], fill=(205, 210, 220), width=1)
+    # crop growth chart
+    x0, y0 = 470, 300
+    d.line([(x0, y0), (x0, 80), ], fill=BLK, width=3)
+    d.line([(x0, y0), (740, y0)], fill=BLK, width=3)
+    for k, hgt in enumerate((30, 55, 70, 120, 190)):
+        d.rectangle([x0 + 20 + k * 52, y0 - hgt, x0 + 56 + k * 52, y0], outline=GRN, width=4)
+    d.text((x0 + 10, 40), "TOMATO HEIGHT", font=hand(26), fill=GRN)
+    d.text((x0 + 200, y0 + 8), "weeks", font=hand(22), fill=BLK)
+    d.text((30, 330), "MYSTERY GOO:", font=hand(34), fill=RED)
+    d.text((30, 372), "DO NOT TASTE (again)", font=hand(34), fill=RED)
+    d.text((30, 440), "- signed, management", font=hand(24), fill=BLK)
+    d.ellipse([560, 360, 700, 470], outline=GRN, width=4)   # a petri dish with something in it
+    for _ in range(6):
+        x, y = 600 + rng.integers(-20, 60), 390 + rng.integers(0, 50)
+        d.ellipse([x - 8, y - 8, x + 8, y + 8], outline=GRN, width=3)
+    return img
+
+
+def whiteboard_cabin(rng):
+    img, d, hand, BLUE, RED, GRN, BLK = _board()
+    d.text((24, 14), "CABIN RULES", font=hand(40), fill=BLUE)
+    d.line([(24, 62), (270, 60)], fill=BLUE, width=3)
+    for k, (t, col) in enumerate((("1. Quiet hours 22:00-06:00", BLK), ("2. Strap down your snacks", BLK),
+                                  ("3. No EVA in pyjamas", RED), ("4. Whoever took my socks:", BLK), ("    I know it was you, Jeb", RED))):
+        d.text((30, 80 + k * 42), t, font=hand(28), fill=col)
+    # bunk rota grid
+    x0, y0 = 470, 30
+    d.text((x0, y0), "BUNK ROTA", font=hand(30), fill=GRN)
+    names = ("Jeb", "Bill", "Bob", "Val")
+    for k in range(5):
+        d.line([(x0, y0 + 50 + k * 40), (x0 + 270, y0 + 50 + k * 40)], fill=BLK, width=2)
+    for j in range(4):
+        d.line([(x0 + j * 90, y0 + 50), (x0 + j * 90, y0 + 210)], fill=BLK, width=2)
+    for k, n in enumerate(names):
+        d.text((x0 + 8, y0 + 56 + k * 40), n, font=hand(24), fill=BLUE)
+        for j in (1, 2):
+            if rng.random() < 0.7:
+                d.text((x0 + 8 + j * 90 + 20, y0 + 52 + k * 40), "x", font=hand(28), fill=RED)
+    # noughts and crosses, abandoned mid-game
+    gx, gy = 120, 330
+    for k in (1, 2):
+        d.line([(gx + k * 50, gy), (gx + k * 50, gy + 150)], fill=BLK, width=3)
+        d.line([(gx, gy + k * 50), (gx + 150, gy + k * 50)], fill=BLK, width=3)
+    for (i, j, t) in ((0, 0, "X"), (1, 1, "O"), (2, 0, "X"), (1, 0, "O"), (0, 2, "X")):
+        d.text((gx + 12 + i * 50, gy + 2 + j * 50), t, font=hand(40), fill=RED if t == "X" else BLUE)
+    d.text((gx + 170, gy + 50), "<- Bill, your move", font=hand(26), fill=BLK)
+    d.text((460, 440), "Movie night: Thursday", font=hand(28), fill=GRN)
+    return img
+
+
+def whiteboard_flight(rng):
+    img, d, hand, BLUE, RED, GRN, BLK = _board()
+    d.text((24, 14), "RE-ENTRY CHECKLIST", font=hand(40), fill=BLUE)
+    d.line([(24, 62), (400, 60)], fill=BLUE, width=3)
+    items = ("Heat shield: still there?", "Pointy end forward", "Payload bay doors: CLOSED", "Wheels: down (later)",
+             "Snacks stowed", "Panic: optional")
+    for k, t in enumerate(items):
+        y = 80 + k * 44
+        d.rectangle([30, y + 6, 54, y + 30], outline=BLK, width=3)
+        if k != 3:
+            d.line([(32, y + 18), (40, y + 28), (58, y + 2)], fill=GRN, width=4)
+        d.text((68, y), t, font=hand(28), fill=RED if k == 2 else BLK)
+    # a doodled shuttle gliding in
+    sx, sy = 560, 300
+    d.polygon([(sx - 110, sy + 10), (sx + 60, sy - 6), (sx + 110, sy + 6), (sx + 60, sy + 20)], outline=BLK, width=3)
+    d.polygon([(sx - 40, sy + 12), (sx + 10, sy + 70), (sx + 40, sy + 18)], outline=BLK, width=3)
+    d.polygon([(sx - 100, sy + 8), (sx - 90, sy - 40), (sx - 70, sy + 6)], outline=BLK, width=3)
+    for k in range(4):
+        d.arc([sx - 200 - k * 30, sy - 60 - k * 20, sx - 60 + k * 30, sy + 80 + k * 20], 150, 210, fill=RED, width=3)
+    d.text((440, 400), "glide ratio: 'optimistic'", font=hand(26), fill=RED)
+    d.text((30, 440), "LANDING SPEED: less than Jeb thinks", font=hand(28), fill=BLUE)
+    return img
+
+
+ALL = {"whiteboard": whiteboard, "whiteboard_lab": whiteboard_lab, "whiteboard_cabin": whiteboard_cabin,
+       "whiteboard_flight": whiteboard_flight, "crew": crew, "boosters": boosters, "eve": eve, "jool": jool, "minmus": minmus, "staging": staging, "struts": struts,
        "munholiday": mun_holiday, "lostpart": lost_part, "safety": safety_third, "missing": missing_kerbal}
 
 if __name__ == "__main__":
     rng = np.random.default_rng(81)
     for key in (sys.argv[2:] or list(ALL)):
         img = ALL[key](rng)
-        path = os.path.join(OUT, f"{'' if key == 'whiteboard' else 'poster_'}{key}.png")
+        path = os.path.join(OUT, f"{'' if key.startswith('whiteboard') else 'poster_'}{key}.png")
         img.save(path)
         print("wrote", path)

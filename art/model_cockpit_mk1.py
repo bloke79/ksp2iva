@@ -264,4 +264,7 @@ build_aft()
 build_velcro()
 build_lights_and_markers()
 S.collision_markers(hatches=[("Aft", (0.0, 0.0, Z_BACK + 0.25))])
+import surfaces  # noqa: E402  (detail textures on plain painted, brushed and fabric materials)
+if not os.environ.get("IVA_NO_DETAIL"):
+    surfaces.apply()
 L.save(OUT)

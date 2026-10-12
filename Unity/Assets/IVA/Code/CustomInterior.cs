@@ -50,11 +50,12 @@ namespace IVA
             // interior's own seat points are used and the crew are moved onto the couches while in IVA.
             new InteriorDesign { Name = "Mk3-5", Address = "IVA/Interior_pod_3v_conical_crew", Parts = new[] { "pod_3v_conical_crew" },
                                  Seats = 5, BaseRadius = 1.911f, Height = 4.169f, Yaw = 180f, OnHull = true, HullBaseY = -1.641f },
-            // OSL-25 Starlab: an ISS-style rack room; the greenhouse in the ceiling replaces the stock crops while inside.
+            // OSL-25 Starlab: an ISS-style rack room with our greenhouse in the ceiling; the floor opens onto the part's own
+            // greenhouse pod (kept visible with its crops while inside).
             new InteriorDesign { Name = "Starlab", Address = "IVA/Interior_lab_2v_science_orbital", Parts = new[] { "lab_2v_science_orbital" },
                                  Seats = 3, BaseRadius = 1.48f, Height = 4.72f, Yaw = 180f, OnHull = true, HullBaseY = -2.352f,
-                                 UprightCrew = true, HideRenderers = new[] { "plants" }, HideExterior = true,
-                                 KeepRenderers = new[] { "greenhouse" } },
+                                 UprightCrew = true, HideExterior = true,
+                                 KeepRenderers = new[] { "greenhouse", "plants" } },
             // PPD-10 Hitchhiker and PPD-20 Wayfarer crew cabins: rack rooms with a wardroom table (and a window lounge).
             new InteriorDesign { Name = "Hitchhiker", Address = "IVA/Interior_cabin_2v_crew_hitchhiker", Parts = new[] { "cabin_2v_crew_hitchhiker" },
                                  Seats = 4, BaseRadius = 1.38f, Height = 2.706f, Yaw = 180f, OnHull = true, HullBaseY = -1.353f, UprightCrew = true, HideExterior = true },

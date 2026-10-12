@@ -895,7 +895,23 @@ def posters(w=512, h=768):
 
 def _detail(kind, size=1024):
     """Neutral (near-white) detail maps, tinted by the material colour; one tile = 0.5 m."""
-    rng = np.random.default_rng({"painted": 61, "brushed": 62}[kind])
+    rng = np.random.default_rng({"painted": 61, "brushed": 62, "fabric": 66}[kind])
+    if kind == "fabric":   # a plain weave with slub, pilling and a few darker wear patches
+        yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+        p = 6.0
+        warp = 0.5 + 0.5 * np.sin(xx * 2 * np.pi / p)
+        weft = 0.5 + 0.5 * np.sin(yy * 2 * np.pi / p)
+        over = ((xx // p + yy // p) % 2).astype(np.float32)
+        h = over * warp + (1 - over) * weft
+        slub = 0.6 * _tile_noise(size, 40, 67) + 0.4 * _tile_noise(size, 7, 68)
+        wear = np.clip(_tile_noise(size, 4, 69) - 0.66, 0, 1) * 2.0
+        tone = (0.84 + 0.12 * h + 0.08 * (slub - 0.5) - 0.10 * wear).clip(0, 1)
+        save(Image.fromarray((np.dstack([tone, tone, tone]) * 255).astype(np.uint8)), "detail_fabric_color.png")
+        gy, gx = np.gradient(h * 2.5)
+        n = np.dstack([-gx, -gy, np.ones_like(h)])
+        n /= np.linalg.norm(n, axis=2, keepdims=True)
+        save(Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8)), "detail_fabric_normal.png")
+        return
     mott = 0.6 * _tile_noise(size, 3, 63) + 0.4 * _tile_noise(size, 9, 64)          # broad mottling
     fine = rng.normal(0, 1, (size, size)).astype(np.float32)
     if kind == "brushed":
@@ -949,7 +965,7 @@ ALL = {
     "cabin_reflection": cabin_reflection, "panel": panel, "canvas": canvas, "locker": locker, "wallpanel": wallpanel, "food": food, "food_labels": food_labels, "deckplate": deckplate,
     "mfd_systems": mfd_systems, "mfd_map": mfd_map, "mfd_engine": mfd_engine, "mfd_comms": mfd_comms,
     "annunciators": annunciators, "keys": keys, "digits": digits,
-    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream, "wall_padded": wall_padded, "posters": posters, "detail_painted": lambda: _detail("painted"), "detail_brushed": lambda: _detail("brushed"),
+    "shuttle_panel": shuttle_panel, "wall_cream": wall_cream, "wall_padded": wall_padded, "posters": posters, "detail_painted": lambda: _detail("painted"), "detail_brushed": lambda: _detail("brushed"), "detail_fabric": lambda: _detail("fabric"),
     "labels": labels, "quilt": quilt, "hazard": hazard, "grate": grate, "plate": plate,
 }
 # python texgen.py <out> [name ...]: only the named textures (default: all)

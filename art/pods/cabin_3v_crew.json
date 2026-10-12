@@ -423,6 +423,10 @@
     0.8
    ],
    [
+    "ceil",
+    0.8
+   ],
+   [
     "floor",
     0.8
    ],
@@ -435,12 +439,12 @@
     1.8
    ],
    [
-    "floor",
+    "ceil",
     1.8
    ],
    [
-    "ceil",
-    2.95
+    "floor",
+    1.8
    ]
   ],
   "hygiene": [
@@ -472,14 +476,7 @@
     0.9,
     1.45
    ]
-  ],
-  "eva": {
-   "z": 1.18,
-   "kind": "round",
-   "r": 0.34,
-   "_source": "stock airlock_triggers at part (0, -1.318, 1.737): the +Y side (our ceiling), 1.18 m up"
-  },
-  "_quarters_note": "the ceiling over the sleeping section holds the EVA airlock (stock position), so its ceiling quarter is over the work-area table"
+  ]
  },
  "preview_lights": [
   {
@@ -669,24 +666,6 @@
     0
    ],
    "fov": 100
-  },
-  "eva_hatch": {
-   "loc": [
-    0.45,
-    0.10000000000000009,
-    0.42999999999999994
-   ],
-   "target": [
-    0.0,
-    1.1,
-    1.18
-   ],
-   "up": [
-    0,
-    0,
-    1
-   ],
-   "fov": 85
   }
  }
 }

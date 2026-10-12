@@ -14,6 +14,10 @@ from mathutils import Vector
 DEFAULT = {
     "IVA_GreyLocker": "painted", "IVA_MidLocker": "painted", "IVA_MidPanel": "painted", "IVA_SeatFrame": "painted",
     "IVA_FrameDark": "painted", "IVA_Frame": "brushed", "IVA_CouchFrame": "brushed", "IVA_Locker": "painted",
+    "IVA_Hatch": "painted", "IVA_SeatShell": "painted", "IVA_Jetpack": "painted", "IVA_Bottle": "painted",
+    "IVA_Glareshield": "painted", "IVA_ModulePlate": "painted", "IVA_Tank": "brushed",
+    "IVA_Soil": "fabric", "IVA_Leaf": "painted", "IVA_LeafLight": "painted",
+    "IVA_Canvas": "fabric", "IVA_SleepingBag": "fabric", "IVA_Towel": "fabric", "IVA_StoolPad": "fabric",
 }
 TILE = 0.5   # metres per texture tile
 

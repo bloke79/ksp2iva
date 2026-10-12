@@ -31,7 +31,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_AccentYellow",
@@ -55,7 +56,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Annunciators",
@@ -79,7 +81,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_Bezel",
@@ -103,7 +106,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Buckle",
@@ -127,7 +131,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ButtonAmber",
@@ -151,7 +156,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ButtonBlue",
@@ -175,7 +181,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ButtonGreen",
@@ -199,7 +206,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ButtonRed",
@@ -223,7 +231,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_CableBlack",
@@ -247,7 +256,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_CableGreen",
@@ -271,7 +281,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_CableRed",
@@ -295,7 +306,33 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_CouchFrameDetail",
+      "color": [
+        0.2199999988079071,
+        0.23000000417232513,
+        0.25
+      ],
+      "metallic": 0.699999988079071,
+      "roughness": 0.4000000059604645,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "detail_brushed_color.png",
+      "normal": "detail_brushed_normal.png",
+      "normalStrength": 1.399999976158142,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
       "name": "IVA_DeckPlate",
@@ -319,7 +356,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Digits",
@@ -343,7 +381,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_Foil",
@@ -367,7 +406,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_FoodGreen",
@@ -391,7 +431,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_FoodRed",
@@ -415,7 +456,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_FoodYellow",
@@ -439,7 +481,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Frame",
@@ -463,7 +506,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Frame.001",
@@ -487,31 +531,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_FrameDark",
-      "color": [
-        0.1599999964237213,
-        0.17000000178813934,
-        0.1899999976158142
-      ],
-      "metallic": 0.4000000059604645,
-      "roughness": 0.5,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_FrameDark.001",
@@ -535,7 +556,33 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_FrameDarkDetail",
+      "color": [
+        0.1599999964237213,
+        0.17000000178813934,
+        0.1899999976158142
+      ],
+      "metallic": 0.4000000059604645,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
       "name": "IVA_GaugeFace_alt",
@@ -559,7 +606,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_GaugeFace_press",
@@ -583,10 +631,11 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
-      "name": "IVA_Glareshield",
+      "name": "IVA_GlareshieldDetail",
       "color": [
         0.04500000178813934,
         0.04600000008940697,
@@ -600,17 +649,18 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
-      "name": "IVA_GreyLocker",
+      "name": "IVA_GreyLockerDetail",
       "color": [
         0.4000000059604645,
         0.4099999964237213,
@@ -624,14 +674,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
       "name": "IVA_Handle",
@@ -655,10 +706,11 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
-      "name": "IVA_Hatch",
+      "name": "IVA_HatchDetail",
       "color": [
         0.6200000047683716,
         0.6299999952316284,
@@ -672,14 +724,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
       "name": "IVA_Keys",
@@ -703,7 +756,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_LightPanel",
@@ -727,7 +781,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_LightStrip",
@@ -751,7 +806,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Locker",
@@ -775,7 +831,33 @@
         1.5,
         1.5
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_MarkerBlue",
+      "color": [
+        0.10000000149011612,
+        0.20000000298023224,
+        0.699999988079071
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_MFD_comms",
@@ -799,7 +881,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_MFD_engine",
@@ -823,7 +906,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_MFD_map",
@@ -847,7 +931,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_MFD_systems",
@@ -871,10 +956,11 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
-      "name": "IVA_MidPanel",
+      "name": "IVA_MidPanelDetail",
       "color": [
         0.6200000047683716,
         0.6299999952316284,
@@ -888,14 +974,15 @@
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
+      "texture": "detail_painted_color.png",
+      "normal": "detail_painted_normal.png",
+      "normalStrength": 1.399999976158142,
       "tiling": [
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": true
     },
     {
       "name": "IVA_Navball",
@@ -919,7 +1006,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_Needle",
@@ -943,31 +1031,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
-    },
-    {
-      "name": "IVA_O2Bottle",
-      "color": [
-        0.2199999988079071,
-        0.41999998688697815,
-        0.30000001192092896
-      ],
-      "metallic": 0.4000000059604645,
-      "roughness": 0.3499999940395355,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Poster_Lostpart",
@@ -991,7 +1056,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Poster_Missing",
@@ -1015,7 +1081,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Poster_Munholiday",
@@ -1039,7 +1106,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Poster_Struts",
@@ -1063,7 +1131,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Rubber",
@@ -1087,7 +1156,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ScreenData",
@@ -1111,7 +1181,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_ScreenOrbit",
@@ -1135,7 +1206,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": true
+      "emissionFromTexture": true,
+      "tint": false
     },
     {
       "name": "IVA_SeatBlue",
@@ -1159,7 +1231,8 @@
         5.0,
         5.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_ShuttlePanel",
@@ -1183,7 +1256,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_SleepingBag",
@@ -1207,7 +1281,8 @@
         6.0,
         6.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_SoftKey",
@@ -1231,7 +1306,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Strap",
@@ -1255,7 +1331,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Toggle",
@@ -1279,7 +1356,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Towel",
@@ -1303,7 +1381,8 @@
         9.0,
         9.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_Velcro",
@@ -1327,7 +1406,8 @@
         1.0,
         1.0
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
     },
     {
       "name": "IVA_WallPadded",
@@ -1351,7 +1431,58 @@
         0.5,
         0.5
       ],
-      "emissionFromTexture": false
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_Whiteboard",
+      "color": [
+        0.8999999761581421,
+        0.8999999761581421,
+        0.8799999952316284
+      ],
+      "metallic": 0.0,
+      "roughness": 0.30000001192092896,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
+      "name": "IVA_WhiteboardArt",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.25,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "whiteboard_flight.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
     }
   ],
   "seats_blender": [

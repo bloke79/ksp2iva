@@ -125,7 +125,7 @@ namespace IVA
         // Hatches of the current interior, and a move through one in progress (re-entering IVA in the next part).
         private List<Hatches.Hatch> _hatches = new List<Hatches.Hatch>();
         private bool _hasAirlock;
-        private class Arrival { public PodInfo To; public Vector3 FromWorld; public KSP.Game.KerbalInfo Kerbal; public float At; }
+        private class Arrival { public PodInfo To; public PartBehavior From; public Vector3 FromWorld; public KSP.Game.KerbalInfo Kerbal; public float At; }
         private Arrival _arrival;
         private Hatches.Hatch _hatchGo;   // set when a hatch has finished opening; acted on in the next Update
         // EVA waits until IVA has fully let go of the camera (the game crashed when EVA started in the same frame).
@@ -1215,7 +1215,7 @@ namespace IVA
             if (_session == null || h.Beyond?.Pod == null) return;
             KSP.Game.KerbalInfo me = Me();
             if (me != null && !Hatches.Transfer(Game, me, h.Beyond.Pod, SWLogger)) return;
-            var a = new Arrival { To = h.Beyond, FromWorld = _session.PodTransform.position, Kerbal = me, At = Time.unscaledTime + 0.3f };
+            var a = new Arrival { To = h.Beyond, From = _session.Pod, FromWorld = _session.PodTransform.position, Kerbal = me, At = Time.unscaledTime + 0.3f };
             ExitIva();
             _arrival = a;
         }
@@ -1231,15 +1231,18 @@ namespace IVA
             Unbuckle();
             if (_free == null || _hatches.Count == 0) return;
             Transform pod = _session.PodTransform;
-            // the hatch that faces the part you came from (side hatches only if there's nothing else)
-            Vector3 toFrom = a.FromWorld - pod.position;
+            // the hatch that faces the part you came from (side hatches only if there's nothing else). The part's position
+            // is read now: a world position saved before the move is stale by the time the next interior has loaded (in
+            // orbit the vessel travels hundreds of metres), and then picked the hatch facing the direction of travel.
+            Vector3 fromNow = a.From != null ? a.From.transform.position : a.FromWorld;
+            Vector3 toFrom = fromNow - pod.position;
             Hatches.Hatch h = _hatches.OrderBy(x => (x.Name == "Side" ? 1000f : 0f) + Vector3.Angle(Hatches.Facing(x.Name, pod.TransformPoint(x.Pod), pod), toFrom)).First();
             Vector3 dir = (_free.Middle - h.Pod).normalized;
             Vector3 up = Vector3.ProjectOnPlane(Vector3.forward, dir);
             if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(Vector3.up, dir);
             _free.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
             _sounds?.Play(Sounds.HatchClose);
-            SWLogger.LogInfo($"IVA: came through the {h.Name} hatch.");
+            SWLogger.LogInfo($"IVA: came through the {h.Name} hatch (from {(a.From != null ? PodLocator.PartName(a.From) : "?")}).");
         }
 
         private void NextSeat()

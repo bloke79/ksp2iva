@@ -402,4 +402,7 @@ for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])
 print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above the eyes")
+import surfaces  # noqa: E402  (detail textures on plain painted, brushed and fabric materials)
+if not os.environ.get("IVA_NO_DETAIL"):
+    surfaces.apply()
 L.save(OUT)
