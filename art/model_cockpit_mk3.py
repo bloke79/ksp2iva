@@ -337,6 +337,124 @@ SIDE_HATCH_Z, SIDE_HATCH_Y, SIDE_HATCH_R = 0.57, 0.02, 0.27   # the part's two a
 AFT_HATCH_Y, AFT_HATCH_R = 0.0, 0.31                          # the node to the module behind: on the part's axis
 
 
+TOI_X, TOI_Z = -0.55, 1.55          # toilet compartment: x < TOI_X, z > TOI_Z (forward-port corner, the hull its outer side)
+TOI_DOOR = (1.72, 2.30, 1.40)       # door in its side wall: z from, z to, height
+MID_CEIL = FLOOR_Y + DECK_T + 0.015  # the mid-deck ceiling (underside of the flight deck)
+
+
+def fitted_panel(name, kind, c, u0, u1_fn, y0, y1, mat, hole=None, rows=16, thick=0.03, face=1):
+    """A flat wall cut to the hull row by row. kind 'x': the plane x = c, running along z from u0 to u1_fn(y);
+    kind 'z': the plane z = c, running along x from u0 (inboard) outwards to u1_fn(y) (negative, port). hole: (ua, ub, ya, yb)
+    left open. face: which way its front looks (+1 along +x / +z)."""
+    import bmesh
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    ys = [y0 + (y1 - y0) * k / rows for k in range(rows + 1)]
+    for i in range(rows):
+        ya, yb = ys[i], ys[i + 1]
+        ea, eb = u1_fn(ya), u1_fn(yb)
+        n = max(2, int(abs(max(ea, eb, key=abs) - u0) / 0.06))
+        for k in range(n):
+            ta, tb = k / n, (k + 1) / n
+            um = u0 + (ta + tb) / 2 * ((ea + eb) / 2 - u0)
+            if hole and min(hole[0], hole[1]) < um < max(hole[0], hole[1]) and hole[2] < (ya + yb) / 2 < hole[3]:
+                continue
+            q = [(u0 + ta * (ea - u0), ya), (u0 + tb * (ea - u0), ya), (u0 + tb * (eb - u0), yb), (u0 + ta * (eb - u0), yb)]
+            vs = [bm.verts.new((c, y, u) if kind == "x" else (u, y, c)) for u, y in q]
+            f = bm.faces.new(vs)
+            for l in f.loops:
+                co = l.vert.co
+                l[uv].uv = ((co.z if kind == "x" else co.x), co.y)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.normal_update()
+    want = Vector((face, 0, 0)) if kind == "x" else Vector((0, 0, face))
+    for f in bm.faces:
+        if f.normal.dot(want) < 0:
+            f.normal_flip()
+    o = L.mesh_obj(name, bm, [mat])
+    L.solidify(o, thick, offset=-1.0)
+    return o
+
+
+def build_toilet():
+    """Hygiene compartment in the forward-port corner: a side wall (x = TOI_X) with a concertina door into the room,
+    a face wall (z = TOI_Z) out to the hull; inside, the toilet on the forward bulkhead, wash point, towels, light."""
+    y0, y1 = MID_CEIL + 0.005, MID_Y - 0.005
+    za, zb, dh = TOI_DOOR
+    fitted_panel("NoColToiletSide", "x", TOI_X, TOI_Z + 0.03, lambda y: Z_FRONT - 0.025, y0, y1, M["wall_cream"],
+                 hole=(za, zb, MID_Y - dh, MID_Y + 0.01), face=1)
+    fitted_panel("ToiletFace", "z", TOI_Z, TOI_X, lambda y: -half_width(y, TOI_Z, 0.01), y0, y1, M["wall_cream"], face=-1)
+    S.cbox("ToiletCorner", (0.04, y1 - y0, 0.04), M["frame"], Vector((TOI_X, (y0 + y1) / 2, TOI_Z)), ch=0.006)
+    yd = MID_Y - dh / 2
+    P.concertina("Toilet", Vector((TOI_X - 0.045, yd, zb - 0.01)), Vector((0, 0, -1)), Vector((0, -1, 0)), Vector((1, 0, 0)),
+                 (zb - za) - 0.02, dh - 0.03, act_at=Vector((TOI_X + 0.03, yd, zb - 0.1)))
+    L.tube("ToiletDoorFrame", [Vector((TOI_X + 0.012, MID_Y, za - 0.012)), Vector((TOI_X + 0.012, MID_Y - dh - 0.012, za - 0.012)),
+                               Vector((TOI_X + 0.012, MID_Y - dh - 0.012, zb + 0.012)), Vector((TOI_X + 0.012, MID_Y, zb + 0.012))], 0.012, M["frame"])
+    face = L.basis(Vector((0, 0, -1)), Vector((0, -1, 0)), Vector((1, 0, 0)))   # on the side wall, seen from the room
+    sign = Vector((TOI_X + 0.006, MID_Y - dh - 0.12, (za + zb) / 2))
+    L.box("ToiletSign", (0.16, 0.06, 0.008), M["frame"], sign, face, bevel=0.002)
+    L.box("ToiletSignLamp", (0.04, 0.03, 0.006), M["light"], sign + Vector((0.006, 0, 0.05)), face, bevel=0.002)
+    # inside
+    xt = -0.86
+    P.toilet("ToiletPan", Vector((xt, 1.0, Z_FRONT - 0.035)), FWD_WALL)
+    inner = L.basis(Vector((0, 0, 1)), Vector((0, -1, 0)), Vector((-1, 0, 0)))   # on the side wall, seen from inside
+    P.sink("ToiletSink", Vector((TOI_X - 0.03, 0.5, 1.64)), inner)
+    P.towels("ToiletTowels", Vector((-0.8, 0.35, TOI_Z + 0.03)), FWD_WALL @ Matrix.Rotation(math.pi, 3, "Y"))
+    S.light_fixture("ToiletLight", Vector((-0.85, MID_CEIL + 0.02, 1.95)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.22, h=0.07)
+    P.velcro("ToiletVelcro", Vector((TOI_X - 0.031, 0.1, 1.64)), inner)
+    poster("PosterDunaToilet", "duna", Vector((-0.75, 0.05, TOI_Z + 0.032)), FWD_WALL @ Matrix.Rotation(math.pi, 3, "Y"), w=0.16, h=0.24)
+
+
+def toilet_boxes():
+    """Collision for the toilet's side wall round the doorway (the wall mesh itself is NoCol)."""
+    za, zb, dh = TOI_DOOR
+    y0, y1 = MID_CEIL, MID_Y
+    t = 0.02
+    ym = (y0 + y1) / 2
+    out = [((TOI_X - 0.015, ym, (TOI_Z + za) / 2), (t, 0, 0), (0, (y1 - y0) / 2, 0), (0, 0, (za - TOI_Z) / 2)),
+           ((TOI_X - 0.015, ym, (zb + Z_FRONT) / 2), (t, 0, 0), (0, (y1 - y0) / 2, 0), (0, 0, (Z_FRONT - zb) / 2))]
+    yt = MID_Y - dh
+    out.append(((TOI_X - 0.015, (y0 + yt) / 2, (za + zb) / 2), (t, 0, 0), (0, (yt - y0) / 2, 0), (0, 0, (zb - za) / 2)))
+    return out
+
+
+def build_forward_wall():
+    """Forward bulkhead from the toilet to the sleep stations: the galley in the middle (dispenser, warmer, food net),
+    hollow cabinets above, a drawer bank below, a laptop station and a food-tray net to starboard."""
+    zf = Z_FRONT - 0.025
+    P.galley("Galley", Vector((-0.05, 0.38, zf)), FWD_WALL, w=0.5, h=0.56)
+    P.oven("GalleyOven", Vector((-0.05, -0.02, zf)), FWD_WALL, w=0.24, h=0.16, d=0.18)
+    for k, x in enumerate((-0.38, 0.28)):
+        P.cabinet(f"FwdCab{k}", Vector((x, -0.12, zf)), FWD_WALL, 0.3, 0.3, 0.28, doors=2)
+    P.drawer_stack("FwdDrawers0", Vector((-0.32, 0.96, zf)), FWD_WALL, 0.34, 0.5, 4)
+    P.drawer_stack("FwdDrawers1", Vector((0.22, 0.96, zf)), FWD_WALL, 0.34, 0.5, 4)
+    P.laptop("FwdLaptop", Vector((0.62, 0.32, zf)), FWD_WALL, arm=0.22, screen="mfd_systems")
+    P.net_with_gear("FwdNet", Vector((0.66, 0.85, zf)), FWD_WALL, 0.3, 0.32)
+    P.velcro("FwdVelcro0", Vector((0.62, 0.05, zf)), FWD_WALL)
+    for sx in (-1, 1):   # handrails either side of the galley
+        x = -0.05 + sx * 0.32
+        L.tube(f"GalleyRail{sx}", [Vector((x, 0.12, zf)), Vector((x, 0.12, zf - 0.07)), Vector((x, 0.62, zf - 0.07)), Vector((x, 0.62, zf))], 0.011, M["yellow"])
+
+
+def build_eva_prep():
+    """By the port airlock: two jetpacks racked on the wall, a suit-check panel, helmet bags and a tether reel."""
+    for k, z in enumerate((1.02, 1.38)):
+        fr = HS.wall_frame((0.0, 0.42, z), (-1, 0, 0), 0.01, up=(0, -1, 0))
+        if fr:
+            P.jetpack(f"EvaJetpack{k}", fr[0], fr[1])
+    fr = HS.wall_frame((0.0, -0.08, 1.2), (-1, 0, 0), 0.02, up=(0, -1, 0))
+    if fr:
+        s = C.Surface("SuitPanel", fr[0] + fr[1].col[2] * 0.02, fr[1].col[0], fr[1].col[1], 0.5, 0.18, corner=0.015)
+        s.build(M["console"], thick=0.02)
+        G.grid(s, "SuitPanel", 4, 1, [("annunciators", 0, 0, 2, 1, {"cols": 4, "rows": 2, "start": 9}), ("dial", 2, 0, 1, 1, {"kind": "press"}),
+                                       ("toggles", 3, 0, 1, 1, {"cols": 3})], border=0.01)
+        s.check()
+    for k, z in enumerate((0.95, 1.42)):
+        fr = HS.wall_frame((0.0, 0.8, z), (-1, 0, 0), 0.04, up=(0, -1, 0))
+        if fr:
+            P.cargo_bag(f"HelmetBag{k}", fr[0], fr[1], 0.24, 0.2, 0.14)
+
+
 def build_mid_deck():
     # grey lockers and plain grey panels, as the Mk3-5
     M["locker"] = L.material("IVA_GreyLocker", (0.40, 0.41, 0.43), rough=0.55, metal=0.15)
@@ -356,60 +474,36 @@ def build_mid_deck():
         x = half_width(SIDE_HATCH_Y, SIDE_HATCH_Z, 0.0) - 0.05
         round_hatch(f"SideHatch{'L' if side < 0 else 'R'}", Vector((side * x, SIDE_HATCH_Y, SIDE_HATCH_Z)), b, r=SIDE_HATCH_R)
 
-    # port wall: toilet booth, then the galley
-    yb = MID_Y - 0.62
-    back_x = -min(half_width(y, z, 0.03) for y in (MID_Y - 0.02, yb - 0.6) for z in (0.95, 1.55))
-    P.hygiene_booth("Toilet", Vector((back_x, yb, 1.25)), PORT, w=0.6, h=1.22, d=0.56)
-    gx = -min(half_width(y, z, 0.04) for y in (0.18, 0.76) for z in (1.62, 2.08))
-    P.galley("Galley", Vector((gx, 0.47, 1.85)), PORT, w=0.46, h=0.54)
+    build_toilet()
+    build_forward_wall()
+    build_eva_prep()
 
     # starboard wall: two curtained sleep stations
     sx_ = min(half_width(y, z, 0.01) for y in (MID_Y - 0.02, MID_Y - 1.17) for z in (0.99, 2.06))
     for k, z in enumerate((1.25, 1.80)):
         P.sleep_station(f"Sleep{k}", Vector((sx_, MID_Y - 0.6, z)), STBD, w=0.52, h=1.15, d=0.32)
-    # ergometer on the open floor, forward
-    K.ergometer("Ergometer", Vector((0.0, MID_Y, 1.75)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
-
-    # forward wall of lockers (the orbiter's middeck lockers), fitted row by row to the hull
-    zf = Z_FRONT - 0.03
-    rows = 6
-    y0, y1 = FLOOR_Y + DECK_T + 0.06, MID_Y - 0.06
-    rh = (y1 - y0) / rows
-    k = 0
-    for r in range(rows):
-        yc = y0 + rh * (r + 0.5)
-        hw = min(half_width(yc - rh / 2, zf, 0.03), half_width(yc + rh / 2, zf, 0.03))
-        n = int((2 * hw) // 0.27)
-        if n < 1:
-            continue
-        cw = 2 * hw / n
-        for c in range(n):
-            x = -hw + cw * (c + 0.5)
-            p = Vector((x, yc, zf))
-            L.box(f"FwdLocker{k}", (cw - 0.02, rh - 0.02, 0.04), M["locker"], p - Vector((0, 0, 0.02)), FWD_WALL, bevel=0.006)
-            for lx in (-1, 1):
-                L.box(f"FwdLockerLatch{k}{lx}", (0.03, 0.016, 0.012), M["handle"], p + Vector((lx * (cw / 2 - 0.05), -(rh / 2 - 0.03), -0.045)), FWD_WALL, bevel=0.003)
-            L.box(f"FwdLockerTag{k}", (0.08, 0.022, 0.003), M["btn_soft"], p + Vector((0, 0.0, -0.0415)), FWD_WALL)
-            k += 1
-
-    # kick panel under the galley, where the hull curves out above the floor edge into a ledge
-    kick_h = 0.34
-    za, zb = 1.6, 2.36
-    n = 6
-    for k in range(n):
-        z0_, z1_ = za + (zb - za) * k / n, za + (zb - za) * (k + 1) / n
-        zc = (z0_ + z1_) / 2
-        x_floor = min(half_width(MID_Y - 0.01, z, 0.03) for z in (z0_, z1_))
-        x_top = half_width(MID_Y - kick_h - 0.02, zc, 0.02)
-        S.cbox(f"Kick-1_{k}", (0.03, kick_h, z1_ - z0_ - 0.004), M["locker"], Vector((-(x_floor - 0.015), MID_Y - kick_h / 2, zc)), ch=0.004)
-        cap_w = max(0.03, x_top - x_floor + 0.03)
-        S.cbox(f"KickCap-1_{k}", (cap_w, 0.02, z1_ - z0_ - 0.004), M["frame"], Vector((-(x_floor - 0.03 + cap_w / 2), MID_Y - kick_h - 0.01, zc)), ch=0.004)
+    # ergometer on the open floor, aft of the middle
+    K.ergometer("Ergometer", Vector((0.25, MID_Y, 0.95)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))))
+    # floor: tie-down tracks and flush stowage lids; ceiling: stowage nets and handrails
+    up = L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0)))
+    for sx in (-1, 1):
+        S.cbox(f"MidTrack{sx}", (0.045, 0.012, 1.2), M["frame_dark"], Vector((sx * 0.45, MID_Y - 0.006, 1.2)), ch=0.002)
+    for k, (x, z) in enumerate(((-0.2, 1.4), (0.76, 1.45))):
+        S.cbox(f"MidLid{k}", (0.4, 0.008, 0.3), M["locker"], Vector((x, MID_Y - 0.004, z)), ch=0.002)
+        S.cbox(f"MidLidPull{k}", (0.12, 0.006, 0.03), M["frame_dark"], Vector((x, MID_Y - 0.0095, z - 0.1)), ch=0.002)
+    down = L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0)))
+    for k, (x, z) in enumerate(((0.55, 0.85), (0.1, 1.9))):
+        P.net_with_gear(f"CeilNet{k}", Vector((x, MID_CEIL + 0.005, z)), down, 0.42, 0.32)
+    for sx in (-1, 1):
+        x = sx * 0.3
+        L.tube(f"CeilRail{sx}", [Vector((x, MID_CEIL, 0.55)), Vector((x, MID_CEIL + 0.07, 0.55)), Vector((x, MID_CEIL + 0.07, 1.5)), Vector((x, MID_CEIL, 1.5))],
+               0.011, M["yellow"])
 
     # hatch to the module behind: centred on the aft bulkhead, on the part's axis (the stock node)
     round_hatch("AftHatch", Vector((0.0, AFT_HATCH_Y, Z_BACK + 0.04)), AFT_WALL, r=AFT_HATCH_R)
     # lights along the mid-deck ceiling
     for k, z in enumerate((0.6, 1.4, 2.1)):
-        S.light_fixture(f"MidLight{k}", Vector((0.0, FLOOR_Y + DECK_T + 0.02, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.4, h=0.08)
+        S.light_fixture(f"MidLight{k}", Vector((-0.1, MID_CEIL + 0.005, z)), L.basis(Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))), w=0.4, h=0.08)
 
 
 def poster(name, tex, p, b, w=0.24, h=0.36):
@@ -481,7 +575,7 @@ def deck_boxes():
     return out
 
 
-S.collision_markers(hatches=[("Aft", (0.0, AFT_HATCH_Y, Z_BACK + 0.3)), ("Side", (-1.25, SIDE_HATCH_Y, SIDE_HATCH_Z))], boxes=deck_boxes())
+S.collision_markers(hatches=[("Aft", (0.0, AFT_HATCH_Y, Z_BACK + 0.3)), ("Side", (-1.25, SIDE_HATCH_Y, SIDE_HATCH_Z))], boxes=deck_boxes() + toilet_boxes())
 import surfaces  # noqa: E402  (detail textures on plain painted, brushed and fabric materials)
 if not os.environ.get("IVA_NO_DETAIL"):
     surfaces.apply()
