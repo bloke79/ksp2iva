@@ -398,16 +398,144 @@ Floorplan: `scratch/iva-redux/mk35_floorplan.png` (side section and both deck pl
   - The middle stays clear for the climb from the ladder to the docking hatch.
 
 
-## Lander cans: floorplans (2026-10-12)
-Drawn on slices of the real hulls: `scratch/iva-redux/lander_plan_{1v,2v,3v}.png`. Gravity layouts (the part axis is
-up, a real floor). Windows are painted on the hulls, hatches from the stock airlock triggers.
-- **1v (1 crew):** the 1v and 2v have their windows forward and the hatch at the back. A phone box: the pilot stands
-  harnessed at the descent panel under the front window, with side panels (throttle left, hand controller right). Behind:
-  the EVA hatch, a suit and helmet rack, sample boxes and lockers. Docking hatch overhead.
-- **2v (2 crew):** the Apollo LM. Commander and pilot stand side by side at the main panel (two descent panels, a centre
-  stack and console). Life support and comms port, power and radar starboard. Aft: the EVA hatch, suit racks, samples, food
-  and water; the open floor takes two hammocks at night.
-- **3v (4 crew):** the hatch is at the front and the window band at the back, so "forward" is the window side. A small
-  surface base: commander and pilot at the main panel under the window band, two seats behind, a centre console. Galley and
-  a fold-down table port, a toilet (folding door) starboard. Suit racks and EVA prep, a sample lab and stowage at the hatch
-  end, an aisle to the EVA hatch, two hammocks under the dome, docking hatch at the top.
+## Lander cans: floorplans (2026-10-12), redone KSP1-style and built (2026-10-13)
+Matt: "they were far more cramped than you're proposing". The first plans (open floor, panels on the walls) were redrawn
+after the KSP1 Mk1/Mk2 lander can IVAs (`scratch/iva-redux/lander_plan_v2_{1v,2v,3v}.png`). Built in
+`art/model_lander.py` (commit 1dd14f4).
+
+**The pattern (all three):**
+- the crew sit at the panels
+- everything else is floor-to-ceiling drawer banks fitted to the hull (`bank()`: a flat front, with a body that runs back
+  to the lining), with silly labels (`labelgen.py` atlas)
+- a narrow aisle runs to the hazard-striped EVA hatch
+- a ladder runs up to the docking hatch
+
+**Per lander:**
+- **1v:**
+  - The seat is in the middle, with the descent panels on the lining's window pillars either side of the window, facing the
+    pilot.
+  - Drawer stacks either side of the seat carry the side panels.
+  - Overhead switches.
+  - A helmet shelf and extinguisher, a tall locker, and a climbing pole beside the hatch.
+- **2v:**
+  - Two seats at the main panel, with side consoles at the elbows.
+  - The ladder sits right behind the seats.
+  - Drawer banks line the aisle: a whiteboard set into one, a glovebox and a poster in the other.
+- **3v:**
+  - Four seats in two rows under the window band, with side consoles topped by sloping panels.
+  - A galley nook to port (counter, oven splashback, cupboards).
+  - A science bank to starboard (glovebox, whiteboard).
+  - The ladder sits behind the rear seats.
+  - Lockers and a helmet closet to port of the aisle; the toilet opens onto the aisle to starboard.
+
+**Still to do:** catalogue entries (`CustomInterior.cs`) and export, then a playtest.
+
+
+# Plan: Walking under gravity (and ladders)
+
+_Written 2026-10-13. For Matt's review before any code._
+
+## Goal
+Unbuckle (U) in a landed lander, or any cabin built with a floor, and **walk**:
+- feet on the deck, gravity pulling you down, the walls and furniture solid
+- climb the ladder to the docking hatch
+- buckle back in at a seat
+
+Floating stays exactly as it is in orbit.
+
+## How it works now
+`FreeMove.cs` is a small sphere (r 0.13) that floats in pod space. It has no Unity physics (colliders would join the
+pod's rigidbody). Its world comes from position-only markers that `stock.collision_markers` exports:
+- the hull radius profile up the axis
+- deck heights
+- openings in decks
+- oriented boxes round the equipment
+- hatch points
+
+Walking reuses all of this. It adds a down direction, feet and a few new markers.
+
+## 1. Which way is down
+- Each frame, read the vessel's **felt acceleration**: gravity plus its own acceleration, the thing a g-meter shows, as
+  a vector in pod space. (API to verify with api-scout. `LiveInstruments.cs` already reads `VesselComponent` telemetry.)
+- **v1 rule: walk only when landed, splashed or pre-launch**, and the felt gravity is over ~0.03 g (Minmus is 0.05 g).
+  Everywhere else you float as now. Thrust in flight keeps you floating.
+- Down is used as it is, so a lander parked on a slope has a tilted floor. Over ~30° of tilt you slide and can't climb
+  it.
+
+## 2. Which interiors have a floor
+A new spec field, `"floors"`: deck planes (height and normal), exported as `IVA_Floor_<k>` markers. Walking only switches
+on when down is within ~35° of a floor's normal. Otherwise, under gravity, U says "no floor to stand on" and you stay
+buckled.
+
+| Interior | Floor |
+|---|---|
+| Landers 1v/2v/3v | the deck, normal = the part axis |
+| Mk3 cockpit and Mk3 cabins (horizontal fuselage) | the flight deck and lower deck, normal = the cabin's down on a runway |
+| Pods (Mk1-3, Mk1, Mk3-5), Starlab, crew cabins in orbit | none |
+
+## 3. The walker (FreeMove gets a second mode)
+- **Body:** a capsule 0.26 wide, with the eye 0.86 above the feet (a kerbal's eye height, from the seated poses).
+- **Ground:** the highest walkable surface under the feet. That's a deck, or the top of a box no more than a 12 cm step
+  up (kick strips, sills).
+- **Falling:** off an edge or through a deck opening, you fall under the felt g and land.
+- **Head:** where the ceiling is lower than eye + 10 cm (the 1v and 2v are 1.2 m tall inside), the view crouches
+  automatically.
+- **Walls:** the hull profile and equipment boxes, as now. With gravity they're sideways pushes only, so you slide along
+  a drawer bank.
+- **Controls:**
+  - W/S/A/D to walk.
+  - The mouse turns about down, with the pitch clamped to ±85° (no roll).
+  - Space jumps. On the Mun that's a long, slow hop, capped by the ceiling.
+  - Ctrl crouches.
+  - Same keys as floating.
+- **Speed:** a new setting, "Walk speed" (default 0.9 m/s, with a README row).
+
+## 4. Ladders
+- `ladder()` and `pole()` in the generator export `IVA_Ladder_<k>_0/_1` (bottom, top).
+- Walk into a ladder facing it (or press F at it) to grab on. Then W/S climb, gravity is off, and you stay on the
+  ladder's line. Step off at the bottom or sideways.
+- At the top, the existing hatch prompt appears ("go through to the …"), so the docking hatch works from the ladder.
+- Deck openings without a ladder (the Mk3 cockpit floor hatch) get one. Otherwise the way back up is a jump.
+
+## 5. Getting in and out
+- **Unbuckling:** you stand up in front of your seat.
+- **Buckling (U):** you sit in the nearest free seat, as now.
+- **Hatches:** going through a hatch while walking keeps walking in the next part if it has a floor and gravity.
+  Otherwise you arrive as now.
+- **EVA from a landed lander:** that's the existing EVA lever/hatch. Nothing changes.
+
+## 6. Order (each step is a playtest for Matt)
+1. **Down, logged only:**
+   - Felt-g vector in pod space, the situation, and the matching floor, logged when you unbuckle.
+   - Test on the launchpad (1 g) and in orbit (0 g).
+   - No movement changes yet.
+2. **Floors and walking on the deck, landers first:**
+   - The walker mode, crouch and steps.
+   - Catalogue entries and an export for the three landers.
+3. **Ladders:** markers, climbing, and the top hatch.
+4. **The other gravity interiors:** the Mk3 cockpit and cabins (landed), plus a ladder at the Mk3 floor hatch.
+5. **Polish:**
+   - footstep sounds
+   - optional head bob
+   - landing thuds
+   - the "no floor" message
+
+## Done when
+- On the Mun, in each lander, you can:
+  - unbuckle
+  - walk to the EVA hatch and the drawers without passing through anything
+  - climb to the docking hatch and go through
+  - come back and buckle in
+- On the launchpad the same works at 1 g. In orbit you float as before.
+- The log shows the down vector and the mode switches, with no exceptions.
+
+## Risks / open questions
+- **Felt-g API:**
+  - Which `VesselComponent` field gives a stable vector while landed (the contact forces make "acceleration" noisy)?
+  - Fallback: gravity at the vessel's position, used only when landed.
+- **Hull profiles:** the collision hull is a radius-around-the-axis profile, which is fine for the round landers. The
+  boxy Mk3 cabins may need box walls (more ColBox markers).
+- **Capsules under gravity (Matt to decide):** on the pad, should U in the Mk1-3 or Mk3-5 pod say "no floor", or should
+  you be able to clamber over the couches? Proposed: "no floor" for now.
+- **Thrust (Matt to decide):** walk only when landed (proposed). The alternative is that thrust in flight pins you to the
+  aft bulkhead: fun, but a lot of edge cases.
