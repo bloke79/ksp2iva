@@ -642,6 +642,33 @@ def net_with_gear(name, p, b, w=0.4, h=0.3):
             L.sphere(f"{name}Hook{sx}{sy}", 0.008, M["buckle"], _a(p, b, sx * w / 2, sy * h / 2, 0.05), u=8, v=4)
 
 
+def concertina(name, anchor, across, u, n, span, h, mat=None, stack=0.12, pleats=12, act_at=None, tracks=True):
+    """Concertina (pleated) door, modelled folded into a stack at `anchor` (the middle of the stack's fixed edge);
+    F draws it `span` along `across` (unit, in the door plane). u: up the door; n: the door's normal (either way).
+    Live parts and markers use the curtain action (named <name>Door, so the prompt reads 'open/close the door')."""
+    mat = mat or M["locker"]
+    across, u, n = Vector(across).normalized(), Vector(u).normalized(), Vector(n).normalized()
+    parts = []
+    for k in range(pleats):   # pleats zig-zag across the door plane
+        a0, a1 = stack * k / pleats, stack * (k + 1) / pleats
+        oa, ob = (0.018 if k % 2 else -0.018), (-0.018 if k % 2 else 0.018)
+        pa, pb = anchor + across * a0 + n * oa, anchor + across * a1 + n * ob
+        d = pb - pa
+        r = d.normalized()
+        parts.append(L.box(f"{name}Pleat{k}", (d.length + 0.002, h, 0.006), mat, (pa + pb) / 2, L.basis(r, u, r.cross(u).normalized()), bevel=0.0015))
+    post = L.box(name + "DoorPost", (0.03, h + 0.01, 0.012), M["yellow"], anchor + across * (stack + 0.006),
+                 L.basis(n.cross(u).normalized(), u, n), bevel=0.003)
+    parts.insert(0, post)
+    A.curtain(name + "Door", parts, anchor, anchor + across * (stack + 0.012), anchor + across * (span - 0.006),
+              act_at=act_at if act_at is not None else anchor + across * (stack + 0.05))
+    if tracks:
+        mid = anchor + across * (span / 2)
+        for sy in (-1, 1):
+            L.box(f"{name}DoorTrack{sy}", (span + 0.02, 0.012, 0.045), M.get("frame_dark", mat), mid + u * sy * (h / 2 + 0.008),
+                  L.basis(across, u, across.cross(u).normalized()), bevel=0.002)
+    return parts
+
+
 def hygiene_booth(name, p, b, w=0.62, h=1.05, d=0.58):
     """Private hygiene compartment round a toilet: side walls, a roof and a closed door with a handle, a vacant/engaged
     lamp, a sign and a vent louvre. p is the middle of the booth on the wall."""
@@ -653,15 +680,11 @@ def hygiene_booth(name, p, b, w=0.62, h=1.05, d=0.58):
     L.box(name + "Roof", (w, 0.03, d), M["locker"], _a(p, b, 0, h / 2 - 0.015, d / 2), _r(b), bevel=0.004, segs=1)
     L.box(name + "Header", (w + 0.02, 0.06, 0.05), frame, _a(p, b, 0, h / 2 - 0.02, d - 0.01), _r(b), bevel=0.012, segs=1)
     door = _a(p, b, 0, -0.015, d - 0.005)
-    L.box(name + "Door", (w - 0.1, h - 0.1, 0.03), M["locker"], door, _r(b), bevel=0.006, segs=1)
-    L.box(name + "DoorPanel", (w - 0.2, h * 0.45, 0.006), dark, door + b.col[1] * h * 0.12 + b.col[2] * 0.017, _r(b), bevel=0.002)
-    for i in range(6):   # vent louvre low in the door
-        L.box(f"{name}Louvre{i}", (w - 0.24, 0.012, 0.01), dark, door - b.col[1] * (h * 0.3 + i * 0.022) + b.col[2] * 0.018, _r(b))
-    L.tube(name + "Handle", [door + b.col[0] * (w / 2 - 0.1) + b.col[1] * 0.08 + b.col[2] * 0.015,
-                             door + b.col[0] * (w / 2 - 0.1) + b.col[1] * 0.08 + b.col[2] * 0.05,
-                             door + b.col[0] * (w / 2 - 0.1) - b.col[1] * 0.08 + b.col[2] * 0.05,
-                             door + b.col[0] * (w / 2 - 0.1) - b.col[1] * 0.08 + b.col[2] * 0.015], 0.009, M["yellow"])
-    sign = door + b.col[1] * (h / 2 - 0.15) + b.col[2] * 0.02
+    # concertina door, folded at the right post; a toilet and grab bar inside, against the wall
+    span, dh = w - 0.1, h - 0.12
+    concertina(name, _a(p, b, w / 2 - 0.05, -0.015, d - 0.04), -b.col[0], b.col[1], b.col[2], span, dh)
+    toilet(name + "Toilet", _a(p, b, 0, -h / 2 + 0.22, 0.03), b)
+    sign = _a(p, b, 0, h / 2 - 0.1, d + 0.02)
     L.box(name + "Sign", (0.16, 0.07, 0.008), frame, sign, _r(b), bevel=0.002)
     L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["lamp_green"] if "lamp_green" in M else M["light"], sign + b.col[0] * 0.045 + b.col[2] * 0.006, _r(b), bevel=0.002)
     L.box(name + "SignTag", (0.07, 0.025, 0.004), M["btn_soft"], sign - b.col[0] * 0.03 + b.col[2] * 0.006, _r(b))

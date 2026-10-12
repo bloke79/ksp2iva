@@ -684,8 +684,8 @@ def foot_loops(room, seats, name="FootLoop"):
 def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None, hull_side=0):
     """Hygiene compartment: an enclosed room on a surface. p, b: centre of its back on the surface and the basis
     (right, up, normal into the cabin); w x h on the surface, d deep. Inside: toilet with thigh bars, foot loop, wash
-    station with mirror, towels and wipes, light, fan, handrail. The door leaf is a separate part pivoting on its
-    hinge (IVA_Live_Door...) so it can be made to open later; the frame, sign and vacant lamp are fixed."""
+    station with mirror, towels and wipes, light, fan, handrail. A concertina door (props.concertina) folds at
+    the opening's right edge; the frame, sign and vacant lamp are fixed."""
     r, u, n = b.col[0], b.col[1], b.col[2]
     rot = L.basis(r, u, n)
     door_h = door_h or min(h - 0.2, 1.45)
@@ -708,28 +708,9 @@ def hygiene_room(name, p, b, w, h, d, back_ext=0.0, door_w=0.56, door_h=None, hu
     for k, (cx, cy, fw, fh) in enumerate(((dx - door_w / 2 - 0.02, dy, 0.04, door_h + 0.08), (dx + door_w / 2 + 0.02, dy, 0.04, door_h + 0.08),
                                          (dx, dy + door_h / 2 + 0.02, door_w + 0.08, 0.04), (dx, dy - door_h / 2 - 0.02, door_w + 0.08, 0.04))):
         S.cbox(f"{name}DoorFrame{k}", (fw + 0.004, fh + 0.004, 0.05), M["frame"], fz + r * cx + u * cy + n * 0.01, rot, ch=0.008)
-    hinge = fz + r * (dx - door_w / 2) + u * dy + n * 0.005
-    # a spacecraft hatch door: chamfered leaf, raised inner panel, latch dogs on both edges, a lever on a hub and a vent
-    # grille; the leaf and everything on it swing together on the hinge
-    lw, lh = door_w - 0.01, door_h - 0.01
-    lc = hinge + r * (lw / 2)
-    parts = [S.cbox(name + "DoorLeaf", (lw, lh, 0.03), M["frame"], lc, rot, ch=0.03)]
-    parts.append(S.cbox(name + "DoorPanel", (lw - 0.11, lh - 0.13, 0.012), M["frame_dark"], lc + n * 0.019 + u * 0.02, rot, ch=0.025))
-    parts.append(S.cbox(name + "DoorPanelInset", (lw - 0.17, lh * 0.42, 0.008), M["frame"], lc + n * 0.027 + u * (lh * 0.17), rot, ch=0.02))
-    for i in range(5):
-        parts.append(L.box(f"{name}Vent{i}", (lw - 0.22, 0.014, 0.008), M["frame"], lc + n * 0.027 - u * (lh * 0.22 + i * 0.03), rot, bevel=0.003, segs=1))
-    for sx in (0.04, lw - 0.04):   # latch dogs near both edges, top and bottom
-        for sy in (-1, 1):
-            parts.append(S.cbox(f"{name}Dog{int(sx * 100)}_{sy}", (0.04, 0.07, 0.016), M["yellow"], hinge + r * sx + u * (sy * lh * 0.36) + n * 0.022, rot, ch=0.005))
-    hub = lc + r * (lw * 0.28) + n * 0.03
-    parts.append(L.cylinder(name + "LeverHub", 0.032, 0.022, M["buckle"], hub + n * 0.011, rot, segs=16, bevel=0.004))
-    lever_rot = rot @ Matrix.Rotation(math.radians(-20), 3, "Z")
-    parts.append(S.cbox(name + "Lever", (0.03, 0.2, 0.018), M["yellow"], hub + n * 0.03 - (lever_rot @ Vector((0, 0.07, 0))), lever_rot, ch=0.006))
-    parts.append(S.cbox(name + "StatusPlate", (0.1, 0.035, 0.006), M["frame_dark"], lc + n * 0.024 + u * (lh * 0.42), rot, ch=0.003))
-    parts.append(L.box(name + "StatusLamp", (0.025, 0.018, 0.004), M["light"], lc + n * 0.028 + u * (lh * 0.42) + r * 0.03, rot))
-    for k in range(2):
-        L.cylinder(f"{name}Hinge{k}", 0.014, 0.08, M["buckle"], hinge + u * (door_h * 0.35 * (1 if k else -1)), L.basis(r, n, u) @ Matrix.Rotation(math.pi / 2, 3, "X"), segs=12)
-    A.hinge(name, parts, hinge, u, hinge + r * lw, n, act_at=lc + n * 0.04, half_h=door_h / 2)
+    # concertina door just inside the front, folded at the opening's right edge (no hinged leaf to swing into the room)
+    P.concertina(name, fz + r * (dx + door_w / 2 - 0.01) + u * dy - n * 0.045, -r, u, n, door_w - 0.02, door_h - 0.02,
+                 act_at=fz + r * (dx + door_w / 2 - 0.12) + u * dy + n * 0.03)
     sign = fz + r * dx + u * (dy + door_h / 2 + 0.11) + n * 0.02
     L.box(name + "Sign", (0.2, 0.08, 0.008), M["frame"], sign, rot, bevel=0.002)
     L.box(name + "SignLamp", (0.04, 0.03, 0.006), M["light"], sign + r * 0.06 + n * 0.006, rot, bevel=0.002)

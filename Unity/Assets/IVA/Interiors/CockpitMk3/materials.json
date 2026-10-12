@@ -1035,6 +1035,31 @@
       "tint": false
     },
     {
+      "name": "IVA_O2Bottle",
+      "color": [
+        0.2199999988079071,
+        0.41999998688697815,
+        0.30000001192092896
+      ],
+      "metallic": 0.4000000059604645,
+      "roughness": 0.3499999940395355,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false,
+      "tint": false
+    },
+    {
       "name": "IVA_Poster_Lostpart",
       "color": [
         0.800000011920929,
