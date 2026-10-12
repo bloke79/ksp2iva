@@ -610,6 +610,30 @@
       "emissionFromTexture": false
     },
     {
+      "name": "IVA_GreyLocker",
+      "color": [
+        0.4000000059604645,
+        0.4099999964237213,
+        0.4300000071525574
+      ],
+      "metallic": 0.15000000596046448,
+      "roughness": 0.550000011920929,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": null,
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
       "name": "IVA_Handle",
       "color": [
         0.07999999821186066,
@@ -850,30 +874,6 @@
       "emissionFromTexture": true
     },
     {
-      "name": "IVA_MidLocker",
-      "color": [
-        0.7799999713897705,
-        0.7699999809265137,
-        0.7200000286102295
-      ],
-      "metallic": 0.05000000074505806,
-      "roughness": 0.6000000238418579,
-      "emission": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "emissionStrength": 0.0,
-      "texture": null,
-      "normal": null,
-      "normalStrength": 1.0,
-      "tiling": [
-        1.0,
-        1.0
-      ],
-      "emissionFromTexture": false
-    },
-    {
       "name": "IVA_MidPanel",
       "color": [
         0.6200000047683716,
@@ -1033,6 +1033,30 @@
       ],
       "emissionStrength": 0.0,
       "texture": "poster_munholiday.png",
+      "normal": null,
+      "normalStrength": 1.0,
+      "tiling": [
+        1.0,
+        1.0
+      ],
+      "emissionFromTexture": false
+    },
+    {
+      "name": "IVA_Poster_Struts",
+      "color": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929
+      ],
+      "metallic": 0.0,
+      "roughness": 0.699999988079071,
+      "emission": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissionStrength": 0.0,
+      "texture": "poster_struts.png",
       "normal": null,
       "normalStrength": 1.0,
       "tiling": [
@@ -1306,26 +1330,26 @@
       "emissionFromTexture": false
     },
     {
-      "name": "IVA_WallCream",
+      "name": "IVA_WallPadded",
       "color": [
         0.800000011920929,
         0.800000011920929,
         0.800000011920929
       ],
       "metallic": 0.0,
-      "roughness": 0.800000011920929,
+      "roughness": 0.8500000238418579,
       "emission": [
         1.0,
         1.0,
         1.0
       ],
       "emissionStrength": 0.0,
-      "texture": "wall_cream_color.png",
-      "normal": "wall_cream_normal.png",
-      "normalStrength": 0.8999999761581421,
+      "texture": "wall_padded_color.png",
+      "normal": "wall_padded_normal.png",
+      "normalStrength": 1.0,
       "tiling": [
-        1.0,
-        1.0
+        0.5,
+        0.5
       ],
       "emissionFromTexture": false
     }
