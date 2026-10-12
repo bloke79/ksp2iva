@@ -396,3 +396,18 @@ Floorplan: `scratch/iva-redux/mk35_floorplan.png` (side section and both deck pl
   - Galley, fold-out table and pantry either side of the ladder hole.
   - Ergometer front-port.
   - The middle stays clear for the climb from the ladder to the docking hatch.
+
+
+## Lander cans: floorplans (2026-10-12)
+Drawn on slices of the real hulls: `scratch/iva-redux/lander_plan_{1v,2v,3v}.png`. Gravity layouts (the part axis is
+up, a real floor). Windows are painted on the hulls, hatches from the stock airlock triggers.
+- **1v (1 crew):** the 1v and 2v have their windows forward and the hatch at the back. A phone box: the pilot stands
+  harnessed at the descent panel under the front window, with side panels (throttle left, hand controller right). Behind:
+  the EVA hatch, a suit and helmet rack, sample boxes and lockers. Docking hatch overhead.
+- **2v (2 crew):** the Apollo LM. Commander and pilot stand side by side at the main panel (two descent panels, a centre
+  stack and console). Life support and comms port, power and radar starboard. Aft: the EVA hatch, suit racks, samples, food
+  and water; the open floor takes two hammocks at night.
+- **3v (4 crew):** the hatch is at the front and the window band at the back, so "forward" is the window side. A small
+  surface base: commander and pilot at the main panel under the window band, two seats behind, a centre console. Galley and
+  a fold-down table port, a toilet (folding door) starboard. Suit racks and EVA prep, a sample lab and stowage at the hatch
+  end, an aisle to the EVA hatch, two hammocks under the dome, docking hatch at the top.
