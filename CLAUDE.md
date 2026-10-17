@@ -100,6 +100,27 @@ Intermediate `.blend`, textures and renders go in the workspace `scratch/`. Full
   sight lines (anything hanging in front of a panel) or whether a layout makes sense to use. For non-round hulls, place
   wall fittings with `hullshell.inner()`, never at fixed offsets.
 
+## Work streams (bigger pieces of work)
+Follow `knowledge/streams.md` in the workspace. This session is the **Lead**: it owns the contracts, merges, the Unity
+SDK project (sync, batch setup, builds) and playtests with Matt. Streams work offline in
+`C:\Work\worktrees\iva-redux-<stream>` (`scripts\stream-worktree.ps1`).
+
+| Stream (agent) | Owns here | Default · raise to |
+|---|---|---|
+| `unity-runtime` | `Unity/Assets/IVA/Code/` (minus the contracts) | Sonnet · medium · high for movement (`FreeMove`), hatches/transfers, camera |
+| `unity-tools` | `Unity/Assets/IVA/Editor/`, `scripts/unity/`, the Unity side of `export_interior.py` | Sonnet · medium |
+| `art-pipeline` | `art/` generators, `texgen.py`, `posters.py`, `review.py`, renders | Sonnet · medium |
+| `unity-content` | `art/pods/*.json` values (cameras, labels), `labelgen.py` lists, README settings rows, `CHANGES.md` | Haiku · low |
+
+**Contracts (Lead only):**
+- the pod spec schema (`art/pods/*.json` keys)
+- the marker names read by the mod (`IVA_ColAxis/Hull/Deck/Hole/Box`, `IVA_Floor`, `IVA_Hatch`, `IVA_View`, `IVA_Live*`)
+- the export naming (`Mesh_<Material>`, `IVA_<Material>`, `__Live_<name>`) and `materials.json`
+- `InteriorDesign` and the catalogue in `CustomInterior.cs`
+
+**Check gate:** `.\scripts\unity-check.ps1 -Project iva-redux -Path <worktree>` (about 20 s, no Unity), then the
+art review for visual work. Unity's own compile in the Lead's batch build is the final word.
+
 ## Unity SDK project (set up 2026-10-10)
 - `C:\Games\KSP2Mods\IVA`: template 26w41a, **Unity 6000.6.0f1** (must match the game). Created with `redux-sdk-cli`
   (`C:\Games\KSP2Mods\tools\`). Batch logs are in `C:\Games\KSP2Mods\tools\*.log`.
