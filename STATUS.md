@@ -1,7 +1,7 @@
 # Status: iva-redux
 
 **Last updated:** 2026-10-13
-**Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w41a
+**Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w43b (version 1.0.0 committed, not yet flown)
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Latest run

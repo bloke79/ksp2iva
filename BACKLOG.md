@@ -53,13 +53,10 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
         Mk2 Tag Along (4), Mk3 Skybus (16).
 
 ## 5. Bugs and technical debt
-- [ ] **Move to KSP2 Redux 26w43b** (`workflows/game-update.md`, `/game-update`): the game files changed on 2026-10-31 at 15:05, after
-      the last build. Nothing has been migrated or compiled against them: the SDK project is on the 26w41a template (`unity-check`
-      compiles against that, so a clean check says nothing about 26w43b), and `mod.config.json` and CLAUDE.md still say 26w41a.
-      Unity is unchanged at 6000.6.0f1. API diff done (`notes/2026-10-31-26w43b-api-diff.md`): `ReduxLib` moved to `SpaceWarp2.API`,
-      an 11-line `using` fix that compiles clean in a scratch copy. Not applied, because it breaks the 26w41a compile. The current
-      build is expected not to load on the new game. Needs a new SDK template and the asmdef patch (Matt), the fix, a rebuild,
-      and a flight test, including the bundles, boarding and the camera-rig crash.
+- [ ] **Move to KSP2 Redux 26w43b:** code and toolchain done 2026-10-31 (`SpaceWarp2.API` usings, version 1.0.0, SDK project on template 26w43a with
+      three planet-preview calls stubbed, `unity-check` clean, Unity build produces `IVA.dll` and the bundle). Left: fly it. Check that the
+      mod loads (its `SpaceWarp2` dependency in `swinfo.json`), the bundles and shaders, boarding, and the camera-rig crash. Swap the patched
+      SDK copy for a real 26w43b template when one exists.
 - [ ] **Camera-rig crash:** mitigated (camera guard, N for next seat, Redux first-person fallback). Confirm it no
       longer happens across a longer session.
 - [x] **Pose dump:** behind the Pose dump setting (on until release).
