@@ -452,7 +452,7 @@ def build_1v():
         items = DESCENT if sx < 0 else [("mfd", 0, 0, 2, 2, {"screen": "mfd_map"}), ("dial", 2, 0, 1, 1, {"kind": "fuel"}),
                                         ("annunciators", 2, 1, 1, 1, {"cols": 2, "rows": 2, "start": 8}),
                                         ("toggles", 0, 2, 3, 1, {"cols": 6}), ("breakers", 0, 3, 3, 1, {"cols": 9, "rows": 2})]
-        a = math.radians(159.0)
+        a = math.radians(150.0)
         d = Vector((sx * math.sin(a), math.cos(a), 0.0))
         c = d * 0.565 + UP * 0.8
         b = face_basis(UP.cross(-d))
