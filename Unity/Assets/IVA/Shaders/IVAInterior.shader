@@ -29,7 +29,7 @@ Shader "IVA/Interior"
         Pass
         {
             Name "ForwardLit"
-            Tags { "LightMode"="UniversalForward" }
+            Tags { "LightMode"="UniversalForwardOnly" }
 
             HLSLPROGRAM
             #pragma target 3.5
@@ -142,5 +142,4 @@ Shader "IVA/Interior"
         UsePass "Universal Render Pipeline/Lit/DepthOnly"
         UsePass "Universal Render Pipeline/Lit/DepthNormals"
     }
-    FallBack "Universal Render Pipeline/Lit"
 }
