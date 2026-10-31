@@ -18,7 +18,8 @@
 - Lighting pass with sharper shadows and ambient occlusion inside custom interiors.
 - Camera uses a shot override instead of moving the flight camera, avoiding the rig crash.
 - Back into IVA after boarding: after an EVA from a hatch, boarding returns you to that kerbal's seat (setting, on by default).
-- Debug logging and Pose dump settings, both on by default.
+- Debug logging and Pose dump settings, both off by default (an existing config keeps its saved values). Other mods can register an interior for their own part with a JSON TextAsset under the Addressables label `iva_interior` (see the README section "Making an interior for your part"). Later registrations for a part replace earlier ones; bad files are logged and skipped.
+
 ## 0.6.0: modelled Mk1-3 interior
 
 - A modelled and textured interior for the Mk1-3 "Gumball" pod, made in Blender for this mod: three quilted couches with harnesses, a curved console with a 3D navball, three screens, analogue gauges, guarded switches, ABORT and STAGE buttons and circuit-breaker panels, four framed windows that open onto the real world, a side hatch with a wheel, a docking tunnel with ladder rungs and top hatch, lockers, grab rails, light strips and a grated floor. About 89,000 triangles, 35 materials, 15 textures.

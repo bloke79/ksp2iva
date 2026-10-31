@@ -113,8 +113,8 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Interior | Ambient occlusion | on | Darkens corners, seams and gaps inside the cabin (the game's post-processing) |
 | Interior | Ambient occlusion strength | 1.0 | How dark it gets (0 to 2) |
 | Alignment | Offset X/Y/Z, Yaw, Scale, Eye X/Y/Z | 0 / 0 / 1 / 0 | Set by the numpad tool |
-| Debug | Debug logging | on | Logs key presses and the camera report. Errors, warnings and mode switches are always logged |
-| Debug | Pose dump | on | Writes the crew's poses to `IVA-pose/*.obj` on entering a pod, for building new interiors |
+| Debug | Debug logging | off | Logs key presses and the camera report. Errors, warnings and mode switches are always logged |
+| Debug | Pose dump | off | Writes the crew's poses to `IVA-pose/*.obj` on entering a pod, for building new interiors. Turn this on to capture a new part |
 | General | Hide own kerbal | on | Hides your own kerbal's head (custom interiors) or whole body (portrait view) |
 | General | Back into IVA after boarding | on | After an EVA started from a hatch, boarding again returns to IVA in that kerbal's seat |
 
@@ -134,7 +134,41 @@ This hasn't been run in game yet. After pressing C, look in the game log for lin
 | Cabin too big (walls cut by the pod's hull) or too small | Numpad * and /, or turn off *Fit to pod* |
 | Pod's outer model visible inside | Turn on *Hide pod exterior in IVA* |
 | Eye in the wrong spot | Shift + numpad |
-| Nothing happens on C | The log lists every camera in the scene; send me that line |
+| Nothing happens on C | Turn Debug logging on first (Settings, Debug). Then the log lists every camera in the scene; send me that line |
+
+## Making an interior for your part
+
+Another mod can ship an interior for its own part without an IVA release. Ship one JSON file as a TextAsset with the Addressables label `iva_interior`. IVA reads it after the game starts.
+
+| Key | Required | Meaning |
+|---|---|---|
+| Name | yes | The interior's display name |
+| Address | yes | The Addressables address of the interior prefab, loaded with Assets.Load |
+| Parts | yes | The part names it is for |
+| Seats | yes | The number of seats in the interior |
+| BaseRadius | unless OnHull | Outer radius of the part at the base, in metres, that the interior was designed for |
+| Height | unless OnHull | Outer height of the part, in metres, that the interior was designed for |
+| Yaw | no | Turns the interior so its front lines up with the part's real front, in degrees |
+| OnHull | no | The interior is built to the real hull: placed at HullBaseY with no auto-fit scaling |
+| HullBaseY | no | Part-local Y of the hull's base |
+| UprightCrew | no | Crew sit upright at the seat points (cabins, labs) |
+| HideRenderers | no | Names of the part's own meshes to hide while inside |
+| KeepRenderers | no | With HideExterior: part meshes that stay visible (seen through your windows) |
+| HideExterior | no | Hide the part's own outer meshes while inside |
+
+Example JSON:
+
+```json
+{"Name": "Ring Habitat", "Address": "KSP2SpaceParts/Interior_ring_habitat", "Parts": ["ring_habitat"], "Seats": 6, "BaseRadius": 7.25, "Height": 2.5, "Yaw": 180, "OnHull": true, "HullBaseY": 0.0, "UprightCrew": true}
+```
+
+The prefab follows the same marker and export rules as the built-in interiors. Markers IVA reads: IVA_ColAxis, IVA_ColHull, IVA_ColDeck, IVA_ColHole, IVA_ColBox, IVA_Floor, IVA_Hatch, IVA_View, IVA_ViewAt, and IVA_Live* for moving parts (IVA_Live_<name> meshes with IVA_Live<Role>_<name> markers). Meshes are named Mesh_<Material>.
+
+A later registration for the same part replaces the earlier one and is logged. Unknown keys are ignored and logged once. A bad file is logged and skipped, never fatal.
+
+Look for this log line: `IVA: registered interior '<name>' for <parts> from label iva_interior`. The `Interiors:` line then lists it too.
+
+To capture the crew poses for a new part, turn Pose dump on in Settings.
 
 ## Changing the interior
 

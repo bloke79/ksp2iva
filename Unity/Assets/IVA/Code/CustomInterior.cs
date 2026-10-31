@@ -78,9 +78,48 @@ namespace IVA
                                  Seats = 4, BaseRadius = 2.05f, Height = 2.24f, Yaw = 180f, OnHull = true, HullBaseY = -1.119f, UprightCrew = true, HideExterior = true },
         };
 
+        // Interiors registered by other mods, by part name. ForPod checks these first.
+        public static readonly Dictionary<string, InteriorDesign> Registered = new Dictionary<string, InteriorDesign>(StringComparer.OrdinalIgnoreCase);
+
+        // A later registration for the same part replaces the earlier one. Built-in entries are never edited or removed.
+        public static void Register(InteriorDesign design, ILogger log)
+        {
+            foreach (string part in design.Parts)
+            {
+                bool had = Registered.TryGetValue(part, out var prev);
+                var old = had ? prev : All.FirstOrDefault(d => d.Parts != null && d.Parts.Any(p => string.Equals(p, part, StringComparison.OrdinalIgnoreCase)));
+                if (old != null && old != design) log?.LogInfo($"IVA: interior '{design.Name}' replaces '{old.Name}' for part '{part}'");
+                Registered[part] = design;
+                if (had && prev != design && !Registered.ContainsValue(prev)) All.Remove(prev);
+            }
+            if (!All.Contains(design)) All.Add(design);
+        }
+
+        private static readonly string[] JsonKeys = { "Name", "Address", "Parts", "Seats", "BaseRadius", "Height", "Yaw", "OnHull", "HullBaseY", "UprightCrew", "HideRenderers", "KeepRenderers", "HideExterior" };
+
+        private static T JsonValue<T>(Newtonsoft.Json.Linq.JObject o, string key, T fallback)
+        {
+            var t = o.GetValue(key, StringComparison.OrdinalIgnoreCase);
+            return t == null || t.Type == Newtonsoft.Json.Linq.JTokenType.Null ? fallback : t.ToObject<T>();
+        }
+
+        // Reads one interior file. Throws on bad JSON or a design that cannot work; unknown keys go in unknownKeys.
+        public static InteriorDesign ParseDesign(string json, List<string> unknownKeys)
+        {
+            var o = Newtonsoft.Json.Linq.JObject.Parse(json);
+            foreach (var prop in o.Properties()) { if (!JsonKeys.Any(k => string.Equals(k, prop.Name, StringComparison.OrdinalIgnoreCase))) unknownKeys.Add(prop.Name); }
+            var design = new InteriorDesign { Name = JsonValue<string>(o, "Name", null), Address = JsonValue<string>(o, "Address", null), Parts = JsonValue<string[]>(o, "Parts", null), Seats = JsonValue<int>(o, "Seats", 0), BaseRadius = JsonValue<float>(o, "BaseRadius", 0f), Height = JsonValue<float>(o, "Height", 0f), Yaw = JsonValue<float>(o, "Yaw", 0f), OnHull = JsonValue<bool>(o, "OnHull", false), HullBaseY = JsonValue<float>(o, "HullBaseY", 0f), UprightCrew = JsonValue<bool>(o, "UprightCrew", false), HideRenderers = JsonValue<string[]>(o, "HideRenderers", new string[0]), KeepRenderers = JsonValue<string[]>(o, "KeepRenderers", new string[0]), HideExterior = JsonValue<bool>(o, "HideExterior", false) };
+            if (string.IsNullOrEmpty(design.Name)) throw new FormatException("Name is missing");
+            if (string.IsNullOrEmpty(design.Address)) throw new FormatException("Address is missing");
+            if (design.Parts == null || design.Parts.Length == 0 || design.Parts.Any(string.IsNullOrEmpty)) throw new FormatException("Parts is missing or has an empty name");
+            if (design.Seats <= 0) throw new FormatException("Seats must be above 0");
+            if (!design.OnHull && (design.BaseRadius <= 0f || design.Height <= 0f)) throw new FormatException("BaseRadius and Height must be above 0 unless OnHull is true");
+            return design;
+        }
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
         public static InteriorDesign ForPod(string partName, int seats, bool anyPod)
         {
+            if (partName != null && Registered.TryGetValue(partName, out var registered)) return registered;
             InteriorDesign exact = All.FirstOrDefault(d => d.Parts != null && d.Parts.Any(p => string.Equals(p, partName, StringComparison.OrdinalIgnoreCase)));
             if (exact != null || !anyPod) return exact;
             return All.FirstOrDefault(d => d.Seats == seats) ?? All.FirstOrDefault();

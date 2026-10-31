@@ -149,6 +149,34 @@ namespace IVA
                              $"Interiors: {string.Join(", ", InteriorCatalogue.All.Select(d => d.Name))}.");
         }
 
+        private const string InteriorLabel = "iva_interior";
+        private readonly HashSet<string> _unknownInteriorKeys = new HashSet<string>();
+
+        // Runs after the game has started. A bad file or a failed scan is logged, never fatal. No base call, as in OnInitialized.
+        public override void OnPostInitialized()
+        {
+            try { Assets.LoadByLabel<TextAsset>(InteriorLabel, OnInteriorAsset, OnInteriorScanDone); }
+            catch (System.Exception e) { SWLogger.LogInfo($"IVA: label scan {InteriorLabel} failed: {e.Message}"); }
+        }
+
+        private void OnInteriorAsset(TextAsset asset)
+        {
+            try
+            {
+                var unknown = new List<string>();
+                var design = InteriorCatalogue.ParseDesign(asset.text, unknown);
+                foreach (string key in unknown) { if (_unknownInteriorKeys.Add(key)) SWLogger.LogInfo($"IVA: ignored unknown key '{key}' in interior file '{asset.name}'"); }
+                InteriorCatalogue.Register(design, SWLogger);
+                SWLogger.LogInfo($"IVA: registered interior '{design.Name}' for {string.Join(", ", design.Parts)} from label {InteriorLabel}");
+            }
+            catch (System.Exception e) { SWLogger.LogInfo($"IVA: skipped interior file '{asset?.name}': {e.Message}"); }
+        }
+
+        // The Interiors line in OnInitialized runs before this scan, so repeat it when the scan added any.
+        private void OnInteriorScanDone(IList<TextAsset> assets)
+        {
+            if (InteriorCatalogue.Registered.Count > 0) SWLogger.LogInfo($"Interiors: {string.Join(", ", InteriorCatalogue.All.Select(d => d.Name))}.");
+        }
         private void BindConfig()
         {
             var cfg = SWConfiguration;
@@ -220,8 +248,8 @@ namespace IVA
             _eyeZ = Bind(cfg, "Alignment", "Eye Z", 0f, "Eye forward/back relative to the seat's eye point (metres).", off);
             _numpadAlign = Bind(cfg, "Alignment", "Numpad alignment keys", true,
                 "In IVA: numpad 8/2 4/6 9/3 move, 7/1 turn, * and / scale, hold Shift to move the eye instead, +/- step size, 5 save, 0 reset.");
-            _debugLog = Bind(cfg, "Debug", "Debug logging", true, "Log key presses and the camera report. Errors, warnings and mode switches are always logged.");
-            _poseDump = Bind(cfg, "Debug", "Pose dump", true, "Write the crew poses to IVA-pose/*.obj on entering a pod, for building new interiors.");
+            _debugLog = Bind(cfg, "Debug", "Debug logging", false, "Log key presses and the camera report. Errors, warnings and mode switches are always logged.");
+            _poseDump = Bind(cfg, "Debug", "Pose dump", false, "Write the crew poses to IVA-pose/*.obj on entering a pod, for building new interiors.");
         }
 
         private static ConfigValue<T> Bind<T>(IConfigFile cfg, string section, string key, T defaultValue,
