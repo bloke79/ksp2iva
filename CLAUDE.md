@@ -127,6 +127,11 @@ art review for visual work. Unity's own compile in the Lead's batch build is the
 - **Patched by hand:** `Assets/IVA/Code/IVA.asmdef` has `"references": ["Unity.Addressables", "Unity.ResourceManager",
   "Unity.Postprocessing.Runtime"]` added (the SDK generates it without them: `Assets.Load` and the cabin ambient
   occlusion, `CabinAo.cs`, won't compile). Redo this if the asmdef is ever regenerated.
+- **26w43 SDK fixes (2026-10-31, by hand in the SDK project, redo after any `redux-sdk-cli upgrade`):**
+  - `Code/IVA.asmdef`: removed `ReduxLib.dll` and `SpaceWarp2*.dll` from `precompiledReferences`, added `Ksp2Redux.dll`.
+  - `ProjectSettings/EditorBuildSettings.asset`: the upgrade emptied `m_configObjects`; add `com.unity.addressableassets: {fileID: 11400000, guid: <Assets/AddressableAssetsData/DefaultObject.asset.meta guid>, type: 2}` (the key is `addressableassets`, not `addressables`), or the build fails in StageAddressablesGroups with a null reference.
+  - `Packages/ksp2redux.sdk` is an embedded copy of the 26w43a tag with 3 planet-preview call sites stubbed (`BindPostAtmosphere`, `BindLocalAtmosphere`, `WaterDepthTexture`): the installed game is newer than that tag and SDK `main` is newer than the game. Replace it with the real 26w43b tag when one exists.
+  - `IVA.asset` version set to 1.0.0. Backups: `C:\Games\KSP2Mods\_backup_26w41a`.
 - `Assets/Editor/ReduxModBatch.cs` (copied from the workspace `scripts/unity/`) is an editor-only batch helper and doesn't ship.
 
 ## Gotchas
