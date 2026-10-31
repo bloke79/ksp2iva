@@ -1,17 +1,21 @@
-# KSP2 runner brief (2026-10-31)
+﻿# KSP2 runner brief (2026-10-31)
 
-RUNNER IDLE: waiting on Matt. Nothing offline is left that doesn't need a playtest, a design call or new art.
+NEXT CHUNK (Matt approved 2026-11-01, offline, runnable now): "Modular interiors from other mods, and release defaults" = steps M1 to M5 in PLAN.md
+(last section). Build all of it as ONE chunk: `InteriorCatalogue.Register` + merged `ForPod`; label scan `iva_interior` loading JSON designs; fail-soft;
+README section + CHANGES entry; Debug logging and Pose dump default OFF (IVAPlugin.cs lines 223-224) with README rows updated. Additive: do not
+change existing catalogue entries, markers, the pod spec schema or the export naming (Matt approved only the additions in that plan section).
+Walking/ladders and everything below stay waiting on Matt.
 
 ## What Matt needs to do
 1. Fly the walking playtest (walking plan step 6): a lander on the pad and on the Mun. Unbuckle (U), walk to the EVA hatch and drawers, jump, crouch.
 2. Fly the new build (test lists below).
 3. Pick the seated key for console switches: F is a flight key while buckled (PLAN "Plan for 4"). Suggested: hold middle mouse and click.
-4. Say whether Blender work may go in the runner. Switch banks, Starlab racks and sleep all need new `IVA_Act_*` markers and art.
+4. DONE 2026-10-31: Blender work may go in the runner (Matt confirmed).
 
 ## Next chunk once unblocked
 Ladders (walking step 3), after Matt has tried walking. Seed: `ladder()`/`pole()` export `IVA_Ladder_<k>_0/_1`; grab, W/S climb, top hatch prompt. Needs new marker names, a contract change, so it is the Lead's call.
 
-## Open ⏸ items
+## Open â¸ items
 - Walking playtest; ladders wait on it.
 - Seated targeting, switch banks, Starlab experiments, sleep with time warp, abort/stage: key choice and art.
 - `notes/local-style.md` is still untracked (another session's file, the gate lists it as OTHER WIP). The runner left it alone, so it isn't in git.
@@ -34,3 +38,4 @@ Ladders (walking step 3), after Matt has tried walking. Seed: `ladder()`/`pole()
 7. C during the fade: screen clears, 6 s at worst.
 8. Setting off: board stays outside. Never see `IVA: hatch fade failed` or `IVA: boarding watch failed`.
 Risk to watch: entering IVA 2 s after boarding is a new camera moment; check it against the old camera-rig crash.
+
