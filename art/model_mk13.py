@@ -397,7 +397,8 @@ build_fill()
 build_stowage()
 build_ceiling()
 build_structure()
-S.collision_markers(hatches=[("Docking", (0.0, 0.0, C.Z_TOP - 0.25)), ("Aft", (0.0, 0.6, C.Z_FLOOR + 0.2))])
+S.collision_markers(hatches=[("Docking", (0.0, 0.0, C.Z_TOP - 0.25)), ("Aft", (0.0, 0.6, C.Z_FLOOR + 0.2))],
+                    floors=[((0.0, 0.0, C.Z_FLOOR), (0.0, 0.0, 1.0))])
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 C.reference_kerbals(os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", SPEC["part"] + ".obj"), SPEC["hull_base_y"])

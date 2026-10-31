@@ -818,7 +818,8 @@ if not os.environ.get("IVA_NO_DETAIL"):
 for i, seat in enumerate(SEATS):
     C.eye_marker(i, seat)
 S.collision_markers(decks=[DECK_Z], holes=[(-HOLE_HW, HOLE_HW, HOLE_Y0, HOLE_Y1, DECK_Z)], boxes=toilet_wall_boxes(),
-                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, HATCH_Y, FLOOR + 0.2))])
+                    hatches=[("Tunnel", (0.0, 0.0, dome_z(0.32) - 0.25)), ("Aft", (0.0, HATCH_Y, FLOOR + 0.2))],
+                    floors=[((0.0, 0.0, FLOOR), (0.0, 0.0, 1.0))])
 ref = os.path.join(os.environ.get("IVA_REFERENCE", "C:/Games/KSP2Mods/reference"), "poses", POSE["ref_from"] + ".obj")
 C.reference_kerbal_copies(ref, POSE["ref_base_y"], [(s["x"], POSE["ref_offset"][1], POSE["ref_offset"][2]) for s in SEATS])
 print(f"eyes at z {EYE_Z:.3f}; console {MDC_Z - EYE_Z:.3f} m above; upper deck at {DECK_Z:.2f}; aft rooms from y {FACE_Y:.2f}")
