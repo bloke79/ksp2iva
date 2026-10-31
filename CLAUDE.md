@@ -17,7 +17,7 @@ _Imported 2026-10-10 from `_strip/`. Everything before that was written in a clo
 ## Stack
 - **Game:** KSP2 Redux, Beta channel, snapshot **26w43b**
 - **Mod code:** C# `KerbalMod` (Redux / SpaceWarp 2, SpaceWarp2.API for config, input and logging; was ReduxLib until 26w43b), built with the
-  Redux SDK in **Unity 6000.6.0f1**, built-in render pipeline with post-processing
+  Redux SDK in **Unity 6000.6.0f1**, **URP** (the game left the built-in pipeline in 26w43; the old shader was ported, see `Shaders/IVAInterior.shader`)
 - **Art:** Blender **5.2.2** via its Python module (`pip install bpy`). The model and textures are built entirely from scripts.
 - Mod version: **1.0.0**
 
