@@ -1536,7 +1536,8 @@ namespace IVA
         private bool FindKerbalCams()
         {
             _kerbalCams.Clear();
-            foreach (Camera cam in FindObjectsByType<Camera>())
+            Camera[] sceneCameras = FindObjectsByType<Camera>();
+            foreach (Camera cam in sceneCameras)
                 if (cam != null && cam.name == PodLocator.KerbalCameraName) _kerbalCams.Add(cam);
 
             if (_kerbalCams.Count == 0)
@@ -1551,7 +1552,7 @@ namespace IVA
             _kerbalCams.Sort((a, b) => string.CompareOrdinal(PodLocator.HierarchyPath(a.transform, null), PodLocator.HierarchyPath(b.transform, null)));
             if (_kerbalCams.Count == 0)
             {
-                SWLogger.LogInfo($"IVA: no crew cameras found (uncrewed vessel?). Cameras in scene: {CameraNames(cameras)}");
+                SWLogger.LogInfo($"IVA: no crew cameras found (uncrewed vessel?). Cameras in scene: {CameraNames(sceneCameras)}");
                 return false;
             }
             return true;
