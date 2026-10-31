@@ -130,6 +130,8 @@ namespace IVA.EditorTools
                 Configure(mat, m, texDir);
                 EditorUtility.SetDirty(mat);
                 materials[m.name] = mat;
+                string bare = StripSuffix(m.name);   // Blender names duplicates IVA_Foo.001; meshes look the bare name up
+                if (!materials.ContainsKey(bare)) materials[bare] = mat;
             }
 
             // 3. Model import settings
@@ -162,7 +164,7 @@ namespace IVA.EditorTools
                 string key = "IVA_" + StripSuffix(baseName).Replace("Mesh_", "");
                 Material mat;
                 if (materials.TryGetValue(key, out mat)) r.sharedMaterial = mat;
-                else missing++;
+                else { missing++; Debug.LogWarning($"[IVA] no material {key} for mesh {r.gameObject.name}"); }
                 r.shadowCastingMode = ShadowCastingMode.On;
                 r.receiveShadows = true;
             }
