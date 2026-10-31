@@ -575,8 +575,8 @@ Ring interiors: per-position spin gravity, gravity provider interface, rotating 
 Wait for the walking-under-gravity playtest first.
 
 ## Steps
-- [ ] M1 `Register` and merged lookup (`unity-runtime`, Sonnet · medium)
-- [ ] M2 Label scan and JSON parser, with the fail-soft rules above
-- [ ] M3 README section and Settings rows; CHANGES entry
-- [ ] M4 Defaults to off (`IVAPlugin.cs`, README)
-- [ ] M5 Compile gate, Unity build, then Matt flies: existing interiors unchanged, test entry works
+- [x] M1 `Register` and merged lookup (`unity-runtime`, Sonnet · medium)
+- [x] M2 Label scan and JSON parser, with the fail-soft rules above
+- [x] M3 README section and Settings rows; CHANGES entry
+- [x] M4 Defaults to off (`IVAPlugin.cs`, README)
+- [ ] M5 Compile gate and Unity build done 2026-11-01 (e8bd26c); Matt flies: existing interiors unchanged, test entry works
