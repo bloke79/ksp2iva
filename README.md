@@ -113,6 +113,8 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Interior | Ambient occlusion | on | Darkens corners, seams and gaps inside the cabin (the game's post-processing) |
 | Interior | Ambient occlusion strength | 1.0 | How dark it gets (0 to 2) |
 | Alignment | Offset X/Y/Z, Yaw, Scale, Eye X/Y/Z | 0 / 0 / 1 / 0 | Set by the numpad tool |
+| Debug | Debug logging | on | Logs key presses and the camera report. Errors, warnings and mode switches are always logged |
+| Debug | Pose dump | on | Writes the crew's poses to `IVA-pose/*.obj` on entering a pod, for building new interiors |
 | General | Hide own kerbal | on | Hides your own kerbal's head (custom interiors) or whole body (portrait view) |
 
 ## First test: what to check

@@ -71,6 +71,8 @@ namespace IVA
         private ConfigValue<float> _eyeX, _eyeY, _eyeZ;
         private ConfigValue<bool> _numpadAlign;
 
+        private ConfigValue<bool> _debugLog;
+        private ConfigValue<bool> _poseDump;
         private bool _ready;
 
         // ---- State ----
@@ -216,6 +218,8 @@ namespace IVA
             _eyeZ = Bind(cfg, "Alignment", "Eye Z", 0f, "Eye forward/back relative to the seat's eye point (metres).", off);
             _numpadAlign = Bind(cfg, "Alignment", "Numpad alignment keys", true,
                 "In IVA: numpad 8/2 4/6 9/3 move, 7/1 turn, * and / scale, hold Shift to move the eye instead, +/- step size, 5 save, 0 reset.");
+            _debugLog = Bind(cfg, "Debug", "Debug logging", true, "Log key presses and the camera report. Errors, warnings and mode switches are always logged.");
+            _poseDump = Bind(cfg, "Debug", "Pose dump", true, "Write the crew poses to IVA-pose/*.obj on entering a pod, for building new interiors.");
         }
 
         private static ConfigValue<T> Bind<T>(IConfigFile cfg, string section, string key, T defaultValue,
@@ -283,12 +287,12 @@ namespace IVA
             }
             if (_nextSeatKey.Value.Down)
             {
-                SWLogger.LogInfo($"IVA: next-seat key ({_nextSeatKey.Value}) pressed in mode {_mode}.");
+                if (_debugLog.Value) SWLogger.LogInfo($"IVA: next-seat key ({_nextSeatKey.Value}) pressed in mode {_mode}.");
                 if (_free != null) Buckle();   // back into the nearest couch first
                 else NextSeat();
             }
             else if (Input.GetKeyDown(KeyCode.V) && _nextSeatKey.Value.Main != KeyCode.V)
-                SWLogger.LogInfo("IVA: V pressed (V is the game's camera-mode key; next seat is " + _nextSeatKey.Value + ").");
+                if (_debugLog.Value) SWLogger.LogInfo("IVA: V pressed (V is the game's camera-mode key; next seat is " + _nextSeatKey.Value + ").");
             if (_mode == Mode.CustomInterior && _windowKey.Value.Down)
             {
                 if (_free != null) Buckle();
@@ -669,7 +673,7 @@ namespace IVA
                         return; // finishes in OnInteriorLoaded
                     }
                     SWLogger.LogInfo($"IVA: no interior for {pod.Name} yet (turn on 'Use for pods without their own interior' to borrow one).");
-                    CustomInteriorSession.CapturePoses(pod, SWLogger);
+                    if (_poseDump.Value) CustomInteriorSession.CapturePoses(pod, SWLogger);
                 }
             }
 
@@ -722,7 +726,7 @@ namespace IVA
         private void FinishLoad(PodInfo pod, InteriorDesign design, GameObject prefab)
         {
             CustomInteriorSession session = null;
-            try { session = CustomInteriorSession.Create(pod, design, prefab, Placement(), SWLogger); }
+            try { session = CustomInteriorSession.Create(pod, design, prefab, Placement(), SWLogger, dumpPoses: _poseDump.Value); }
             catch (Exception e) { SWLogger.LogError("IVA: failed to place the interior: " + e); }
 
             if (session == null || !session.IsValid)
@@ -874,7 +878,7 @@ namespace IVA
                 if (child || onIt)
                     _companions.Add(new Companion { Cam = c, Child = child, Fov = c.fieldOfView, Near = c.nearClipPlane, LocalPos = c.transform.localPosition, LocalRot = c.transform.localRotation });
             }
-            SWLogger.LogInfo("IVA: cameras: " + string.Join(" | ", lines));
+            if (_debugLog.Value) SWLogger.LogInfo("IVA: cameras: " + string.Join(" | ", lines));
             if (_session != null && _session.PodTransform != null)
             {
                 Vector3 c0 = _session.PodTransform.position;

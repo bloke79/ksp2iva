@@ -4,6 +4,9 @@
 **Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w41a
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
+## Latest run
+_No runner run finished yet._
+
 ## Next steps
 1. Matt playtests walking under gravity (`PLAN.md` → Walking under gravity, step 6): a lander on the pad and on the Mun.
    Unbuckle (U), walk to the EVA hatch and drawers, jump, crouch; check the log for the down vector and mode switches.

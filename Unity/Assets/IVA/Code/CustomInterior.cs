@@ -258,14 +258,16 @@ namespace IVA
         private Vector3 _fitScale = Vector3.one;
         private readonly List<Renderer> _hiddenExterior = new List<Renderer>();
         private readonly List<Renderer> _hiddenStockCabin = new List<Renderer>();
+        private bool _dumpPoses = true;
         private CustomInteriorSession() { }
 
         public bool IsValid => Pod != null && _instance != null && SeatCount > 0;
 
         public static CustomInteriorSession Create(PodInfo pod, InteriorDesign design, GameObject prefab,
-            PlacementSettings place, ILogger log)
+            PlacementSettings place, ILogger log, bool dumpPoses = true)
         {
             var s = new CustomInteriorSession { Pod = pod.Pod, Design = design };
+            s._dumpPoses = dumpPoses;
             s.Measure = MeasurePod(pod.Pod);   // before adding anything to the pod
 
             // Instantiate inactive, set it up, then show it.
@@ -496,7 +498,7 @@ namespace IVA
             }
             log.LogInfo(Eyes.Count > 0 ? $"IVA: using the game's eye points for {Eyes.Count} seated kerbal(s)."
                                        : "IVA: no usable game eye points; using the interior's seat points.");
-            DumpPoses(log);
+            if (_dumpPoses) DumpPoses(log);
         }
 
         // Development aid: writes the seated kerbals' posed meshes (pod space, Unity axes) to an OBJ once per pod type,
