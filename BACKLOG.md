@@ -41,7 +41,7 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 - [ ] **F action system** (`PLAN.md`, "F as the action key"): look-to-target with a prompt, then (1-3 built 2026-10-11, untested in game):
   - [x] cheap interactive kit: curtains, lockers/drawers, oven, cabin lights, toilet flush, laptop/MFD pages
   - [x] thruster sound while floating (the game's EVA jetpack sound), ambient module sounds
-  - [x] hatches between modules (real crew transfer, arrive floating at the matching hatch), EVA out of the side hatch; later: hatch animation, fade, boarding straight back into IVA
+  - [x] hatches between modules (real crew transfer, arrive floating at the matching hatch), EVA out of the side hatch, fade over hatch transfers, boarding straight back into IVA (built 2026-10-31, untested in game)
   - [ ] choose sounds with the audition keys (placeholders now) and a cabin ambience
   - [ ] kit tied to game systems (plan written, `PLAN.md` "Plan for 4"): Starlab experiments, light/SAS switches, sleep with time warp
 - [ ] **Remaining fuselage cabins:** Mk1 Stowaway, Mk2 Tag Along, Mk3 Skybus (plane-style, gravity layouts are right there).
@@ -55,12 +55,13 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 ## 5. Bugs and technical debt
 - [ ] **Camera-rig crash:** mitigated (camera guard, N for next seat, Redux first-person fallback). Confirm it no
       longer happens across a longer session.
-- [ ] **Pose dump** (`CustomInterior.DumpPoses`): keep, or put behind a setting, before release.
+- [x] **Pose dump:** behind the Pose dump setting (on until release).
 - [ ] **Painted windows:** if the game draws the hull double-sided anywhere, the panes would block the view from
       inside. Fallback: hide those hull faces while in IVA.
-- [ ] **Diagnostics:** trim key-press and camera-report logging to a debug setting before release.
+- [x] **Diagnostics:** camera report behind the Debug logging setting (on until release).
 
 ## 6. Release
 - [ ] Check the licence of Mudkip909's original (repo is GPL-3.0) before making the repo public or releasing.
+- [ ] Turn Debug logging and Pose dump off by default, and reword the README "Nothing happens on C" row.
 - [ ] Version bump (`IVA.asset`), `CHANGES.md` section, README settings and keys table up to date.
 - [ ] Package with `/mod-release`.

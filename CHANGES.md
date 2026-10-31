@@ -1,5 +1,21 @@
 # Changes from the original (0.2.6)
 
+## Unreleased
+
+- Bespoke Mk1 and Mk3-5 interiors, built to the real hulls and crew poses.
+- Mk3-5, cabins and Starlab interiors, with zero-g ISS-style layouts.
+- Lander cans for 1v, 2v and 3v, with drawers, ladders and an EVA hatch.
+- Walking under gravity on landed vessels, with jump, crouch and auto-crouch.
+- Unbuckle with U and float around the cabin in zero g.
+- F action key: curtains, lockers, oven, cabin lights, toilet flush, laptop pages and hatches.
+- Hatches move you between crewed modules, with a fade to black over the transfer.
+- EVA out of the side hatch.
+- Live instruments: navball, altimeter, pressure and temperature needles.
+- Window views: glide to the nearest window, cycle, and return to your seat.
+- Lighting pass with sharper shadows and ambient occlusion inside custom interiors.
+- Camera uses a shot override instead of moving the flight camera, avoiding the rig crash.
+- Back into IVA after boarding: after an EVA from a hatch, boarding returns you to that kerbal's seat (setting, on by default).
+- Debug logging and Pose dump settings, both on by default.
 ## 0.6.0: modelled Mk1-3 interior
 
 - A modelled and textured interior for the Mk1-3 "Gumball" pod, made in Blender for this mod: three quilted couches with harnesses, a curved console with a 3D navball, three screens, analogue gauges, guarded switches, ABORT and STAGE buttons and circuit-breaker panels, four framed windows that open onto the real world, a side hatch with a wheel, a docking tunnel with ladder rungs and top hatch, lockers, grab rails, light strips and a grated floor. About 89,000 triangles, 35 materials, 15 textures.

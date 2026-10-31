@@ -5,7 +5,7 @@
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Latest run
-_No runner run finished yet._
+2026-10-31 KSP2 runner: landed Debug logging and Pose dump settings (df1a74c) and a fade over hatch transfers plus back into IVA after boarding (701a041), and caught CHANGES.md up. Compiled and built by Unity; nothing flown yet. Next: Matt flies the walking playtest and the test lists in notes/runner-next.md; ladders wait on that. Runner idle until then. 5-hour 47%, weekly 70%, local 13% of tokens.
 
 ## Next steps
 1. Matt playtests walking under gravity (`PLAN.md` → Walking under gravity, step 6): a lander on the pad and on the Mun.
