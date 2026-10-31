@@ -1536,9 +1536,8 @@ namespace IVA
         private bool FindKerbalCams()
         {
             _kerbalCams.Clear();
-            Camera[] cameras = FindObjectsByType<Camera>();
-            foreach (Camera c in cameras)
-                if (c != null && c.name == PodLocator.KerbalCameraName) _kerbalCams.Add(c);
+            foreach (Camera cam in FindObjectsByType<Camera>())
+                if (cam != null && cam.name == PodLocator.KerbalCameraName) _kerbalCams.Add(cam);
 
             if (_kerbalCams.Count == 0)
             {
