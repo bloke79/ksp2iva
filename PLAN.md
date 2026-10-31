@@ -539,3 +539,44 @@ buckled.
   you be able to clamber over the couches? Proposed: "no floor" for now.
 - **Thrust (Matt to decide):** walk only when landed (proposed). The alternative is that thrust in flight pins you to the
   aft bulkhead: fun, but a lot of edge cases.
+
+
+# Plan: Modular interiors from other mods, and release defaults (part of 1.0)
+
+_Created 2026-11-01 · Status: approved by Matt 2026-11-01, in 1.0 scope_
+
+## Goal
+Let another mod ship an interior for its own part without an IVA release (first user: KSP2SpaceParts ring habitat, `projects/ksp2-spaceparts`),
+and ship 1.0 with the debug settings off. Walking and ring spin-gravity changes are NOT part of this: they stay in 1.1.
+
+## Modular catalogue (contract change, additive: existing entries and markers are untouched)
+1. `InteriorCatalogue.Register(InteriorDesign d)` in `CustomInterior.cs`: adds to a second list; `All` returns built-in plus registered; `ForPod` searches both.
+   A later registration for the same part name replaces the earlier one (log it). Fields as `InteriorDesign` today.
+2. Discovery: at start-up (`OnPostInitialized`, after every mod's assets are loaded) IVA loads every `TextAsset` addressable carrying the label
+   `iva_interior` (`Assets.LoadByLabel`), parses it as JSON and registers it. One file per interior:
+   `{ "name": "Ring Habitat", "address": "KSP2SpaceParts/Interior_ring_habitat", "parts": ["ring_habitat"], "seats": 6,
+      "baseRadius": 7.25, "height": 2.5, "yaw": 180, "onHull": true, "hullBaseY": 0.0, "uprightCrew": true,
+      "hideExterior": false, "hideRenderers": [], "keepRenderers": [] }`.
+   Unknown keys are ignored (logged once); a bad file is logged and skipped, never fatal.
+3. Log lines: `IVA: registered interior '<name>' for <parts> from label iva_interior`, and the existing "Interiors: ..." line lists them.
+4. The interior prefab itself is loaded exactly as today (`Assets.Load<GameObject>(address)`; addresses are global across mods) and follows the same
+   marker and export contracts. README gets a "Making an interior for your part" section with the JSON keys and the marker list.
+5. Tests: unity-check clean; Unity build; in game, built-in interiors still load, and a test JSON from a second mod (or a dummy in IVA's own bundle) appears
+   in the "Interiors:" line and opens for its part.
+
+## Release defaults (1.0)
+- `Debug logging` default `false` and `Pose dump` default `false` in `IVAPlugin.cs` (lines 223-224); README Settings table rows updated to "off"; the pose
+  dump row says to turn it on to capture a new part. The "Nothing happens on C" row says to turn Debug logging on first. The runner and Matt's playtests that
+  need the logs turn Debug logging on in the config file (note it in the playtest brief).
+- Errors, warnings and mode switches stay always-logged (unchanged).
+
+## Not in 1.0 (1.1)
+Ring interiors: per-position spin gravity, gravity provider interface, rotating walk frame, ring markers (see `projects/ksp2-spaceparts/PLAN.md`, "IVA Redux changes needed", items 2 to 4).
+Wait for the walking-under-gravity playtest first.
+
+## Steps
+- [ ] M1 `Register` and merged lookup (`unity-runtime`, Sonnet · medium)
+- [ ] M2 Label scan and JSON parser, with the fail-soft rules above
+- [ ] M3 README section and Settings rows; CHANGES entry
+- [ ] M4 Defaults to off (`IVAPlugin.cs`, README)
+- [ ] M5 Compile gate, Unity build, then Matt flies: existing interiors unchanged, test entry works

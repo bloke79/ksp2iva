@@ -1,4 +1,4 @@
-# Backlog: IVA Redux
+﻿# Backlog: IVA Redux
 
 _Last updated 2026-10-11. Ordered by priority within each section. Detailed designs live in `PLAN.md`; current state in `STATUS.md`._
 
@@ -9,7 +9,7 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
       crew sit in the couches.
 - [x] **Short rib pieces** left between wall units (e.g. under the freezer): raise the minimum length or skip ribs where
       a unit sits.
-- [x] **Triangle budget** (~750k → ~500k: adaptive shell rings, single-segment tiny bevels): the hull shell is ~128k (2 cm rings, over-tessellated) and the console ~137k.
+- [x] **Triangle budget** (~750k â†’ ~500k: adaptive shell rings, single-segment tiny bevels): the hull shell is ~128k (2 cm rings, over-tessellated) and the console ~137k.
       Coarsen the shell away from windows; check console module density.
 - [x] **Remaining thin spots:** (upper rack row added; recheck in game) upper wall bands of the living deck, and its middle band between the furniture rows.
 - [x] **Floors:** (solid deck plates with grille inserts) consider solid deck plates with grille inserts (stock look) instead of open grating everywhere.
@@ -66,6 +66,8 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 
 ## 6. Release
 - [ ] Check the licence of Mudkip909's original (repo is GPL-3.0) before making the repo public or releasing.
-- [ ] Turn Debug logging and Pose dump off by default, and reword the README "Nothing happens on C" row.
+- [ ] **Modular interiors (1.0, Matt 2026-11-01):** `InteriorCatalogue.Register` plus `iva_interior` label scan of JSON designs from other mods; README section. See `PLAN.md`, "Modular interiors from other mods". Ring spin gravity stays 1.1.
+- [ ] Turn Debug logging and Pose dump off by default (config defaults in `IVAPlugin.cs`), and reword the README "Nothing happens on C" row. (1.0)
 - [ ] Version bump (`IVA.asset`), `CHANGES.md` section, README settings and keys table up to date.
 - [ ] Package with `/mod-release`.
+
