@@ -1,26 +1,39 @@
 # Status: iva-redux
 
-**Last updated:** 2026-10-11
-**Version / milestone:** 0.6.0 + pose-fitted Mk1 and Mk1-3 interiors (unreleased) · KSP2 Redux 26w41a
+**Last updated:** 2026-10-13
+**Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w41a
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Next steps
-The prioritised to-do list is in **`BACKLOG.md`**. Top of it:
-1. Matt checks the latest 3v build in game (upstairs fixes, brightness, frame rate, N/B, view orientation).
-2. Tidy the last 3v items (short rib pieces, triangle budget, thin spots).
-3. Moving around inside (unbuckle), then the stock-style pass on the Mk1-3 and Mk1, then cabins and Starlab.
+1. Matt playtests walking under gravity (`PLAN.md` → Walking under gravity, step 6): a lander on the pad and on the Mun.
+   Unbuckle (U), walk to the EVA hatch and drawers, jump, crouch; check the log for the down vector and mode switches.
+2. Ladders (walking plan step 3): `IVA_Ladder` markers, climbing, the docking hatch from the top of the ladder.
+3. Open in-game checks: the 3v (plan steps 5–6) and moving around in orbit (A5). The full to-do list is in `BACKLOG.md`.
 
 Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then `.\scripts\build-mod.ps1 -Project iva-redux`
 (about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).
 
 ## In progress
-- Nothing yet. The project was imported from `_strip/` with the claude.ai handoff in `notes/`.
+- Walking under gravity: steps 1–2 built (landers, landed only), untested in game. Working tree clean.
 
 ## Blockers / questions for Matt
 - In-game testing needs Matt at the PC (Claude builds and reads logs; Matt flies).
 - This repo is GPL-3.0, but the licence of Mudkip909's original is unknown. Check compatibility before going public.
 
 ## Done (recent)
+- 2026-10-13 – **Walking under gravity** (landed, splashed or on the pad, with a floor facing up): feet settle on the
+  highest floor or box within a 12 cm step, walls push sideways, jump, crouch and auto-crouch, "No floor to stand on"
+  in capsules, new Walk speed setting. Reads `gravityForPos` in pod space. Landers in the catalogue, exported, set up.
+- 2026-10-13 – **Lander cans 1v/2v/3v**, KSP1-style cramped: crew at the panels, floor-to-ceiling drawer banks with
+  silly labels (`labelgen.py`), narrow aisle to a hazard-striped EVA hatch, ladders to the docking hatch, galley and
+  toilet in the 3v (`art/model_lander.py`).
+- 2026-10-12 – Exits where the stock parts have them (Mk3 cockpit airlocks and rear hatch, cabins back to end hatches
+  with an EVA lever, Mk1 hatch at 45°); arrival hatch fix (part read at arrival time); Starlab floor opens onto the
+  stock greenhouse.
+- 2026-10-12 – Mk3-5 and Mk3 mid-deck rework: padded grey walls, grey lockers, concertina toilet doors (also Wayfarer and
+  Hitchhiker), round deck edges, floor kit, tinted detail textures, whiteboards, 14 crew posters (`art/posters.py`).
+- 2026-10-12 – Lighting pass: sharper lamp shadows, a second shadowed lamp per deck, ambient occlusion inside custom
+  interiors (`CabinAo.cs`, settings for it), brighter light panels.
 - 2026-10-11 – Starlab, Hitchhiker and Wayfarer interiors (zero-g, ISS-style): rack rooms with every surface used, crew
   quarters and hygiene compartments recessed into the standoffs behind the walls, foot loops instead of chairs, railed
   tables, greenhouse (Starlab), window lounge and ergometer (Wayfarer). The 3v got a proper hygiene compartment and a
