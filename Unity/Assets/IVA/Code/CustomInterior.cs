@@ -12,9 +12,9 @@ using System.Linq;
 using KSP.Game;
 using KSP.Modules;
 using KSP.Sim.impl;
-using ReduxLib.Logging;
+using SpaceWarp2.API.Logging;
 using UnityEngine;
-using ILogger = ReduxLib.Logging.ILogger; // UnityEngine also defines ILogger
+using ILogger = SpaceWarp2.API.Logging.ILogger; // UnityEngine also defines ILogger
 
 namespace IVA
 {

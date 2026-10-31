@@ -4,7 +4,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
-using ILogger = ReduxLib.Logging.ILogger;
+using ILogger = SpaceWarp2.API.Logging.ILogger;
 
 namespace IVA
 {

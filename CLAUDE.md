@@ -15,11 +15,11 @@ _Imported 2026-10-10 from `_strip/`. Everything before that was written in a clo
 **stub DLLs**: none of it has been compiled against the real game or run in game._
 
 ## Stack
-- **Game:** KSP2 Redux, Beta channel, snapshot **26w41a**
-- **Mod code:** C# `KerbalMod` (Redux / SpaceWarp 2, ReduxLib for config, input and logging), built with the
+- **Game:** KSP2 Redux, Beta channel, snapshot **26w43b**
+- **Mod code:** C# `KerbalMod` (Redux / SpaceWarp 2, SpaceWarp2.API for config, input and logging; was ReduxLib until 26w43b), built with the
   Redux SDK in **Unity 6000.6.0f1**, built-in render pipeline with post-processing
 - **Art:** Blender **5.2.2** via its Python module (`pip install bpy`). The model and textures are built entirely from scripts.
-- Mod version: **0.6.0**
+- Mod version: **1.0.0**
 
 ## Layout
 | Path | Purpose |
@@ -122,7 +122,7 @@ SDK project (sync, batch setup, builds) and playtests with Matt. Streams work of
 art review for visual work. Unity's own compile in the Lead's batch build is the final word.
 
 ## Unity SDK project (set up 2026-10-10)
-- `C:\Games\KSP2Mods\IVA`: template 26w41a, **Unity 6000.6.0f1** (must match the game). Created with `redux-sdk-cli`
+- `C:\Games\KSP2Mods\IVA`: template 26w43a, **Unity 6000.6.0f1** (must match the game). Created with `redux-sdk-cli`
   (`C:\Games\KSP2Mods\tools\`). Batch logs are in `C:\Games\KSP2Mods\tools\*.log`.
 - **Patched by hand:** `Assets/IVA/Code/IVA.asmdef` has `"references": ["Unity.Addressables", "Unity.ResourceManager",
   "Unity.Postprocessing.Runtime"]` added (the SDK generates it without them: `Assets.Load` and the cabin ambient

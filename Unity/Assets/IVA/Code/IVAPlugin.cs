@@ -18,8 +18,8 @@ using KSP.Game;
 using KSP.Sim;
 using KSP.Sim.impl;
 using Redux.ExtraModTypes;
-using ReduxLib.Configuration;
-using ReduxLib.Input;
+using SpaceWarp2.API.Configuration;
+using SpaceWarp2.API.Input;
 using UnityEngine;
 
 namespace IVA

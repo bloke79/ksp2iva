@@ -1,4 +1,4 @@
-# IVA for KSP2 Redux (snapshot 26w41a)
+# IVA for KSP2 Redux (snapshot 26w43b)
 
 First-person IVA for KSP2 Redux with a modelled interior for the Mk1-3 "Gumball" 3-seat pod: three couches, a full instrument panel with a navball, framed windows that look out on the real world, a side hatch, a docking tunnel and lockers. It started as a port of Mudkip909's "KSP2 Free IVA" 0.2.6. See `CHANGES.md` for the history and `previews/` for renders of the interior.
 
@@ -25,7 +25,7 @@ IVA-Redux/
 
 ## What you need
 
-- KSP2 with Redux on the Beta channel, snapshot 26w41a.
+- KSP2 with Redux on the Beta channel, snapshot 26w43b.
 - Git for Windows, Unity Hub and the Redux SDK Manager (free). The SDK Manager installs the right Unity version (6000.6.0f1) for you.
 - No game files to download: the SDK Manager copies what it needs from your installed game.
 
@@ -33,8 +33,8 @@ IVA-Redux/
 
 1. **Install Git for Windows and Unity Hub.**
 2. **Install the Redux SDK Manager** from the Releases page of `github.com/KSP2Redux/Redux-SDK-Manager`.
-3. **Check the Redux Launcher is on the Beta channel** and your game is on 26w41a (Launcher: gear icon next to the Mods tab > Release Channel > Beta).
-4. **Create a project.** In the SDK Manager click **New**, choose an empty folder (for example `C:\KSP2Mods\MyMods`) and pick template version **26w41a**. When asked for KSP2, point it at `KSP2_x64.exe` in your game folder.
+3. **Check the Redux Launcher is on the Beta channel** and your game is on 26w43b (Launcher: gear icon next to the Mods tab > Release Channel > Beta).
+4. **Create a project.** In the SDK Manager click **New**, choose an empty folder (for example `C:\KSP2Mods\MyMods`) and pick template version **26w43a**. When asked for KSP2, point it at `KSP2_x64.exe` in your game folder.
 5. **Let it install Unity** if offered, and let the automatic setup finish (it imports the game into the project; this takes a while). If a **Setup** button shows afterwards, click it.
 6. Click **Open** to open the project in Unity.
 
@@ -44,7 +44,7 @@ IVA-Redux/
 2. In Windows Explorer, copy the package's `Unity/Assets/IVA` folder over your project's `Assets/IVA` folder. Say yes to replacing `Code/IVAPlugin.cs`. Leave everything else the SDK created (especially `Code/IVA.asmdef`, `IVA.asset` and `Pipelines`). If you added earlier versions of this mod, delete `GameInterior.cs`, `InteriorBuilder.cs` and `InteriorGeometry.cs` from `Assets/IVA/Code` if they're there.
 3. Switch back to Unity and wait for it to import. Check the **Console** window shows no red errors.
 4. Choose **IVA > Set Up Interiors** from the top menu. It reports what it set up; you should see "Mk13Interior: 35 materials, prefab and address 'IVA/Interior_Mk1-3'".
-5. Click `Assets/IVA/IVA.asset` and fill in the Inspector: Name `IVA`, Author (you, crediting Mudkip909 in the description), Version `0.6.0`, a short description. Leave the SpaceWarp2 dependency as it is.
+5. Click `Assets/IVA/IVA.asset` and fill in the Inspector: Name `IVA`, Author (you, crediting Mudkip909 in the description), Version `1.0.0`, a short description. Leave the SpaceWarp2 dependency as it is.
 
 ## Build it into your game
 

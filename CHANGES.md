@@ -1,6 +1,9 @@
 # Changes from the original (0.2.6)
 
-## Unreleased
+## 1.0.0: for KSP2 Redux 26w43b (major update)
+
+- **Requires KSP2 Redux 26w43b** (template 26w43a). Not compatible with 26w41a: `ReduxLib` moved to `SpaceWarp2.API` in the game, so config, input and logging now use that namespace. Rebuild against the 26w43 SDK template.
+- Not yet flown in game on 26w43b.
 
 - Bespoke Mk1 and Mk3-5 interiors, built to the real hulls and crew poses.
 - Mk3-5, cabins and Starlab interiors, with zero-g ISS-style layouts.
