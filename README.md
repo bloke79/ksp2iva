@@ -116,6 +116,7 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Debug | Debug logging | on | Logs key presses and the camera report. Errors, warnings and mode switches are always logged |
 | Debug | Pose dump | on | Writes the crew's poses to `IVA-pose/*.obj` on entering a pod, for building new interiors |
 | General | Hide own kerbal | on | Hides your own kerbal's head (custom interiors) or whole body (portrait view) |
+| General | Back into IVA after boarding | on | After an EVA started from a hatch, boarding again returns to IVA in that kerbal's seat |
 
 ## First test: what to check
 

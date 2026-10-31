@@ -17,6 +17,33 @@ using ILogger = ReduxLib.Logging.ILogger;
 
 namespace IVA
 {
+    // Black full-screen fade over hatch transfers. Unscaled time, so pause and time warp can't stick it.
+    public class ScreenFade
+    {
+        private const float OutSeconds = 0.25f, InSeconds = 0.4f, FailsafeSeconds = 6f;
+        private enum Phase { Clear, Out, Black, In }
+        private Phase _phase = Phase.Clear;
+        private float _since, _from;
+        public float Alpha { get; private set; }
+        public bool IsBlack => _phase == Phase.Black;
+        public void FadeOut() { _phase = Phase.Out; _since = Time.unscaledTime; }
+        public void FadeIn() { if (_phase == Phase.Clear) return; _from = Alpha; _phase = Phase.In; _since = Time.unscaledTime; }
+        public void Tick()
+        {
+            float t = Time.unscaledTime - _since;
+            if (_phase == Phase.Out) { Alpha = Mathf.Clamp01(t / OutSeconds); if (t >= OutSeconds) { Alpha = 1f; _phase = Phase.Black; _since = Time.unscaledTime; } }
+            else if (_phase == Phase.Black) { Alpha = 1f; if (t >= FailsafeSeconds) FadeIn(); }
+            else if (_phase == Phase.In) { Alpha = _from * (1f - Mathf.Clamp01(t / InSeconds)); if (t >= InSeconds) { Alpha = 0f; _phase = Phase.Clear; } }
+        }
+        public void Draw()
+        {
+            if (Alpha <= 0f || Event.current.type != EventType.Repaint) return;
+            Color old = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, Alpha);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = old;
+        }
+    }
     public static class Hatches
     {
         public class Hatch

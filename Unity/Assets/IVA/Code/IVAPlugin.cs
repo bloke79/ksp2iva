@@ -188,6 +188,8 @@ namespace IVA
             _zoomSpeed = Bind(cfg, "Zoom", "Zoom speed", 5f, "Field of view change per scroll-wheel notch.", new RangeConstraint<float>(0.5f, 30f));
             _invertZoom = Bind(cfg, "Zoom", "Invert scroll zoom", false, "By default scrolling up zooms in.");
 
+            _backAfterBoarding = Bind(cfg, "General", "Back into IVA after boarding", true,
+                "After an EVA started from a hatch, boarding again returns to IVA in that kerbal's seat.");
             _hideOwnKerbal = Bind(cfg, "General", "Hide own kerbal", true,
                 "Hide the head of the kerbal you're looking out of (custom interiors; the portrait view hides the whole body).");
 
@@ -246,6 +248,9 @@ namespace IVA
         {
             if (!_ready) return;
             bool inFlight = IsInFlight();
+            // before the returns below, so nothing can stall a fade or a boarding watch
+            TickHatchFade();
+            TickBoarding();
 
             // Brief state changes (saves, autosaves, the pause menu) mustn't throw you out of IVA: only leave once the
             // game has been out of flight view for a moment, or straight away if the pod/vessel itself is gone.
@@ -315,7 +320,7 @@ namespace IVA
                     _sounds.PlayAudition(Sounds.Audition[_auditionIndex]);
                 }
             }
-            if (_hatchGo != null) { Hatches.Hatch g = _hatchGo; _hatchGo = null; GoThrough(g); return; }
+            if (_hatchGo != null) { Hatches.Hatch g = _hatchGo; _hatchGo = null; BeginHatchFade(g); return; }
             if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy)) UseTarget();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
@@ -1190,6 +1195,7 @@ namespace IVA
                 GUI.Label(new Rect(0f, Screen.height * 0.08f, Screen.width, 30f),
                           (_auditionIndex >= 0 ? $"[ / ]  sound {_auditionIndex + 1} of {Sounds.Audition.Length}: {Sounds.Audition[_auditionIndex]}" : "[ / ]  play a sound") +
                           $"     \\  source: {_sounds.Current}", _promptStyle);
+            _fade.Draw();
             if (_toast != null && Time.unscaledTime < _toastUntil)
                 GUI.Label(new Rect(0f, Screen.height * 0.55f, Screen.width, 30f), _toast, _promptStyle);
             if (_free == null) return;
@@ -1270,7 +1276,138 @@ namespace IVA
             catch (Exception) { }
             if (KSP.EVAUtils.GetFirstLadderOrAirlockPhysicsSpacePosRot(e.Part, true, out Vector3 at, out Quaternion _))
                 SWLogger.LogInfo($"IVA: EVA spawn point {e.Part.transform.InverseTransformPoint(at):F2} (pod space).");
-            Hatches.StartEva(e.Part, e.Kerbal, SWLogger);
+            bool started = Hatches.StartEva(e.Part, e.Kerbal, SWLogger);
+            if (started && _backAfterBoarding.Value) { ForgetBoarding(); _boardWatch = e.Kerbal; }
+        }
+
+        private readonly ScreenFade _fade = new ScreenFade();
+        private Hatches.Hatch _fadeHatch;
+        private bool _fadeHold;
+        private ConfigValue<bool> _backAfterBoarding;
+        private KSP.Game.KerbalInfo _boardWatch;
+        private KSP.Game.KerbalInfo _boardSeatFor;
+        private bool _boardSawEva;
+        private float _boardReadyAt = -1f;
+        private float _boardMissingFor;
+        private float _boardNotFlightFor;
+
+        private void BeginHatchFade(Hatches.Hatch h)
+        {
+            if (h.Beyond?.Pod == null || _fadeHatch != null || _fadeHold || _fade.Alpha > 0f) return;
+            _fadeHatch = h;
+            _fade.FadeOut();
+        }
+
+        private void TickHatchFade()
+        {
+            try
+            {
+                _fade.Tick();
+                if (_fadeHatch != null)
+                {
+                    if (!InIva || !IsInFlight()) { _fadeHatch = null; _fade.FadeIn(); return; }
+                    if (!_fade.IsBlack) return;
+                    Hatches.Hatch h = _fadeHatch;
+                    _fadeHatch = null;
+                    _fadeHold = true;
+                    GoThrough(h);
+                    return;
+                }
+                if (_fadeHold && (!_fade.IsBlack || (_arrival == null && !_loading)))
+                {
+                    _fadeHold = false;
+                    _fade.FadeIn();
+                }
+            }
+            catch (Exception e)
+            {
+                _fadeHatch = null;
+                _fadeHold = false;
+                _fade.FadeIn();
+                SWLogger.LogError("IVA: hatch fade failed: " + e);
+            }
+        }
+
+        private void ForgetBoarding()
+        {
+            _boardWatch = null;
+            _boardSawEva = false;
+            _boardReadyAt = -1f;
+            _boardMissingFor = 0f;
+            _boardNotFlightFor = 0f;
+        }
+
+        private PodInfo BoardedPod()
+        {
+            var roster = Hatches.Roster(Game);
+            if (roster == null || !roster.TryGetKerbalByID(_boardWatch.Id, out KSP.Game.KerbalInfo info) || info == null) return null;
+            foreach (PodInfo p in PodLocator.FindAll(Game, _anyPod.Value))
+                if (p.Pod != null && p.Pod.Model != null && p.Pod.Model.GlobalId == info.Location.SimObjectId) return p;
+            return null;
+        }
+
+        // Polled from TickBoarding: the session only exists once the interior has loaded.
+        private void PutInBoardedSeat()
+        {
+            if (_loading) return;
+            KSP.Game.KerbalInfo k = _boardSeatFor;
+            _boardSeatFor = null;
+            if (!InIva || _session == null) return;
+            for (int i = 0; i < _session.EyeKerbals.Count; i++)
+            {
+                var seat = _session.EyeKerbals[i]?.ThisKerbalInfo;
+                if (seat != null && seat.Id == k.Id)
+                {
+                    _seatIndex = i;
+                    _session.ShowSeat(i, _hideOwnKerbal.Value, SWLogger);
+                    break;
+                }
+            }
+        }
+
+        private void TickBoarding()
+        {
+            if (_boardWatch == null && _boardSeatFor == null) return;
+            try
+            {
+                if (_boardSeatFor != null) { PutInBoardedSeat(); return; }
+                if (_toggleKey.Value.Down) { ForgetBoarding(); return; }
+                if (!IsInFlight())
+                {
+                    _boardNotFlightFor += Time.unscaledDeltaTime;
+                    if (_boardNotFlightFor > LeaveAfterSeconds) ForgetBoarding();
+                    return;
+                }
+                _boardNotFlightFor = 0f;
+                if (InIva || _loading) return;
+                KSP.Sim.impl.VesselComponent v = Game.ViewController?.GetActiveSimVessel(true);
+                if (v == null) return;
+                if (v.IsKerbalEVA) { _boardSawEva = true; _boardReadyAt = -1f; _boardMissingFor = 0f; return; }
+                if (!_boardSawEva) return;
+                PodInfo pod = BoardedPod();
+                if (pod == null)
+                {
+                    // the 1 s lets Location catch up with the vessel change
+                    _boardReadyAt = -1f;
+                    _boardMissingFor += Time.unscaledDeltaTime;
+                    if (_boardMissingFor > 1f) ForgetBoarding();
+                    return;
+                }
+                _boardMissingFor = 0f;
+                if (_boardReadyAt < 0f) { _boardReadyAt = Time.unscaledTime + 2f; return; }
+                if (Time.unscaledTime < _boardReadyAt) return;
+                KSP.Game.KerbalInfo k = _boardWatch;
+                SWLogger.LogInfo($"IVA: boarded, back into IVA ({PodLocator.PartName(pod.Pod)}).");
+                ForgetBoarding();
+                _boardSeatFor = k;
+                EnterIva(pod);
+            }
+            catch (Exception e)
+            {
+                ForgetBoarding();
+                _boardSeatFor = null;
+                SWLogger.LogError("IVA: boarding watch failed: " + e);
+            }
         }
 
         private void GoThrough(Hatches.Hatch h)
