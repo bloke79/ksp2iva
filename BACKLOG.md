@@ -66,8 +66,8 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 
 ## 6. Release
 - [ ] Check the licence of Mudkip909's original (repo is GPL-3.0) before making the repo public or releasing.
-- [ ] **Modular interiors (1.0, Matt 2026-11-01):** `InteriorCatalogue.Register` plus `iva_interior` label scan of JSON designs from other mods; README section. See `PLAN.md`, "Modular interiors from other mods". Ring spin gravity stays 1.1.
+- [x] **Modular interiors (1.0, Matt 2026-11-01):** `InteriorCatalogue.Register` plus `iva_interior` label scan of JSON designs from other mods; README section. See `PLAN.md`, "Modular interiors from other mods". Ring spin gravity stays 1.1. Built 2026-11-01 (e8bd26c, compiles, Unity build OK); in-game test left.
 - [x] Turn Debug logging and Pose dump off by default (config defaults in `IVAPlugin.cs`), and reword the README "Nothing happens on C" row. (1.0, done 2026-11-01, e8bd26c)
-- [ ] Version bump (`IVA.asset`), `CHANGES.md` section, README settings and keys table up to date.
-- [ ] Package with `/mod-release`.
+- [x] Version 1.0.0 (`IVA.asset`), `CHANGES.md` section, README settings and keys table up to date. (done 2026-11-01)
+- [x] Package: `IVA-1.0.0.zip` built with `scripts/package-mod.ps1` and attached to GitHub release v1.0.0 (2026-11-01, repo still private).
 
