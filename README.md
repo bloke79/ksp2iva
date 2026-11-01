@@ -1,6 +1,6 @@
 # IVA for KSP2 Redux (snapshot 26w43b)
 
-First-person IVA for KSP2 Redux with a modelled interior for the Mk1-3 "Gumball" 3-seat pod: three couches, a full instrument panel with a navball, framed windows that look out on the real world, a side hatch, a docking tunnel and lockers. It started as a port of Mudkip909's "KSP2 Free IVA" 0.2.6. See `CHANGES.md` for the history and `previews/` for renders of the interior.
+First-person IVA for KSP2 Redux with modelled, walk-in interiors for the stock crewed parts: the Mk1, Mk1-2 and Mk1-3 "Gumball" pods, the Mk3-5 pod, the Mk1 and Mk3 cockpits, the Hitchhiker and Wayfarer cabins, the Starlab science lab and the 1v, 2v and 3v lander cans. Sit in your couch and see the real world through framed windows, read a live instrument panel with a navball, then unbuckle and float or walk round the cabin, use doors, lockers, curtains and lamps, go through hatches to the next module, or go out on EVA. Other mods can add an interior for their own parts too (see "Making an interior for your part"). It started as a port of Mudkip909's "KSP2 Free IVA" 0.2.6. See `CHANGES.md` for the history and `previews/` for renders of the interiors.
 
 ## Install (players)
 
