@@ -2,6 +2,23 @@
 
 First-person IVA for KSP2 Redux with a modelled interior for the Mk1-3 "Gumball" 3-seat pod: three couches, a full instrument panel with a navball, framed windows that look out on the real world, a side hatch, a docking tunnel and lockers. It started as a port of Mudkip909's "KSP2 Free IVA" 0.2.6. See `CHANGES.md` for the history and `previews/` for renders of the interior.
 
+## Install (players)
+
+You don't need Unity or any build tools.
+
+1. Use KSP2 with Redux on the **Beta** channel, snapshot **26w43b** (Redux Launcher: gear icon next to the Mods tab > Release Channel > Beta). This version won't work on other snapshots.
+2. Download `IVA-<version>.zip` from the [Releases page](https://github.com/bloke79/ksp2iva/releases).
+3. Unzip it into your KSP2 `mods` folder, so you end up with `<KSP2 folder>\mods\IVA\swinfo.json`.
+4. Start the game through the Redux Launcher. Press **C** in flight to enter IVA. See "Using it" for the keys.
+
+To remove it, delete the `mods\IVA` folder. Settings are in the mod's config file; Debug logging and Pose dump are off by default.
+
+---
+
+# Building from source (modders)
+
+Everything below is only for building the mod yourself or changing the interiors. Players can skip it.
+
 ## What's in this package
 
 ```
@@ -52,6 +69,10 @@ IVA-Redux/
 2. The mod is written to `<your KSP2 folder>\mods\__Testing\IVA\`. Start the game through the Redux Launcher.
 
 Run **Build for Player** again after any change. Run **IVA > Set Up Interiors** again only if the interior files change.
+
+---
+
+# Using IVA
 
 ## Using it
 
@@ -137,6 +158,8 @@ This hasn't been run in game yet. After pressing C, look in the game log for lin
 | Nothing happens on C | Turn Debug logging on first (Settings, Debug). Then the log lists every camera in the scene; send me that line |
 
 ## Making an interior for your part
+
+The full walkthrough (markers, order of work, testing) is in [`docs/INTERIOR-GUIDE.md`](docs/INTERIOR-GUIDE.md).
 
 Another mod can ship an interior for its own part without an IVA release. Ship one JSON file as a TextAsset with the Addressables label `iva_interior`. IVA reads it after the game starts.
 
