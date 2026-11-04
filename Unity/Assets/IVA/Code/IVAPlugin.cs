@@ -371,7 +371,7 @@ namespace IVA
                 }
             }
             if (_hatchGo != null) { Hatches.Hatch g = _hatchGo; _hatchGo = null; BeginHatchFade(g); return; }
-            if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy)) UseTarget();
+            if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy) && !TryGrabLadder()) UseTarget();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -1256,6 +1256,7 @@ namespace IVA
         {
             float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            if (_free.Climbing) { MoveClimb(dt); return; }
             bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
             if (heavy != _free.Walking)
             {
@@ -1278,6 +1279,81 @@ namespace IVA
             float top = _floatSpeed.Value;
             _free.Step(move, dt, top * 2.5f, top, 2.5f);
             _sounds?.SetThrust(_thrusterSound.Value && dt > 0f && (move.sqrMagnitude > 0f || roll != 0f));
+        }
+
+        // ---- Ladders (ring interiors with IVA_Ladder_ markers; with none, every path here ends at once) ----
+
+        private float SpinOmega() => _ringLink != null ? Mathf.Abs(_ringLink.Omega(SWLogger)) : 0f;
+
+        // Spin gravity in g at p (Frame space of f); 0 at 0 rpm.
+        private float SpinGAt(FreeMove f, Vector3 p) => RingSpinLink.GravityAt(SpinOmega(), f.RingRadiusAt(p)) / 9.81f;
+
+        // The ladder the view points at, within reach, and the FreeMove that owns it.
+        private bool FindGrab(out FreeMove owner, out int n)
+        {
+            owner = null;
+            n = -1;
+            if (_free == null || _free.Climbing) return false;
+            if (_free.RingMode && _free.LadderCount > 0)
+            {
+                n = _free.LadderAt(_free.Pos, _free.Rot * Vector3.forward, Interact.Reach);
+                if (n >= 0) owner = _free;
+            }
+            return owner != null;
+        }
+
+        // The interact key on a ladder in reach: grab it. False when there is none, so the key does what it did before.
+        private bool TryGrabLadder()
+        {
+            if (!FindGrab(out FreeMove owner, out int n)) return false;
+            owner.EnterLadder(n);
+            _sounds?.SetThrust(false);
+            SWLogger.LogInfo($"IVA: climbing ladder {owner.GetLadder(n).N} at {owner.S:F1} m (g {SpinGAt(owner, owner.Pos):F2}).");
+            return true;
+        }
+
+        private void MoveClimb(float dt)
+        {
+            FreeMove f = _free;
+            float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            int ln = f.GetLadder(f.LadderIndex).N;
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.LeftControl))
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: let go of ladder {ln}.");
+                return;
+            }
+            f.Turn(0f, 0f, (K(KeyCode.Q) - K(KeyCode.E)) * 70f * dt);
+            float input = K(KeyCode.W) - K(KeyCode.S);
+            LadderG(out float walkAbove, out float floatBelow);
+            int end = f.StepClimb(input, dt);
+            float g = SpinGAt(f, f.Pos);
+            // Towards the hub with the ring turning and the spin gravity below the release value: let go into floating. At 0 rpm the
+            // ladder stays a zero-g handhold. The values are checked every frame, so spin starting or stopping keeps the hold.
+            if (input > 0f && SpinOmega() > 1e-3f && g < floatBelow)
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: left ladder {ln} to floating at g {g:F2}.");
+                return;
+            }
+            if (end < 0 && g >= walkAbove)
+            {
+                // the ring end: step onto the floor when the spin gravity is enough and a floor faces up
+                Vector3 up = f.RingUpAt(f.Pos);
+                if (f.FloorFor(up) >= 0)
+                {
+                    f.LeaveLadder();
+                    f.Velocity = Vector3.zero;
+                    f.SetWalking(true, up, g * 9.81f);
+                    SWLogger.LogInfo($"IVA: stepped off ladder {ln} at the ring end (g {g:F2}).");
+                }
+                return;
+            }
+            if (end > 0)
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: left ladder {ln} at the hub end to floating (g {g:F2}).");
+            }
         }
 
         private void LockFlightInput(bool on)
@@ -1317,6 +1393,8 @@ namespace IVA
             string text = null;
             Interact.Target t = Aimed();
             if (t != null) text = $"{_doorKey.Value}: {t.Prompt()}";
+            else if (_free.Climbing) text = "W/S climb, Space let go";
+            else if (FindGrab(out FreeMove _, out int _)) text = $"{_doorKey.Value}: climb the ladder";
             if (text != null) GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), text, _promptStyle);
         }
 

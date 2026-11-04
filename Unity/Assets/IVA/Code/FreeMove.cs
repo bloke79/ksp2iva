@@ -528,6 +528,104 @@ namespace IVA
             if (i >= 0 && i < _doorSolid.Count) _doorSolid[i] = solid;
         }
 
+        // ---- Climbing: only EnterLadder starts it, and it needs a ladder (ring mode with IVA_Ladder_ markers) ----
+        public const float ClimbSpeed = 0.8f;
+        private const float ClimbGlide = 0.3f;   // seconds to glide onto the rung line
+        private const float ClimbOver = 0.5f;    // how far past the hub end the climb may go (the eye clears the hub wall)
+        public bool Climbing { get; private set; }
+        public int LadderIndex { get; private set; } = -1;   // index into the ladder list; kept after LeaveLadder for the log
+        public float S => _s;                                 // distance along the ladder from its ring end
+        public float LadderLength => LadderIndex >= 0 && LadderIndex < _ladders.Count ? _ladders[LadderIndex].Len : 0f;
+        private float _s, _snap;
+        private Vector3 _enterFrom, _side, _climbVel;
+
+        public Vector3 Velocity { get => _vel; set => _vel = value; }   // Frame space
+
+        public Vector3 LadderPoint(int n, float s) => _ladders[n].A + _ladders[n].U * s;
+
+        // The nearest ladder whose climbable stretch [SMin, Len] is within GrabR + reach of the eye, with its closest point in
+        // front of the view (45 degrees). -1 when none.
+        public int LadderAt(Vector3 eye, Vector3 fwd, float reach)
+        {
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                float s = Mathf.Clamp(Vector3.Dot(eye - l.A, l.U), l.SMin, l.Len);
+                Vector3 d = l.A + l.U * s - eye;
+                float dist = d.magnitude;
+                if (dist > l.GrabR + reach) continue;
+                if (dist > 0.05f && Vector3.Angle(fwd, d) >= 45f) continue;
+                if (dist < bestD) { bestD = dist; best = i; }
+            }
+            return best;
+        }
+
+        // The ladder closest to p (whole stretch), or -1 when there are none.
+        public int NearestLadder(Vector3 p)
+        {
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                float s = Mathf.Clamp(Vector3.Dot(p - l.A, l.U), l.SMin, l.Len);
+                float dist = (l.A + l.U * s - p).magnitude;
+                if (dist < bestD) { bestD = dist; best = i; }
+            }
+            return best;
+        }
+
+        // Grab ladder n: the eye glides onto the hold point beside the rungs over ClimbGlide seconds (no jump). Rot is kept.
+        public void EnterLadder(int n)
+        {
+            if (n < 0 || n >= _ladders.Count) return;
+            Ladder l = _ladders[n];
+            Walking = false;
+            Grounded = false;
+            Climbing = true;
+            LadderIndex = n;
+            _vel = Vector3.zero;
+            _climbVel = Vector3.zero;
+            _s = Mathf.Clamp(Vector3.Dot(Pos - l.A, l.U), l.SMin, l.Len);
+            Vector3 off = Vector3.ProjectOnPlane(Pos - (l.A + l.U * _s), l.U);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.ProjectOnPlane(Rot * Vector3.right, l.U);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.Cross(l.U, Vector3.up);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.Cross(l.U, Vector3.right);
+            _side = off.normalized;
+            _enterFrom = Pos;
+            _snap = 0f;
+        }
+
+        // input -1..1 (towards the ring end .. towards the hub). Sets Pos and ignores boxes, hull and doors: the hold is the
+        // collision. Returns 0 on the ladder, -1 at the ring end pushing down, +1 at or past the hub end pushing up.
+        public int StepClimb(float input, float dt)
+        {
+            if (!Climbing || LadderIndex < 0 || LadderIndex >= _ladders.Count) return 0;
+            Ladder l = _ladders[LadderIndex];
+            if (dt > 0f)
+            {
+                dt = Mathf.Min(dt, 0.05f);
+                _s = Mathf.Clamp(_s + input * ClimbSpeed * dt, l.SMin, l.Len + ClimbOver);
+                _snap = Mathf.Min(1f, _snap + dt / ClimbGlide);
+            }
+            Vector3 hold = l.A + l.U * _s + _side * (l.GrabR * 0.5f);
+            Pos = _snap >= 1f ? hold : Vector3.Lerp(_enterFrom, hold, Mathf.SmoothStep(0f, 1f, _snap));
+            _climbVel = l.U * (input * ClimbSpeed);
+            if (input < 0f && _s <= l.SMin + 1e-3f) return -1;
+            if (input > 0f && _s >= l.Len - 1e-3f) return 1;
+            return 0;
+        }
+
+        // Let go: back to floating, keeping Pos, Rot and the velocity of the last climb step.
+        public void LeaveLadder()
+        {
+            if (!Climbing) return;
+            Climbing = false;
+            _vel = _climbVel;
+        }
+
         // Nearest hatch within reach, for the prompt.
         public bool NearHatch(float reach, out string name)
         {
