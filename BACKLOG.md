@@ -71,3 +71,12 @@ _Last updated 2026-10-11. Ordered by priority within each section. Detailed desi
 - [x] Version 1.0.0 (`IVA.asset`), `CHANGES.md` section, README settings and keys table up to date. (done 2026-11-01)
 - [x] Package: `IVA-1.0.0.zip` built with `scripts/package-mod.ps1` and attached to GitHub release v1.0.0 (2026-11-01, repo still private).
 
+
+## 7. Back-port from KSP2SpaceParts interior pass (Matt, 2026-11-04)
+Source of truth: `projects/ksp2-spaceparts` (decisions in its `notes/decisions.md`, "Interior environment pass"; bitmap audit in its `docs/interior-bitmaps.md`; pilot renders in its `previews/interior-v3-bitmaps-medium/`). Matt approved the look ("excellent, more of that, lots more") and asked for it to reach the stock interiors too. Rules: new work goes in variants or new files, never replacing a shipped interior; keep every prop, bitmap and material portable (own files, no ring-specific coupling); respect the triangle budget (capped counts, shared meshes); whimsical Kerbal theme only. Matt takes the runner's lead on the details.
+- [ ] **Softer furniture:** rounded forms for furniture (pod-style bunks with rounded ends, round or oval tables, curved counters), small 1-3 cm bevels only on panels and walls. Port the generators' rounding helpers from the ring interiors into `art/` here, then apply to the Mk1-3 and 3v pods, Starlab, Hitchhiker and Wayfarer.
+- [ ] **Bitmap set, lots more:** wall art and posters, signage and labels, personal items (photos, drawings, mission patches), per-screen content (screens currently glow as one flat tint), surface textures. Whimsical Kerbal themed. Atlases and shared materials; readable at crew eye distance; door art with a darker rim and about 10% desaturation. Signs and wall art first.
+- [ ] **Alpha fix for decals:** cutout or alpha-clip material path so stickers, bunting and signs render without black boxes (confirmed fine in the ring interiors; apply the same import and material settings here).
+- [ ] **Lived-in clutter (F1):** fold the `--life` improvements (posters, bags, clutter, personality) into the main interiors so the whimsy is consistent across all of them.
+- [ ] **Modular layout:** shared bitmaps and props in one common pack; interiors per part and per room; no hard dependency between packs. Needs Matt's later call on where the shared pack lives (IVA vs KSP2SpaceParts).
+- [ ] **Renders first** for each, then Matt reviews before anything replaces a shipped look. Nothing here reaches IVA `main` until Matt approves (H2/A3 in the spaceparts decisions).
