@@ -618,6 +618,21 @@ namespace IVA
             return 0;
         }
 
+        public Vector3 AxisPoint => _a0;   // Frame space: where the movement axis starts (ring mode: the spin axis)
+
+        // True once the climb has gone the whole way past the hub end (ClimbOver), where a hub crossing must happen anyway.
+        public bool AtLadderTop => Climbing && LadderIndex >= 0 && LadderIndex < _ladders.Count && _s >= _ladders[LadderIndex].Len + ClimbOver - 1e-3f;
+
+        // Is p (Frame space) inside the hull cylinder, with margin to spare? Used on the hub instance for the spin-joint crossing.
+        public bool Contains(Vector3 p, float margin)
+        {
+            if (!Valid) return false;
+            float h = Height(p);
+            if (h < Radius + margin || h > _hMax - Radius - margin) return false;
+            Vector3 radial = (p - _a0) - _u * h;
+            return radial.magnitude <= HullRadius(h) - Radius - margin;
+        }
+
         // Let go: back to floating, keeping Pos, Rot and the velocity of the last climb step.
         public void LeaveLadder()
         {

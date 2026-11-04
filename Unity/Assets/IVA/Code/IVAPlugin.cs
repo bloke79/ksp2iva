@@ -125,6 +125,9 @@ namespace IVA
         private FreeMove _free;
         private FreeMove _freeRing, _freeHub;   // ring interior with a hub room: the two instances (_free is one of them); null otherwise
         private bool _hubLoading;
+        private Quaternion _spinPrev = Quaternion.identity;   // ring frame rotation relative to the pod at the last sample
+        private float _spinPrevT = -1f;
+        private Vector3 _spinW;                                // the ring's angular velocity relative to the pod, in pod space (rad/s)
         private RingSpinLink _ringLink;   // ring interiors only: where the spin rate comes from (null otherwise)
         private Interact _interact;
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
@@ -1317,6 +1320,7 @@ namespace IVA
         {
             float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            TrackSpin();
             if (_free.Climbing) { MoveClimb(dt); return; }
             bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
             if (_free == _freeHub) heavy = false;   // the hub room is zero g, even landed
@@ -1340,6 +1344,10 @@ namespace IVA
             _free.Turn(0f, 0f, roll * 70f * dt);
             float top = _floatSpeed.Value;
             _free.Step(move, dt, top * 2.5f, top, 2.5f);
+            // drifting up the tube into the hub room: hand over to the hub instance
+            if (_freeHub != null && _free == _freeRing && _free.LadderCount > 0 &&
+                _freeHub.Contains(_freeHub.Frame.InverseTransformPoint(_free.Frame.TransformPoint(_free.Pos)), 0.02f))
+                Cross(_freeHub, "floating");
             _sounds?.SetThrust(_thrusterSound.Value && dt > 0f && (move.sqrMagnitude > 0f || roll != 0f));
         }
 
@@ -1361,13 +1369,68 @@ namespace IVA
                 n = _free.LadderAt(_free.Pos, _free.Rot * Vector3.forward, Interact.Reach);
                 if (n >= 0) owner = _free;
             }
+            else if (_freeHub != null && _free == _freeHub && _freeRing != null && _freeRing.LadderCount > 0)
+            {
+                // in the hub room: a ladder top within reach, judged in the ring frame
+                FreeMove ring = _freeRing;
+                Vector3 eyeW = _free.Frame.TransformPoint(_free.Pos);
+                Vector3 fwdW = _free.Frame.rotation * (_free.Rot * Vector3.forward);
+                n = ring.LadderAt(ring.Frame.InverseTransformPoint(eyeW), ring.Frame.InverseTransformDirection(fwdW), Interact.Reach);
+                if (n >= 0) owner = ring;
+            }
             return owner != null;
+        }
+
+        // The ring frame's angular velocity relative to the pod, measured from its rotation over 0.1 s or more (the spin moves in
+        // physics steps, so a per-frame difference would flicker). Only while both instances exist.
+        private void TrackSpin()
+        {
+            if (_freeRing == null || _freeHub == null || _freeRing.Frame == null || _session?.PodTransform == null)
+            {
+                _spinPrevT = -1f;
+                _spinW = Vector3.zero;
+                return;
+            }
+            Quaternion rel = Quaternion.Inverse(_session.PodTransform.rotation) * _freeRing.Frame.rotation;
+            if (_spinPrevT < 0f) { _spinPrev = rel; _spinPrevT = Time.time; _spinW = Vector3.zero; return; }
+            float el = Time.time - _spinPrevT;
+            if (el < 0.1f) return;
+            (rel * Quaternion.Inverse(_spinPrev)).ToAngleAxis(out float ang, out Vector3 axis);
+            if (ang > 180f) ang -= 360f;
+            _spinW = Mathf.Abs(ang) < 0.001f || float.IsNaN(axis.x) || float.IsInfinity(axis.x) ? Vector3.zero : axis * (ang * Mathf.Deg2Rad / el);
+            _spinPrev = rel;
+            _spinPrevT = Time.time;
+        }
+
+        // The only place _free changes between the ring and hub instances. The camera must not move: take the world pose and the
+        // world velocity (the frame's own motion included), re-express both in the new frame, and begin there.
+        private void Cross(FreeMove to, string why)
+        {
+            FreeMove from = _free;
+            if (to == null || from == null || to == from || _session?.PodTransform == null) return;
+            if (!ComputeIvaPose(out Vector3 p0, out Quaternion q0, out float _)) return;
+            FreeMove ring = _freeRing;
+            Vector3 c = ring != null ? ring.Frame.TransformPoint(ring.AxisPoint) : p0;                // a point on the spin axis
+            Vector3 wRel = _session.PodTransform.TransformDirection(_spinW);                          // ring relative to pod, world axes
+            Vector3 vW = from.Frame.TransformDirection(from.Velocity);
+            if (from == ring) vW += Vector3.Cross(wRel, p0 - c);
+            int collar = 0;
+            if (ring != null && ring.LadderCount > 0) collar = ring.GetLadder(Mathf.Max(0, ring.NearestLadder(ring.Frame.InverseTransformPoint(p0)))).N;
+            to.Begin(to.Frame.InverseTransformPoint(p0), Quaternion.Inverse(to.Frame.rotation) * q0);
+            Vector3 vTo = vW;
+            if (to == ring) vTo -= Vector3.Cross(wRel, p0 - c);
+            to.Velocity = to.Frame.InverseTransformDirection(vTo);
+            _free = to;
+            float moved = ComputeIvaPose(out Vector3 p1, out Quaternion _, out float _) ? (p1 - p0).magnitude : -1f;
+            SWLogger.LogInfo($"IVA: frame crossing {(to == ring ? "hub -> ring" : "ring -> hub")} at collar {collar}, speed {vW.magnitude:F2} m/s, camera moved {moved:F3} m ({why}).");
         }
 
         // The interact key on a ladder in reach: grab it. False when there is none, so the key does what it did before.
         private bool TryGrabLadder()
         {
             if (!FindGrab(out FreeMove owner, out int n)) return false;
+            if (owner != _free) Cross(owner, "ladder grab");   // from the hub room into the ring frame first
+            if (_free != owner) return false;
             owner.EnterLadder(n);
             _sounds?.SetThrust(false);
             SWLogger.LogInfo($"IVA: climbing ladder {owner.GetLadder(n).N} at {owner.S:F1} m (g {SpinGAt(owner, owner.Pos):F2}).");
@@ -1411,7 +1474,21 @@ namespace IVA
                 }
                 return;
             }
-            if (end > 0)
+            if (_freeHub != null && f == _freeRing)
+            {
+                // the hub end: climb on past the end of the ladder until the eye is inside the hub's hull, then hand over; if 0.5 m
+                // pass without that, hand over anyway (the log shows the small camera move)
+                if (f.S > f.LadderLength - 0.1f)
+                {
+                    Vector3 eyeW = f.Frame.TransformPoint(f.Pos);
+                    if (_freeHub.Contains(_freeHub.Frame.InverseTransformPoint(eyeW), 0.02f) || f.AtLadderTop)
+                    {
+                        f.LeaveLadder();
+                        Cross(_freeHub, "ladder top");
+                    }
+                }
+            }
+            else if (end > 0)
             {
                 f.LeaveLadder();
                 SWLogger.LogInfo($"IVA: left ladder {ln} at the hub end to floating (g {g:F2}).");
