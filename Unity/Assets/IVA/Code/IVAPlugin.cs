@@ -123,6 +123,8 @@ namespace IVA
 
         // Unbuckled: floating round the cabin (null while seated).
         private FreeMove _free;
+        private FreeMove _freeRing, _freeHub;   // ring interior with a hub room: the two instances (_free is one of them); null otherwise
+        private bool _hubLoading;
         private RingSpinLink _ringLink;   // ring interiors only: where the spin rate comes from (null otherwise)
         private Interact _interact;
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
@@ -829,7 +831,58 @@ namespace IVA
             SetUpHatches(pod);
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
+            if (!string.IsNullOrEmpty(design.HubAddress) && _session.Root != null && FreeMove.HasRingMarkers(_session.Root)) StartHubLoad(pod, design);
             if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod) Arrive();
+        }
+
+        // ---- Hub room (ring interiors whose iva.json has HubAddress): a second interior on the pod frame, with its own FreeMove ----
+
+        private void StartHubLoad(PodInfo pod, InteriorDesign design)
+        {
+            CustomInteriorSession session = _session;
+            string address = design.HubAddress;
+            if (_prefabCache.TryGetValue(address, out GameObject cached) && cached != null)
+            {
+                OnHubLoaded(session, address, cached);
+                return;
+            }
+            _hubLoading = true;
+            SWLogger.LogInfo($"IVA: loading hub room '{address}'...");
+            try { Assets.Load<GameObject>(address, prefab => OnHubLoaded(session, address, prefab), false); }
+            catch (Exception e)
+            {
+                _hubLoading = false;
+                SWLogger.LogWarning($"IVA: couldn't start loading hub room '{address}': {e.Message}; ladders still work, no hub crossing.");
+            }
+        }
+
+        private void OnHubLoaded(CustomInteriorSession session, string address, GameObject prefab)
+        {
+            if (session == null || _session != session) return;   // left IVA or changed part while it loaded
+            _hubLoading = false;
+            if (prefab == null)
+            {
+                SWLogger.LogWarning($"IVA: couldn't load hub room '{address}'; ladders still work, no hub crossing.");
+                return;
+            }
+            _prefabCache[address] = prefab;
+            try { session.AttachHub(prefab, Placement(), session.Layer, SWLogger); }
+            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't place the hub room: " + e.Message); return; }
+            if (_free != null && _freeRing != null) BuildHubMove();   // already unbuckled
+        }
+
+        // The hub room has no ring markers, so FreeMove.Build reads its IVA_ColAxis / IVA_ColHull_k into a floating cylinder along the
+        // hub axis, in pod space (Frame is the pod: the hub holder never moves in the pod).
+        private void BuildHubMove()
+        {
+            if (_session?.Hub == null || _session.PodTransform == null) return;
+            try
+            {
+                FreeMove h = FreeMove.Build(_session.Hub, _session.PodTransform, SWLogger);
+                _freeHub = h.Valid ? h : null;
+                if (_freeHub == null) SWLogger.LogWarning("IVA: the hub room has no usable collision markers; no hub crossing.");
+            }
+            catch (Exception e) { _freeHub = null; SWLogger.LogWarning("IVA: couldn't set up movement in the hub room: " + e.Message); }
         }
 
         // Pods without an interior of ours: hand over to Redux's own first-person camera. The old portrait-camera view
@@ -1051,6 +1104,9 @@ namespace IVA
         {
             CabinAo.End();
             _free = null;
+            _freeRing = null;
+            _freeHub = null;
+            _hubLoading = false;
             _interact?.Reset();
             _interact = null;
             _doorBoxes.Clear();
@@ -1130,6 +1186,9 @@ namespace IVA
             _yawLook = 0f;
             _pitch = 0f;
             _free = f;
+            _freeRing = f.RingMode ? f : null;
+            _freeHub = null;
+            if (_freeRing != null && _session.Hub != null) BuildHubMove();
             if (heavy) f.SetWalking(true, upPod, g);
             _doorBoxes.Clear();
             if (_interact?.Doors != null && !f.RingMode)
@@ -1159,6 +1218,8 @@ namespace IVA
             }
             BeginGlide();   // from where you are now
             _free = null;
+            _freeRing = null;
+            _freeHub = null;
             _sounds?.SetThrust(false);
             _sounds?.Play(Sounds.Buckle);
             _seatIndex = best;
@@ -1258,6 +1319,7 @@ namespace IVA
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
             if (_free.Climbing) { MoveClimb(dt); return; }
             bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
+            if (_free == _freeHub) heavy = false;   // the hub room is zero g, even landed
             if (heavy != _free.Walking)
             {
                 _free.SetWalking(heavy, upPod, g);
