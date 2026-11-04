@@ -63,6 +63,21 @@ namespace IVA
         private float _eyeH = EyeStand;
         public int FloorCount => _floors.Count;
 
+        // Ladders (ring mode only): IVA_Ladder_<n>_0 (ring end), _1 (hub end) and optional _Radius, all in Frame space. The list stays
+        // empty for every interior without those markers, so nothing that uses it runs for them.
+        public struct Ladder
+        {
+            public int N;            // the number in the marker names
+            public Vector3 A, B, U;  // ring end, hub end, unit direction A to B
+            public float Len;        // |B - A|
+            public float GrabR;      // capsule radius to grab it, and the tube radius round it
+            public float SMin;       // lowest point on the climb: at or below A (0 to -3 m), so the eye can come down to standing height
+        }
+
+        private readonly List<Ladder> _ladders = new List<Ladder>();
+        public int LadderCount => _ladders.Count;
+        public Ladder GetLadder(int i) => _ladders[i];
+
         public bool Valid => _hull.Count >= 2 && _hMax > 0.1f;
         public int BoxCount => _boxes.Count;
         public Vector3 Axis => _u;
@@ -92,7 +107,7 @@ namespace IVA
             foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
                 if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal)
                     || t.name.StartsWith("IVA_Floor_", StringComparison.Ordinal)
-                    || t.name.StartsWith("IVA_Ring", StringComparison.Ordinal))
+                    || t.name.StartsWith("IVA_Ring", StringComparison.Ordinal) || t.name.StartsWith("IVA_Ladder_", StringComparison.Ordinal))
                     pts[t.name] = frame.InverseTransformPoint(t.position);
             Vector3 a0 = Vector3.zero, a1 = Vector3.zero;
             float ringR = 0f;
@@ -140,6 +155,7 @@ namespace IVA
             foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_Floor_", StringComparison.Ordinal) && p.Key.EndsWith("_p", StringComparison.Ordinal)))
                 if (pts.TryGetValue(kv.Key.Substring(0, kv.Key.Length - 2) + "_n", out Vector3 n))
                     f._floors.Add(new KeyValuePair<Vector3, Vector3>(kv.Value, (n - kv.Value).normalized));
+            if (ring) ReadLadders(pts, f, log);
             log?.LogInfo($"IVA: free movement ready: hull {f._hull.Count} rings over {f._hMax:F2} m, {f._decks.Count} deck(s), " +
                          $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s)." +
                          (ring ? $" Ring mode: radius {ringR:F2} m, frame is the interior root." : ""));
@@ -158,6 +174,55 @@ namespace IVA
         {
             Vector3 d = p - _a0;
             return (d - _u * Vector3.Dot(d, _u)).magnitude;
+        }
+
+        // Reads IVA_Ladder_<n>_0 / _1 / _Radius (n a 0-based integer). A ladder missing an end, or shorter than 0.3 m, is skipped.
+        private static void ReadLadders(Dictionary<string, Vector3> pts, FreeMove f, ILogger log)
+        {
+            const string prefix = "IVA_Ladder_";
+            var byId = new SortedDictionary<int, Dictionary<string, Vector3>>();
+            foreach (var kv in pts)
+            {
+                if (!kv.Key.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                string rest = kv.Key.Substring(prefix.Length);   // "<n>_0", "<n>_1" or "<n>_Radius"
+                int us = rest.IndexOf('_');
+                if (us <= 0 || !int.TryParse(rest.Substring(0, us), out int id) || id < 0) continue;
+                if (!byId.TryGetValue(id, out var m)) byId[id] = m = new Dictionary<string, Vector3>(StringComparer.Ordinal);
+                m[rest.Substring(us + 1)] = kv.Value;
+            }
+            foreach (var entry in byId)
+            {
+                Dictionary<string, Vector3> m = entry.Value;
+                if (!m.TryGetValue("0", out Vector3 a) || !m.TryGetValue("1", out Vector3 b) || (b - a).magnitude < 0.3f)
+                {
+                    log?.LogWarning($"IVA: ladder {entry.Key}: markers missing, ladder ignored.");
+                    continue;
+                }
+                var l = new Ladder { N = entry.Key, A = a, B = b, Len = (b - a).magnitude };
+                l.U = (b - a) / l.Len;
+                l.GrabR = 0.45f;
+                if (m.TryGetValue("Radius", out Vector3 rp))
+                {
+                    Vector3 d = rp - a;
+                    l.GrabR = Mathf.Max(0.05f, (d - l.U * Vector3.Dot(d, l.U)).magnitude);
+                }
+                // The climb may go below A until the eye is at standing height over the nearest floor plane, measured outward
+                // from A (A sits on the ceiling hatch), so stepping off at the ring end needs no jump.
+                Vector3 outward = -f.RingUpAt(a);
+                float nearest = float.MaxValue;
+                foreach (var fl in f._floors)
+                {
+                    float dn = Vector3.Dot(outward, fl.Value);
+                    if (dn > -0.5f) continue;
+                    float t = Vector3.Dot(fl.Key - a, fl.Value) / dn;
+                    if (t > 0.01f && t < nearest) nearest = t;
+                }
+                l.SMin = nearest < float.MaxValue ? Mathf.Clamp(-(nearest - EyeStand), -3f, 0f) : 0f;
+                f._ladders.Add(l);
+                log?.LogInfo($"IVA: ladder {l.N} found: {l.Len:F1} m, bottom ({a.x:F2},{a.y:F2},{a.z:F2}) top ({b.x:F2},{b.y:F2},{b.z:F2}).");
+                log?.LogInfo($"IVA: ladder {l.N}: grab radius {l.GrabR:F2} m, climb reaches {-l.SMin:F2} m below the ring end" +
+                             (nearest < float.MaxValue ? $" (floor {nearest:F2} m below it)." : " (no floor found below it)."));
+            }
         }
 
         private static void ReadBoxes(Dictionary<string, Vector3> pts, string prefix, List<Box> into)
