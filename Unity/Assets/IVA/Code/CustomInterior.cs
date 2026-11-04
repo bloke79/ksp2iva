@@ -114,15 +114,19 @@ namespace IVA
             if (design.Parts == null || design.Parts.Length == 0 || design.Parts.Any(string.IsNullOrEmpty)) throw new FormatException("Parts is missing or has an empty name");
             if (design.Seats <= 0) throw new FormatException("Seats must be above 0");
             if (!design.OnHull && (design.BaseRadius <= 0f || design.Height <= 0f)) throw new FormatException("BaseRadius and Height must be above 0 unless OnHull is true");
+            design.HideRenderers = design.HideRenderers.Where(s => !string.IsNullOrEmpty(s)).ToArray();   // "" would match every renderer
+            design.KeepRenderers = design.KeepRenderers.Where(s => !string.IsNullOrEmpty(s)).ToArray();
             return design;
         }
+
         // The interior made for this part; otherwise, with anyPod, one with the same seat count (or the first).
         public static InteriorDesign ForPod(string partName, int seats, bool anyPod)
         {
             if (partName != null && Registered.TryGetValue(partName, out var registered)) return registered;
             InteriorDesign exact = All.FirstOrDefault(d => d.Parts != null && d.Parts.Any(p => string.Equals(p, partName, StringComparison.OrdinalIgnoreCase)));
             if (exact != null || !anyPod) return exact;
-            return All.FirstOrDefault(d => d.Seats == seats) ?? All.FirstOrDefault();
+            var ours = All.Where(d => !Registered.ContainsValue(d)).ToList();   // another mod's interior is for its own parts only
+            return ours.FirstOrDefault(d => d.Seats == seats) ?? ours.FirstOrDefault();
         }
     }
 
@@ -284,6 +288,7 @@ namespace IVA
 
         private GameObject _instance;
         public Transform Root => _instance != null ? _instance.transform : null;
+        public bool HoldPlacement;   // ring: the root hangs on the spin frame, so the per-frame placement must leave it alone
 
         // Hide the whole body of a seat's kerbal: its player has unbuckled and is floating round the cabin.
         public void HideWholeKerbal(int seat)
@@ -453,7 +458,7 @@ namespace IVA
         // Called every frame so the alignment keys take effect immediately.
         public void ApplyPlacement(PlacementSettings place)
         {
-            if (_instance == null) return;
+            if (_instance == null || HoldPlacement) return;
             Transform t = _instance.transform;
             Vector3 basePos;
             if (Design.OnHull) basePos = new Vector3(0f, Design.HullBaseY, 0f);    // built to the real hull: exact

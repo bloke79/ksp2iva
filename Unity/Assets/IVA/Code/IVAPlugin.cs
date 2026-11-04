@@ -121,6 +121,7 @@ namespace IVA
 
         // Unbuckled: floating round the cabin (null while seated).
         private FreeMove _free;
+        private RingSpinLink _ringLink;   // ring interiors only: where the spin rate comes from (null otherwise)
         private Interact _interact;
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
         private bool _flightInputLocked;
@@ -392,8 +393,9 @@ namespace IVA
             Quaternion rot;
             if (_free != null)
             {
-                posW = _session.PodTransform.TransformPoint(_free.Pos);
-                rotW = _session.PodTransform.rotation * _free.Rot;
+                Transform frame = _free.Frame != null ? _free.Frame : _session.PodTransform;   // the pod, or the interior root in a ring
+                posW = frame.TransformPoint(_free.Pos);
+                rotW = frame.rotation * _free.Rot;
                 return true;
             }
             if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return false;
@@ -773,6 +775,8 @@ namespace IVA
             SaveFlightCamera();
             ResetView();
             _session = session;
+            _ringLink = null;
+            if (_session.Root != null && FreeMove.HasRingMarkers(_session.Root)) PrepareRing();   // ring: hang it on the Spinner now, not at unbuckle
             _interact = null;
             if (_session.Root != null)
             {
@@ -1083,9 +1087,12 @@ namespace IVA
         private void Unbuckle()
         {
             if (_session == null || _session.Root == null || _session.PodTransform == null) return;
+            if (FreeMove.HasRingMarkers(_session.Root)) PrepareRing();
             FreeMove f = FreeMove.Build(_session.Root, _session.PodTransform, SWLogger);
             if (!f.Valid) return;
-            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why);
+            if (f.RingMode && ComputeIvaPose(out Vector3 ringW, out Quaternion ringR, out float _))
+                f.Begin(f.Frame.InverseTransformPoint(ringW), Quaternion.Inverse(f.Frame.rotation) * ringR);   // gravity below needs the position
+            bool heavy = FeltGravityFor(f, out Vector3 upPod, out float g, out string why);
             int floor = heavy ? f.FloorFor(upPod) : -1;
             SWLogger.LogInfo($"IVA: gravity {why}; {(heavy ? floor >= 0 ? $"walking on floor {floor}" : "no floor faces up" : "floating")}.");
             if (heavy && floor < 0)
@@ -1094,7 +1101,7 @@ namespace IVA
                 return;
             }
             if (!ComputeIvaPose(out Vector3 posW, out Quaternion rotW, out float _)) return;
-            Transform pod = _session.PodTransform;
+            Transform pod = f.Frame;   // the pod, or the interior root in a ring
             f.Begin(pod.InverseTransformPoint(posW), Quaternion.Inverse(pod.rotation) * rotW);
             if (_viewIndex >= 0) _fov = _seatFov;
             _viewIndex = -1;
@@ -1104,7 +1111,7 @@ namespace IVA
             _free = f;
             if (heavy) f.SetWalking(true, upPod, g);
             _doorBoxes.Clear();
-            if (_interact?.Doors != null)
+            if (_interact?.Doors != null && !f.RingMode)
                 foreach (Doors.Door d in _interact.Doors.All)
                     if (d.IsRoomDoor && !d.Name.StartsWith("DoorHatch", StringComparison.Ordinal))
                     {
@@ -1121,10 +1128,12 @@ namespace IVA
             if (_free == null || _session == null) return;
             int best = _seatIndex;
             float bestD = float.MaxValue;
+            Vector3 me = _free.Pos;   // pod space; in a ring Pos is in the interior root's space
+            if (_free.RingMode && _free.Frame != null) me = _session.PodTransform.InverseTransformPoint(_free.Frame.TransformPoint(_free.Pos));
             for (int i = 0; i < _session.SeatCount; i++)
             {
                 if (!_session.TryGetPose(i, -1, EyeOffset(), out Vector3 eye, out Quaternion _)) continue;
-                float d = (eye - _free.Pos).sqrMagnitude;
+                float d = (eye - me).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = i; }
             }
             BeginGlide();   // from where you are now
@@ -1140,7 +1149,7 @@ namespace IVA
 
         // Gravity you'd feel standing in the pod: only when landed, splashed or on the pad (in flight you float, thrust or
         // not). up: pod space, opposite to the pull. why: for the log.
-        private bool FeltGravity(out Vector3 up, out float g, out string why)
+        private bool FeltGravity(out Vector3 up, out float g, out string why, Transform frame = null)
         {
             up = Vector3.up;
             g = 0f;
@@ -1153,11 +1162,66 @@ namespace IVA
                 bool landed = v.LandedOrSplashed || v.Situation == VesselSituations.PreLaunch;
                 Vector3 gW = (Vector3)space.VectorToPhysics(v.gravityForPos);
                 g = gW.magnitude;
-                if (g > 1e-4f) up = _session.PodTransform.InverseTransformDirection(-gW).normalized;
+                if (g > 1e-4f) up = (frame != null ? frame : _session.PodTransform).InverseTransformDirection(-gW).normalized;
                 why = $"{g:F2} m/s2 ({g / 9.81f:F3} g), up (pod) {up.ToString("F2")}, {v.Situation}{(landed ? ", landed" : "")}";
                 return landed && g > 0.3f;
             }
             catch (Exception e) { why = "error: " + e.Message; return false; }
+        }
+
+        // Ring interiors that are spinning: gravity is the spin, g = omega^2 * r at the feet, up points at the axis (in the interior
+        // root's space), in orbit as well as landed. Otherwise (and for every other interior) the real gravity above, in the frame's space.
+        private bool FeltGravityFor(FreeMove f, out Vector3 up, out float g, out string why)
+        {
+            if (f != null && f.RingMode && _ringLink != null)
+            {
+                float w = Mathf.Abs(_ringLink.Omega(SWLogger));   // direction of spin doesn't matter
+                if (w > 1e-3f)
+                {
+                    up = f.RingUpAt(f.Pos);
+                    float r = f.RingRadiusAt(f.Pos - up * FreeMove.EyeStand);
+                    g = RingSpinLink.GravityAt(w, r);
+                    why = $"ring spin {w:F3} rad/s ({w * 9.5493f:F2} rpm), r {r:F2} m, {g:F2} m/s2 ({g / 9.81f:F3} g), up (ring) {up.ToString("F2")}";
+                    return g > 0.3f;
+                }
+            }
+            return FeltGravity(out up, out g, out why, f != null ? f.Frame : null);
+        }
+
+        // A ring interior: find the spin source on the part and, if it offers its turning node, hang the interior on it so the
+        // corridor turns with the ring. Fails soft (the interior then stays fixed to the part and gets no spin gravity).
+        private void PrepareRing()
+        {
+            try
+            {
+                if (_ringLink == null) _ringLink = RingSpinLink.Find(_session.PodTransform, SWLogger);
+                Transform spin = _ringLink?.SpinFrame(SWLogger);
+                if (spin == null || _session.Root.parent == spin) return;
+                Transform pod = _session.PodTransform, root = _session.Root;
+                _session.HoldPlacement = true;
+                if (_ringLink.TryAngleDeg(SWLogger, out float angle))
+                {
+                    // The interior is laid out in the part frame with the ring at home (angle 0). Spinner's rest pose (base) is its
+                    // pose now minus the spin: Module_RingSpin sets localRotation = base * AngleAxis(angle, Z). Put the root where
+                    // it would be if the ring were at home, expressed in Spinner's space, so it is neither tipped over nor offset
+                    // and then turns with the Spinner from the current angle.
+                    Vector3 sPos = pod.InverseTransformPoint(spin.position);
+                    Quaternion sBase = Quaternion.Inverse(pod.rotation) * spin.rotation * Quaternion.AngleAxis(-angle, Vector3.forward);
+                    Vector3 rPos = pod.InverseTransformPoint(root.position);
+                    Quaternion rRot = Quaternion.Inverse(pod.rotation) * root.rotation;
+                    // world placement, so a scaled Spinner (FBX import) doesn't rescale or offset the interior
+                    Quaternion fromHome = spin.rotation * Quaternion.Inverse(sBase);
+                    root.SetParent(spin, true);
+                    root.SetPositionAndRotation(spin.position + fromHome * (rPos - sPos), fromHome * rRot);
+                    SWLogger.LogInfo($"IVA: ring interior now turns with '{spin.name}' (ring at {angle:F1} deg, home pose kept).");
+                }
+                else
+                {
+                    root.SetParent(spin, true);   // world pose kept: only right while the ring is at home
+                    SWLogger.LogWarning($"IVA: ring interior hung on '{spin.name}' keeping its world pose; no IvaSpinAngleDeg, so it is offset if the ring is mid-spin.");
+                }
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: ring set-up failed: " + e.Message); }
         }
 
         private void Toast(string text, float secs = 3f)
@@ -1171,7 +1235,7 @@ namespace IVA
         {
             float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
-            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
+            bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
             if (heavy != _free.Walking)
             {
                 _free.SetWalking(heavy, upPod, g);
@@ -1206,7 +1270,7 @@ namespace IVA
             catch (Exception e) { SWLogger.LogWarning($"IVA: couldn't {(on ? "lock" : "unlock")} the flight controls: {e.Message}"); }
         }
 
-        private Interact.Target Aimed() => _free != null && _interact != null ? _interact.Pick(_free.Pos, _free.Rot * Vector3.forward) : null;
+        private Interact.Target Aimed() => _free != null && !_free.RingMode && _interact != null ? _interact.Pick(_free.Pos, _free.Rot * Vector3.forward) : null;
 
         private void UseTarget()
         {
@@ -1457,7 +1521,7 @@ namespace IVA
             for (int i = 0; i < _session.EyeKerbals.Count; i++)
                 if (a.Kerbal != null && _session.EyeKerbals[i]?.ThisKerbalInfo == a.Kerbal) { _seatIndex = i; _session.ShowSeat(i, _hideOwnKerbal.Value, SWLogger); break; }
             Unbuckle();
-            if (_free == null || _hatches.Count == 0) return;
+            if (_free == null || _free.RingMode || _hatches.Count == 0) return;   // ring: spoke hatches aren't wired up yet
             Transform pod = _session.PodTransform;
             // the hatch that faces the part you came from (side hatches only if there's nothing else). The part's position
             // is read now: a world position saved before the move is stale by the time the next interior has loaded (in

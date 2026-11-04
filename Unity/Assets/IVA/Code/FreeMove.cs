@@ -40,7 +40,12 @@ namespace IVA
         private Vector3 _a0, _u;
         private float _hMax;
 
-        public Vector3 Pos;                 // pod space
+        // Ring mode (only when the interior has IVA_RingAxis_0/1 and IVA_RingRadius): the frame is the interior root, not the
+        // pod, because the ring turns inside the part. Pos, Rot and every marker are in Frame space. Otherwise Frame is the pod.
+        public Transform Frame { get; private set; }
+        public bool RingMode { get; private set; }
+
+        public Vector3 Pos;                 // pod space (ring mode: interior root space)
         public Quaternion Rot = Quaternion.identity;
         private Vector3 _vel;
         private bool _ghost;                // ignore equipment until clear of it (you start inside your couch)
@@ -63,14 +68,49 @@ namespace IVA
         public Vector3 Axis => _u;
         public Vector3 Middle => _a0 + _u * (_hMax * 0.5f);   // halfway up the axis, pod space
 
+        // True for a spinning-ring interior: the three optional ring markers are all there. Existing interiors have none.
+        public static bool HasRingMarkers(Transform interior)
+        {
+            if (interior == null) return false;
+            bool a0 = false, a1 = false, rad = false;
+            foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "IVA_RingAxis_0") a0 = true;
+                else if (t.name == "IVA_RingAxis_1") a1 = true;
+                else if (t.name == "IVA_RingRadius") rad = true;
+            }
+            return a0 && a1 && rad;
+        }
+
         public static FreeMove Build(Transform interior, Transform pod, ILogger log)
         {
             var f = new FreeMove();
+            bool ring = HasRingMarkers(interior);
+            Transform frame = ring ? interior : pod;
+            f.Frame = frame;
             var pts = new Dictionary<string, Vector3>(StringComparer.Ordinal);
             foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
-                if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal))
-                    pts[t.name] = pod.InverseTransformPoint(t.position);
-            if (!pts.TryGetValue("IVA_ColAxis_0", out Vector3 a0) || !pts.TryGetValue("IVA_ColAxis_1", out Vector3 a1))
+                if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal)
+                    || t.name.StartsWith("IVA_Floor_", StringComparison.Ordinal)
+                    || t.name.StartsWith("IVA_Ring", StringComparison.Ordinal))
+                    pts[t.name] = frame.InverseTransformPoint(t.position);
+            Vector3 a0 = Vector3.zero, a1 = Vector3.zero;
+            float ringR = 0f;
+            if (ring)
+            {
+                // No IVA_ColAxis in a ring: the spin axis is the movement axis, and the hull wall is a cylinder round it.
+                a0 = pts["IVA_RingAxis_0"];
+                a1 = pts["IVA_RingAxis_1"];
+                Vector3 axis = (a1 - a0).normalized;
+                Vector3 d = pts["IVA_RingRadius"] - a0;
+                ringR = (d - axis * Vector3.Dot(d, axis)).magnitude;
+                if ((a1 - a0).magnitude < 0.1f || ringR < 0.5f)
+                {
+                    log?.LogWarning("IVA: ring markers are degenerate (axis shorter than 0.1 m or radius under 0.5 m); can't move around inside.");
+                    return f;
+                }
+            }
+            else if (!pts.TryGetValue("IVA_ColAxis_0", out a0) || !pts.TryGetValue("IVA_ColAxis_1", out a1))
             {
                 log?.LogWarning("IVA: this interior has no collision markers (re-export it); can't move around inside.");
                 return f;
@@ -84,6 +124,12 @@ namespace IVA
                 float h = Vector3.Dot(d, f._u);
                 f._hull.Add(new Vector2(h, (d - f._u * h).magnitude));
             }
+            if (ring)
+            {
+                f.RingMode = true;
+                f._hull.Add(new Vector2(0f, ringR + 0.3f));          // wall just outside the floor ring; the underfloor slabs do the rest
+                f._hull.Add(new Vector2(f._hMax, ringR + 0.3f));
+            }
             f._hull.Sort((p, q) => p.x.CompareTo(q.x));
             foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_ColDeck_", StringComparison.Ordinal)))
                 f._decks.Add(Vector3.Dot(kv.Value - a0, f._u));
@@ -95,8 +141,23 @@ namespace IVA
                 if (pts.TryGetValue(kv.Key.Substring(0, kv.Key.Length - 2) + "_n", out Vector3 n))
                     f._floors.Add(new KeyValuePair<Vector3, Vector3>(kv.Value, (n - kv.Value).normalized));
             log?.LogInfo($"IVA: free movement ready: hull {f._hull.Count} rings over {f._hMax:F2} m, {f._decks.Count} deck(s), " +
-                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s).");
+                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s)." +
+                         (ring ? $" Ring mode: radius {ringR:F2} m, frame is the interior root." : ""));
             return f;
+        }
+
+        // Ring mode: the up direction at p (towards the spin axis, so "down" is outward) and the distance from the axis.
+        public Vector3 RingUpAt(Vector3 p)
+        {
+            Vector3 d = p - _a0;
+            Vector3 radial = d - _u * Vector3.Dot(d, _u);
+            return radial.sqrMagnitude < 1e-6f ? _up : -radial.normalized;
+        }
+
+        public float RingRadiusAt(Vector3 p)
+        {
+            Vector3 d = p - _a0;
+            return (d - _u * Vector3.Dot(d, _u)).magnitude;
         }
 
         private static void ReadBoxes(Dictionary<string, Vector3> pts, string prefix, List<Box> into)
@@ -124,6 +185,14 @@ namespace IVA
             Rot = rot;
             _vel = Vector3.zero;
             _ghost = true;
+            if (Walking)
+            {
+                // walking rebuilds Rot from these every frame
+                Vector3 fwd = rot * Vector3.forward;
+                _heading = Vector3.ProjectOnPlane(fwd, _up);
+                _pitch = Mathf.Clamp(Vector3.Angle(fwd, _up) - 90f, -85f, 85f);
+                Grounded = false;
+            }
         }
 
         // Look: floating, yaw and pitch round the view's own axes (no horizon in zero g), roll from the keys; walking, yaw
