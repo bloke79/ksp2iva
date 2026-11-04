@@ -125,6 +125,8 @@ namespace IVA
         private FreeMove _free;
         private FreeMove _freeRing, _freeHub;   // ring interior with a hub room: the two instances (_free is one of them); null otherwise
         private bool _hubLoading;
+        private readonly List<Hatches.Hatch> _hubHatches = new List<Hatches.Hatch>();   // the hub room's dock_ hatches (also in _hatches)
+        private float _hubArriveBy;   // a hatch arrival waits for the hub room until this time (unscaled), 0 = not waiting
         private Quaternion _spinPrev = Quaternion.identity;   // ring frame rotation relative to the pod at the last sample
         private float _spinPrevT = -1f;
         private Vector3 _spinW;                                // the ring's angular velocity relative to the pod, in pod space (rad/s)
@@ -339,6 +341,7 @@ namespace IVA
             }
 
             if (!InIva) return;
+            if (_hubArriveBy > 0f && _arrival != null && Time.unscaledTime >= _hubArriveBy) { _hubArriveBy = 0f; Arrive(); }   // the hub room took too long
             if (_mode == Mode.CustomInterior) KeepCameraGuard();
             if (_mode == Mode.CustomInterior && _unbuckleKey.Value.Down)
             {
@@ -835,7 +838,11 @@ namespace IVA
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
             if (!string.IsNullOrEmpty(design.HubAddress) && _session.Root != null && FreeMove.HasRingMarkers(_session.Root)) StartHubLoad(pod, design);
-            if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod) Arrive();
+            if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod)
+            {
+                if (_hubLoading) _hubArriveBy = Time.unscaledTime + 5f;   // the hub room is still loading: arrive when it is, or after 5 s
+                else Arrive();
+            }
         }
 
         // ---- Hub room (ring interiors whose iva.json has HubAddress): a second interior on the pod frame, with its own FreeMove ----
@@ -846,12 +853,12 @@ namespace IVA
             string address = design.HubAddress;
             if (_prefabCache.TryGetValue(address, out GameObject cached) && cached != null)
             {
-                OnHubLoaded(session, address, cached);
+                OnHubLoaded(session, pod, address, cached);
                 return;
             }
             _hubLoading = true;
             SWLogger.LogInfo($"IVA: loading hub room '{address}'...");
-            try { Assets.Load<GameObject>(address, prefab => OnHubLoaded(session, address, prefab), false); }
+            try { Assets.Load<GameObject>(address, prefab => OnHubLoaded(session, pod, address, prefab), false); }
             catch (Exception e)
             {
                 _hubLoading = false;
@@ -859,19 +866,49 @@ namespace IVA
             }
         }
 
-        private void OnHubLoaded(CustomInteriorSession session, string address, GameObject prefab)
+        private void OnHubLoaded(CustomInteriorSession session, PodInfo pod, string address, GameObject prefab)
         {
             if (session == null || _session != session) return;   // left IVA or changed part while it loaded
             _hubLoading = false;
-            if (prefab == null)
+            if (prefab == null) SWLogger.LogWarning($"IVA: couldn't load hub room '{address}'; ladders still work, no hub crossing.");
+            else
             {
-                SWLogger.LogWarning($"IVA: couldn't load hub room '{address}'; ladders still work, no hub crossing.");
-                return;
+                _prefabCache[address] = prefab;
+                try
+                {
+                    session.AttachHub(prefab, Placement(), session.Layer, SWLogger);
+                    AddHubHatches(pod);
+                    if (_free != null && _freeRing != null) BuildHubMove();   // already unbuckled
+                }
+                catch (Exception e) { SWLogger.LogWarning("IVA: couldn't place the hub room: " + e.Message); }
             }
-            _prefabCache[address] = prefab;
-            try { session.AttachHub(prefab, Placement(), session.Layer, SWLogger); }
-            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't place the hub room: " + e.Message); return; }
-            if (_free != null && _freeRing != null) BuildHubMove();   // already unbuckled
+            if (_arrival != null && _hubArriveBy > 0f) { _hubArriveBy = 0f; Arrive(); }   // an arrival was waiting for it
+        }
+
+        // The hub's docking-port hatches (IVA_Hatch_dock_*) work like any hatch, on the hub instance. Its IVA_Hatch_tunnel_* are the
+        // ladder tops, paired with the ring's spoke hatches by ladder number, so they are not hatches here.
+        private void AddHubHatches(PodInfo pod)
+        {
+            _hubHatches.Clear();
+            if (_session?.Hub == null || _interact == null) return;
+            List<Hatches.Hatch> found;
+            try { found = Hatches.Find(_session.Hub, pod, Game, _anyPod.Value); }
+            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't work out the hub room's hatches: " + e.Message); return; }
+            foreach (Hatches.Hatch hatch in found)
+            {
+                if (!hatch.Name.StartsWith("dock_", StringComparison.Ordinal)) continue;
+                Hatches.Hatch h = hatch;
+                _hatches.Add(h);
+                _hubHatches.Add(h);
+                _interact.Targets.Add(new Interact.Target
+                {
+                    Kind = "Hatch", Name = h.Name, Pod = h.Pod,
+                    Prompt = () => !h.Outside ? (Hatches.FreeSeat(Game, h.Beyond.Pod) < 0 && Me() != null ? $"{h.Beyond.Name} is full" : $"go through to the {h.Beyond.Name}")
+                                 : "nothing on the other side of this hatch",
+                    Use = () => UseHatch(h, false),
+                });
+            }
+            SWLogger.LogInfo("IVA: hub hatches: " + (_hubHatches.Count == 0 ? "none" : string.Join(", ", _hubHatches.Select(h => h.Name + (h.Outside ? " (nothing beyond)" : " -> " + h.Beyond.Name)))));
         }
 
         // The hub room has no ring markers, so FreeMove.Build reads its IVA_ColAxis / IVA_ColHull_k into a floating cylinder along the
@@ -1110,6 +1147,8 @@ namespace IVA
             _freeRing = null;
             _freeHub = null;
             _hubLoading = false;
+            _hubArriveBy = 0f;
+            _hubHatches.Clear();
             _interact?.Reset();
             _interact = null;
             _doorBoxes.Clear();
@@ -1324,6 +1363,7 @@ namespace IVA
             if (_free.Climbing) { MoveClimb(dt); return; }
             bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
             if (_free == _freeHub) heavy = false;   // the hub room is zero g, even landed
+            else if (heavy && _free.LadderCount > 0 && _free.InTube(_free.Pos, out int _)) heavy = false;   // in a ladder tube: float, with the pull below
             if (heavy != _free.Walking)
             {
                 _free.SetWalking(heavy, upPod, g);
@@ -1343,7 +1383,15 @@ namespace IVA
             float roll = K(KeyCode.Q) - K(KeyCode.E);
             _free.Turn(0f, 0f, roll * 70f * dt);
             float top = _floatSpeed.Value;
-            _free.Step(move, dt, top * 2.5f, top, 2.5f);
+            Vector3 pull = Vector3.zero;
+            if (_free.LadderCount > 0 && _free.InTube(_free.Pos, out int _))
+            {
+                // a player who lets go in the tube drifts down to the cabin while the spin gravity is at or above the release value
+                LadderG(out float _, out float floatBelow);
+                float gTube = SpinGAt(_free, _free.Pos);
+                if (gTube >= floatBelow) pull = -_free.RingUpAt(_free.Pos) * (gTube * 9.81f);
+            }
+            _free.Step(move, dt, top * 2.5f, top, 2.5f, pull);
             // drifting up the tube into the hub room: hand over to the hub instance
             if (_freeHub != null && _free == _freeRing && _free.LadderCount > 0 &&
                 _freeHub.Contains(_freeHub.Frame.InverseTransformPoint(_free.Frame.TransformPoint(_free.Pos)), 0.02f))
@@ -1759,6 +1807,7 @@ namespace IVA
             for (int i = 0; i < _session.EyeKerbals.Count; i++)
                 if (a.Kerbal != null && _session.EyeKerbals[i]?.ThisKerbalInfo == a.Kerbal) { _seatIndex = i; _session.ShowSeat(i, _hideOwnKerbal.Value, SWLogger); break; }
             Unbuckle();
+            if (_free != null && _free.RingMode && _freeHub != null && _hubHatches.Count > 0) { ArriveAtHubHatch(a); return; }
             if (_free == null || _free.RingMode || _hatches.Count == 0) return;   // ring: spoke hatches aren't wired up yet
             Transform pod = _session.PodTransform;
             // the hatch that faces the part you came from (side hatches only if there's nothing else). The part's position
@@ -1773,6 +1822,23 @@ namespace IVA
             _free.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
             _sounds?.Play(Sounds.HatchClose);
             SWLogger.LogInfo($"IVA: came through the {h.Name} hatch (from {(a.From != null ? PodLocator.PartName(a.From) : "?")}).");
+        }
+
+        // A ring with a hub room: you come in through the docking-port hatch of the hub that faces the part you came from.
+        private void ArriveAtHubHatch(Arrival a)
+        {
+            Transform pod = _session.PodTransform;
+            Vector3 fromNow = a.From != null ? a.From.transform.position : a.FromWorld;
+            Vector3 toFrom = fromNow - pod.position;
+            Hatches.Hatch h = _hubHatches.OrderBy(x => Vector3.Angle(Hatches.Facing(x.Name, pod.TransformPoint(x.Pod), pod), toFrom)).First();
+            Vector3 dir = (_freeHub.Middle - h.Pod).normalized;
+            Vector3 up = Vector3.ProjectOnPlane(Vector3.forward, dir);
+            if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(Vector3.up, dir);
+            if (_freeRing != null) _freeRing.SetWalking(false, Vector3.up, 0f);
+            _free = _freeHub;
+            _freeHub.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
+            _sounds?.Play(Sounds.HatchClose);
+            SWLogger.LogInfo($"IVA: came through the hub's {h.Name} hatch (from {(a.From != null ? PodLocator.PartName(a.From) : "?")}).");
         }
 
         private void NextSeat()

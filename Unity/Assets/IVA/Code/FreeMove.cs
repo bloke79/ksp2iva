@@ -75,6 +75,7 @@ namespace IVA
         }
 
         private readonly List<Ladder> _ladders = new List<Ladder>();
+        private int[] _boxTube;   // per equipment box: the ladder whose tube it stands in (the ceiling slab over a spoke hatch), or -1; null without ladders
         public int LadderCount => _ladders.Count;
         public Ladder GetLadder(int i) => _ladders[i];
 
@@ -223,6 +224,38 @@ namespace IVA
                 log?.LogInfo($"IVA: ladder {l.N}: grab radius {l.GrabR:F2} m, climb reaches {-l.SMin:F2} m below the ring end" +
                              (nearest < float.MaxValue ? $" (floor {nearest:F2} m below it)." : " (no floor found below it)."));
             }
+            if (f._ladders.Count > 0) f.MarkTubeBoxes();
+        }
+
+        // Boxes the ladder passes through (the ceiling slab over a spoke hatch): inside the tube they are let through.
+        private void MarkTubeBoxes()
+        {
+            _boxTube = new int[_boxes.Count];
+            for (int i = 0; i < _boxes.Count; i++)
+            {
+                _boxTube[i] = -1;
+                for (int li = 0; li < _ladders.Count && _boxTube[i] < 0; li++)
+                {
+                    Ladder l = _ladders[li];
+                    for (float s = l.SMin; s <= l.Len; s += 0.1f)
+                        if (Inside(_boxes[i], l.A + l.U * s, 0.1f)) { _boxTube[i] = li; break; }
+                }
+            }
+        }
+
+        // Is p in the tube round ladder n: within GrabR + 0.25 m of its axis and from 0.3 m below the ring end to 0.5 m past the hub end?
+        public bool InTube(Vector3 p, out int n)
+        {
+            n = -1;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                Vector3 v = p - l.A;
+                float s = Vector3.Dot(v, l.U);
+                if (s < -0.3f || s > l.Len + ClimbOver) continue;
+                if ((v - l.U * s).magnitude < l.GrabR + 0.25f) { n = i; return true; }
+            }
+            return false;
         }
 
         private static void ReadBoxes(Dictionary<string, Vector3> pts, string prefix, List<Box> into)
@@ -401,11 +434,12 @@ namespace IVA
         }
 
         // move: thrust direction in view space (x right, y up, z forward), each -1..1.
-        public void Step(Vector3 move, float dt, float accel, float maxSpeed, float damping)
+        public void Step(Vector3 move, float dt, float accel, float maxSpeed, float damping, Vector3 pull = default(Vector3))
         {
             if (dt <= 0f) return;
             dt = Mathf.Min(dt, 0.05f);
             _vel += Rot * move * (accel * dt);
+            _vel += pull * dt;   // frame space, m/s^2: spin gravity in a ladder tube
             _vel *= Mathf.Exp(-damping * dt);
             if (_vel.magnitude > maxSpeed) _vel = _vel.normalized * maxSpeed;
             Vector3 old = Pos;
@@ -482,11 +516,27 @@ namespace IVA
                     Stop(n);
                 }
             }
+            // the tube round a ladder has no walls marked: keep the player inside it (not at its mouth, where they come in)
+            if (_ladders.Count > 0 && InTube(p, out int tubeN))
+            {
+                Ladder tl = _ladders[tubeN];
+                Vector3 tv = p - tl.A;
+                float ts = Vector3.Dot(tv, tl.U);
+                Vector3 trad = tv - tl.U * ts;
+                float tr = trad.magnitude, tMax = tl.GrabR + 0.25f - Radius;
+                if (ts > 0.3f && tr > tMax && tr > 1e-5f)
+                {
+                    Vector3 tn = -trad / tr;
+                    p += tn * (tr - tMax);
+                    Stop(tn);
+                }
+            }
             if (_ghost) return;
             // equipment boxes, then closed doors
             for (int i = 0; i < _boxes.Count + _doors.Count; i++)
             {
                 if (i >= _boxes.Count && !_doorSolid[i - _boxes.Count]) continue;
+                if (_boxTube != null && i < _boxes.Count && _boxTube[i] >= 0 && InTube(p, out int passN) && passN == _boxTube[i]) continue;   // the slab over the hatch
                 Box b = i < _boxes.Count ? _boxes[i] : _doors[i - _boxes.Count];
                 Vector3 d = p - b.C;
                 if (d.sqrMagnitude > (b.Reach + Radius) * (b.Reach + Radius)) continue;
