@@ -39,6 +39,8 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _doorKey;
         private ConfigValue<float> _floatSpeed;
         private ConfigValue<float> _walkSpeed;
+        private ConfigValue<float> _ladderWalkAboveG, _ladderFloatBelowG;   // ring ladders (spin gravity thresholds, in g)
+        private bool _ladderGWarned;
         private string _toast;           // a short message on screen (e.g. "no floor to stand on")
         private float _toastUntil;
         private ConfigValue<bool> _soundOn;
@@ -194,6 +196,10 @@ namespace IVA
                 "While floating round the cabin: use what you're looking at (doors, lockers, drawers, curtains, lamps, screens, lights, the toilet; the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
             _walkSpeed = Bind(cfg, "Look", "Walk speed", 0.9f, "Walking speed in a landed lander (metres per second).", new RangeConstraint<float>(0.3f, 3f));
+            _ladderWalkAboveG = Bind(cfg, "Movement", "LadderWalkAboveG", 0.3f,
+                "On a ladder: at or above this spin gravity (in g) you step off at the ring end and walk.", new RangeConstraint<float>(0.05f, 1f));
+            _ladderFloatBelowG = Bind(cfg, "Movement", "LadderFloatBelowG", 0.05f,
+                "On a ladder: below this spin gravity (in g) the ladder lets you go into floating, while climbing towards the hub.", new RangeConstraint<float>(0f, 0.5f));
 
             _soundOn = Bind(cfg, "Sound", "Interior sounds", true, "Sounds inside the cabin (thrusters, doors, buckles), using the game's own sound events.");
             _thrusterSound = Bind(cfg, "Sound", "Thruster sound", true, "While floating, moving plays the EVA jetpack's thruster sound.");
@@ -251,6 +257,21 @@ namespace IVA
                 "In IVA: numpad 8/2 4/6 9/3 move, 7/1 turn, * and / scale, hold Shift to move the eye instead, +/- step size, 5 save, 0 reset.");
             _debugLog = Bind(cfg, "Debug", "Debug logging", false, "Log key presses and the camera report. Errors, warnings and mode switches are always logged.");
             _poseDump = Bind(cfg, "Debug", "Pose dump", false, "Write the crew poses to IVA-pose/*.obj on entering a pod, for building new interiors.");
+        }
+
+        // The two ladder thresholds in g. If the release value is not below the walk-on value, one warning and the defaults.
+        private void LadderG(out float walkAbove, out float floatBelow)
+        {
+            walkAbove = _ladderWalkAboveG.Value;
+            floatBelow = _ladderFloatBelowG.Value;
+            if (floatBelow < walkAbove) return;
+            if (!_ladderGWarned)
+            {
+                _ladderGWarned = true;
+                SWLogger.LogWarning($"IVA: Movement LadderFloatBelowG ({floatBelow}) must be below LadderWalkAboveG ({walkAbove}); using 0.05 and 0.3.");
+            }
+            walkAbove = 0.3f;
+            floatBelow = 0.05f;
         }
 
         private static ConfigValue<T> Bind<T>(IConfigFile cfg, string section, string key, T defaultValue,
