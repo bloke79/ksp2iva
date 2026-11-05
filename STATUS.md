@@ -1,6 +1,6 @@
 # Status: iva-redux
 
-**Last updated:** 2026-10-13
+**Last updated:** 2026-11-03
 **Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w43b (version 1.0.0 committed, not yet flown)
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
@@ -17,7 +17,8 @@ Rebuild after any change: `.\scripts\sync-to-unity.ps1 -Project iva-redux`, then
 (about 20 s; run **IVA > Set Up Interiors** in batch first if the interior files changed).
 
 ## In progress
-- Walking under gravity: steps 1–2 built (landers, landed only), untested in game. Working tree clean.
+- Walking under gravity: steps 1–2 built (landers, landed only), untested in game. 2026-11-03: fixed the marker filter that left every interior with 0 floors (6771813), so walking could not have started before this. Compile checked, not flown. Check the `free movement ready` log line shows more than 0 floors.
+- Ring interior: on branch `iva-ring` (worktree `C:\Work\worktrees\iva-redux-ring`), held until Matt approves it for `main`. The installed DLL has the ring code, so a build from `main` drops it.
 
 ## Blockers / questions for Matt
 - In-game testing needs Matt at the PC (Claude builds and reads logs; Matt flies).

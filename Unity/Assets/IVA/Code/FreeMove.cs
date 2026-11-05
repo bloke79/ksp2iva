@@ -68,7 +68,8 @@ namespace IVA
             var f = new FreeMove();
             var pts = new Dictionary<string, Vector3>(StringComparer.Ordinal);
             foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
-                if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal))
+                if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal)
+                    || t.name.StartsWith("IVA_Floor_", StringComparison.Ordinal))
                     pts[t.name] = pod.InverseTransformPoint(t.position);
             if (!pts.TryGetValue("IVA_ColAxis_0", out Vector3 a0) || !pts.TryGetValue("IVA_ColAxis_1", out Vector3 a1))
             {
@@ -124,6 +125,14 @@ namespace IVA
             Rot = rot;
             _vel = Vector3.zero;
             _ghost = true;
+            if (Walking)
+            {
+                // walking rebuilds Rot from these every frame
+                Vector3 fwd = rot * Vector3.forward;
+                _heading = Vector3.ProjectOnPlane(fwd, _up);
+                _pitch = Mathf.Clamp(Vector3.Angle(fwd, _up) - 90f, -85f, 85f);
+                Grounded = false;
+            }
         }
 
         // Look: floating, yaw and pitch round the view's own axes (no horizon in zero g), roll from the keys; walking, yaw
