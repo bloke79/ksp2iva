@@ -3,7 +3,11 @@
 RUNNER IDLE: waiting on Matt. Modular interiors (M1-M4) landed in e8bd26c and the Unity build is OK; M5 needs Matt to fly it.
 Everything else that is runnable offline is done; what is left needs the game or a design call.
 
+## New 2026-11-05: ring orientation fix (BACKLOG section 0) is NOT runnable on main
+`IVA_RingAxis_0` markers and ring code exist only on branch `iva-ring`; main has just `CorrectOrientation` (CustomInterior.cs:370). The fix belongs on `iva-ring` (Matt's call, see cross-project-issues row 2026-11-03), and a main build would drop the ring code from the installed DLL. Patch sketch: `projects/ksp2-spaceparts/docs/iva-patch/ring-orientation-fix.md`.
+
 ## What Matt needs to do
+0. Either approve `iva-ring` for main, or tell the runner to work on that branch/worktree (`C:\Work\worktrees\iva-redux-ring`) for the orientation fix.
 1. Turn Debug logging ON in the IVA config before any playtest that needs the log (defaults are now OFF; an existing config keeps its saved values).
 2. Fly the walking playtest (walking plan step 6): a lander on the pad and on the Mun. Unbuckle (U), walk to the EVA hatch and drawers, jump, crouch.
 3. Fly the test lists below (fade/boarding from 2026-10-31, modular interiors from today).

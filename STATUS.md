@@ -1,11 +1,11 @@
 # Status: iva-redux
 
-**Last updated:** 2026-11-03
+**Last updated:** 2026-11-05
 **Version / milestone:** 0.6.0 + interiors for pods, cockpits, cabins, Starlab and landers (unreleased) · KSP2 Redux 26w43b (version 1.0.0 committed, not yet flown)
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Latest run
-2026-11-01 KSP2 runner: landed modular interiors (InteriorCatalogue.Register, iva_interior label scan with fail-soft JSON parsing, README section, CHANGES) and Debug logging and Pose dump default off (e8bd26c). unity-check passed and the Unity build is OK; nothing flown. The gate's three defects were fixed by hand and not re-gated. Next: Matt flies the modular-interiors and fade/boarding test lists and the walking playtest (turn Debug logging on first); ladders wait on that. Runner idle until then. 5-hour 21%, weekly 78%, local about 17% of tokens (34k local vs about 167k Claude: plan, spec and gate calls dominate).
+2026-11-05: committed Matt's pending interior fixes (35d5a24, not pushed by me). No chunk built: the new top-priority ring-orientation fix needs ring code that exists only on iva-ring (held for Matt), and a main build would drop it from the installed DLL. Runner idle; brief updated. Nothing compiled or flown. Usage not read this run.
 
 ## Next steps
 1. Matt playtests walking under gravity (`PLAN.md` → Walking under gravity, step 6): a lander on the pad and on the Mun.
