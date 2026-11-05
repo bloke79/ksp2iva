@@ -33,6 +33,7 @@ namespace IVA
         public bool UprightCrew;   // crew moved in from the portrait booth sit upright at the seat points (cabins, labs)
         public string[] HideRenderers;
         public string[] KeepRenderers;   // with HideExterior: part meshes that stay visible (seen through our windows)
+        public string HubAddress;  // optional (ring interiors): address of a hub room prefab loaded on the pod frame; null = none
         public bool HideExterior;  // hide the part's own outer meshes while inside (cabins: their recessed end hatches poke into the room)   // stock meshes of the part to hide while inside (they'd show through ours)
     }
 
@@ -95,7 +96,7 @@ namespace IVA
             if (!All.Contains(design)) All.Add(design);
         }
 
-        private static readonly string[] JsonKeys = { "Name", "Address", "Parts", "Seats", "BaseRadius", "Height", "Yaw", "OnHull", "HullBaseY", "UprightCrew", "HideRenderers", "KeepRenderers", "HideExterior" };
+        private static readonly string[] JsonKeys = { "Name", "Address", "Parts", "Seats", "BaseRadius", "Height", "Yaw", "OnHull", "HullBaseY", "UprightCrew", "HideRenderers", "KeepRenderers", "HideExterior", "HubAddress" };
 
         private static T JsonValue<T>(Newtonsoft.Json.Linq.JObject o, string key, T fallback)
         {
@@ -108,7 +109,7 @@ namespace IVA
         {
             var o = Newtonsoft.Json.Linq.JObject.Parse(json);
             foreach (var prop in o.Properties()) { if (!JsonKeys.Any(k => string.Equals(k, prop.Name, StringComparison.OrdinalIgnoreCase))) unknownKeys.Add(prop.Name); }
-            var design = new InteriorDesign { Name = JsonValue<string>(o, "Name", null), Address = JsonValue<string>(o, "Address", null), Parts = JsonValue<string[]>(o, "Parts", null), Seats = JsonValue<int>(o, "Seats", 0), BaseRadius = JsonValue<float>(o, "BaseRadius", 0f), Height = JsonValue<float>(o, "Height", 0f), Yaw = JsonValue<float>(o, "Yaw", 0f), OnHull = JsonValue<bool>(o, "OnHull", false), HullBaseY = JsonValue<float>(o, "HullBaseY", 0f), UprightCrew = JsonValue<bool>(o, "UprightCrew", false), HideRenderers = JsonValue<string[]>(o, "HideRenderers", new string[0]), KeepRenderers = JsonValue<string[]>(o, "KeepRenderers", new string[0]), HideExterior = JsonValue<bool>(o, "HideExterior", false) };
+            var design = new InteriorDesign { Name = JsonValue<string>(o, "Name", null), Address = JsonValue<string>(o, "Address", null), Parts = JsonValue<string[]>(o, "Parts", null), Seats = JsonValue<int>(o, "Seats", 0), BaseRadius = JsonValue<float>(o, "BaseRadius", 0f), Height = JsonValue<float>(o, "Height", 0f), Yaw = JsonValue<float>(o, "Yaw", 0f), OnHull = JsonValue<bool>(o, "OnHull", false), HullBaseY = JsonValue<float>(o, "HullBaseY", 0f), UprightCrew = JsonValue<bool>(o, "UprightCrew", false), HideRenderers = JsonValue<string[]>(o, "HideRenderers", new string[0]), KeepRenderers = JsonValue<string[]>(o, "KeepRenderers", new string[0]), HideExterior = JsonValue<bool>(o, "HideExterior", false), HubAddress = JsonValue<string>(o, "HubAddress", null) };
             if (string.IsNullOrEmpty(design.Name)) throw new FormatException("Name is missing");
             if (string.IsNullOrEmpty(design.Address)) throw new FormatException("Address is missing");
             if (design.Parts == null || design.Parts.Length == 0 || design.Parts.Any(string.IsNullOrEmpty)) throw new FormatException("Parts is missing or has an empty name");
@@ -116,6 +117,7 @@ namespace IVA
             if (!design.OnHull && (design.BaseRadius <= 0f || design.Height <= 0f)) throw new FormatException("BaseRadius and Height must be above 0 unless OnHull is true");
             design.HideRenderers = design.HideRenderers.Where(s => !string.IsNullOrEmpty(s)).ToArray();   // "" would match every renderer
             design.KeepRenderers = design.KeepRenderers.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+            if (string.IsNullOrWhiteSpace(design.HubAddress)) design.HubAddress = null;   // a missing hub only costs the hub
             return design;
         }
 
@@ -288,6 +290,29 @@ namespace IVA
 
         private GameObject _instance;
         public Transform Root => _instance != null ? _instance.transform : null;
+        public bool HoldPlacement;   // ring: the root hangs on the spin frame, so the per-frame placement must leave it alone
+        public int Layer { get; private set; }   // the layer the interior was drawn on (the pod's)
+
+        // A hub room (Design.HubAddress): its own holder under the pod, not under Root, so a ring's marker scans and its spin
+        // never see it. Placed like the ring would be at home, and never held: it does not turn.
+        private GameObject _hub;
+        public Transform Hub => _hub != null ? _hub.transform : null;
+
+        public void AttachHub(GameObject prefab, PlacementSettings place, int layer, ILogger log)
+        {
+            if (Pod == null || prefab == null || _hub != null || _instance == null) return;
+            var holder = new GameObject("IVA_Hub_" + Design.Name);
+            holder.SetActive(false);
+            holder.transform.SetParent(Pod.transform, false);
+            GameObject inst = UnityEngine.Object.Instantiate(prefab, holder.transform, false);
+            inst.name = Design.Name + "_hub";
+            SetLayerRecursive(holder.transform, layer);
+            foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.DestroyImmediate(c);
+            _hub = holder;
+            Place(holder.transform, place);
+            holder.SetActive(true);
+            log.LogInfo($"IVA: hub room '{Design.HubAddress}' placed on the pod frame.");
+        }
 
         // Hide the whole body of a seat's kerbal: its player has unbuckled and is floating round the cabin.
         public void HideWholeKerbal(int seat)
@@ -325,6 +350,7 @@ namespace IVA
             var podRenderer = pod.Pod.GetComponentsInChildren<Renderer>(false).FirstOrDefault(r => r.GetComponentInParent<PartBehavior>() == pod.Pod);
             if (podRenderer != null) layer = podRenderer.gameObject.layer;
             SetLayerRecursive(holder.transform, layer);
+            s.Layer = layer;
 
             // No physics: strip any colliders that came with the model.
             foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.DestroyImmediate(c);
@@ -345,7 +371,8 @@ namespace IVA
             }
 
             s.Live = LiveInstruments.Find(inst, log);
-            CorrectOrientation(inst, s.Seats, log);
+            // A ring defines up by its IVA_RingAxis markers, not by the mean seat position (ring seats go round the axis, so that mean is radial).
+            if (!FreeMove.HasRingMarkers(inst.transform)) CorrectOrientation(inst, s.Seats, log);
             s.FindGameEyes(log);
             s.HideStockCabin(log);
             s.MoveCrewIntoSeats(log);
@@ -457,8 +484,13 @@ namespace IVA
         // Called every frame so the alignment keys take effect immediately.
         public void ApplyPlacement(PlacementSettings place)
         {
-            if (_instance == null) return;
-            Transform t = _instance.transform;
+            if (_hub != null) Place(_hub.transform, place);
+            if (_instance == null || HoldPlacement) return;
+            Place(_instance.transform, place);
+        }
+
+        private void Place(Transform t, PlacementSettings place)
+        {
             Vector3 basePos;
             if (Design.OnHull) basePos = new Vector3(0f, Design.HullBaseY, 0f);    // built to the real hull: exact
             else basePos = Measure.Valid && place.FitToPod ? Measure.AxisCentre + new Vector3(0f, Measure.YMin, 0f) : Vector3.zero;
@@ -492,6 +524,7 @@ namespace IVA
             {
                 if (r == null || !r.enabled || r.GetComponentInParent<PartBehavior>() != Pod) continue;
                 if (_instance != null && r.transform.IsChildOf(_instance.transform)) continue;
+                if (_hub != null && r.transform.IsChildOf(_hub.transform)) continue;
                 if (r.GetComponentInParent<KSP.Game.Kerbal3DModel>() != null) continue;   // the crew stay visible
                 if (Design != null && Design.KeepRenderers != null &&
                     Design.KeepRenderers.Any(n => r.name.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0)) continue;
@@ -811,6 +844,8 @@ namespace IVA
             ViewNames.Clear();
             foreach (Renderer r in _hiddenExterior) if (r != null) r.enabled = true;
             _hiddenExterior.Clear();
+            if (_hub != null) UnityEngine.Object.Destroy(_hub);
+            _hub = null;
             if (_instance != null) UnityEngine.Object.Destroy(_instance);
             _instance = null;
             Seats.Clear();

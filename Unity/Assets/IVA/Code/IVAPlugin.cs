@@ -39,6 +39,8 @@ namespace IVA
         private ConfigValue<KeyboardShortcut> _doorKey;
         private ConfigValue<float> _floatSpeed;
         private ConfigValue<float> _walkSpeed;
+        private ConfigValue<float> _ladderWalkAboveG, _ladderFloatBelowG;   // ring ladders (spin gravity thresholds, in g)
+        private bool _ladderGWarned;
         private string _toast;           // a short message on screen (e.g. "no floor to stand on")
         private float _toastUntil;
         private ConfigValue<bool> _soundOn;
@@ -121,6 +123,14 @@ namespace IVA
 
         // Unbuckled: floating round the cabin (null while seated).
         private FreeMove _free;
+        private FreeMove _freeRing, _freeHub;   // ring interior with a hub room: the two instances (_free is one of them); null otherwise
+        private bool _hubLoading;
+        private readonly List<Hatches.Hatch> _hubHatches = new List<Hatches.Hatch>();   // the hub room's dock_ hatches (also in _hatches)
+        private float _hubArriveBy;   // a hatch arrival waits for the hub room until this time (unscaled), 0 = not waiting
+        private Quaternion _spinPrev = Quaternion.identity;   // ring frame rotation relative to the pod at the last sample
+        private float _spinPrevT = -1f;
+        private Vector3 _spinW;                                // the ring's angular velocity relative to the pod, in pod space (rad/s)
+        private RingSpinLink _ringLink;   // ring interiors only: where the spin rate comes from (null otherwise)
         private Interact _interact;
         private readonly Dictionary<Doors.Door, int> _doorBoxes = new Dictionary<Doors.Door, int>();
         private bool _flightInputLocked;
@@ -193,6 +203,10 @@ namespace IVA
                 "While floating round the cabin: use what you're looking at (doors, lockers, drawers, curtains, lamps, screens, lights, the toilet; the vessel's controls are locked then, so F is free).");
             _floatSpeed = Bind(cfg, "Look", "Float speed", 1.2f, "Top speed when floating round the cabin (metres per second).", new RangeConstraint<float>(0.2f, 4f));
             _walkSpeed = Bind(cfg, "Look", "Walk speed", 0.9f, "Walking speed in a landed lander (metres per second).", new RangeConstraint<float>(0.3f, 3f));
+            _ladderWalkAboveG = Bind(cfg, "Movement", "LadderWalkAboveG", 0.3f,
+                "On a ladder: at or above this spin gravity (in g) you step off at the ring end and walk.", new RangeConstraint<float>(0.05f, 1f));
+            _ladderFloatBelowG = Bind(cfg, "Movement", "LadderFloatBelowG", 0.05f,
+                "On a ladder: below this spin gravity (in g) the ladder lets you go into floating, while climbing towards the hub.", new RangeConstraint<float>(0f, 0.5f));
 
             _soundOn = Bind(cfg, "Sound", "Interior sounds", true, "Sounds inside the cabin (thrusters, doors, buckles), using the game's own sound events.");
             _thrusterSound = Bind(cfg, "Sound", "Thruster sound", true, "While floating, moving plays the EVA jetpack's thruster sound.");
@@ -250,6 +264,21 @@ namespace IVA
                 "In IVA: numpad 8/2 4/6 9/3 move, 7/1 turn, * and / scale, hold Shift to move the eye instead, +/- step size, 5 save, 0 reset.");
             _debugLog = Bind(cfg, "Debug", "Debug logging", false, "Log key presses and the camera report. Errors, warnings and mode switches are always logged.");
             _poseDump = Bind(cfg, "Debug", "Pose dump", false, "Write the crew poses to IVA-pose/*.obj on entering a pod, for building new interiors.");
+        }
+
+        // The two ladder thresholds in g. If the release value is not below the walk-on value, one warning and the defaults.
+        private void LadderG(out float walkAbove, out float floatBelow)
+        {
+            walkAbove = _ladderWalkAboveG.Value;
+            floatBelow = _ladderFloatBelowG.Value;
+            if (floatBelow < walkAbove) return;
+            if (!_ladderGWarned)
+            {
+                _ladderGWarned = true;
+                SWLogger.LogWarning($"IVA: Movement LadderFloatBelowG ({floatBelow}) must be below LadderWalkAboveG ({walkAbove}); using 0.05 and 0.3.");
+            }
+            walkAbove = 0.3f;
+            floatBelow = 0.05f;
         }
 
         private static ConfigValue<T> Bind<T>(IConfigFile cfg, string section, string key, T defaultValue,
@@ -312,6 +341,7 @@ namespace IVA
             }
 
             if (!InIva) return;
+            if (_hubArriveBy > 0f && _arrival != null && Time.unscaledTime >= _hubArriveBy) { _hubArriveBy = 0f; Arrive(); }   // the hub room took too long
             if (_mode == Mode.CustomInterior) KeepCameraGuard();
             if (_mode == Mode.CustomInterior && _unbuckleKey.Value.Down)
             {
@@ -349,7 +379,7 @@ namespace IVA
                 }
             }
             if (_hatchGo != null) { Hatches.Hatch g = _hatchGo; _hatchGo = null; BeginHatchFade(g); return; }
-            if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy)) UseTarget();
+            if (_free != null && _doorKey.Value.Down && (_interact == null || !_interact.HatchBusy) && !TryGrabLadder()) UseTarget();
             if (_free != null) MoveFree();
             if (_blend < 1f) _blend = _glideTime.Value <= 0f ? 1f : Mathf.Min(1f, _blend + Time.unscaledDeltaTime / _glideTime.Value);
             if (_mode == Mode.CustomInterior && _numpadAlign.Value) HandleAlignmentKeys();
@@ -392,8 +422,9 @@ namespace IVA
             Quaternion rot;
             if (_free != null)
             {
-                posW = _session.PodTransform.TransformPoint(_free.Pos);
-                rotW = _session.PodTransform.rotation * _free.Rot;
+                Transform frame = _free.Frame != null ? _free.Frame : _session.PodTransform;   // the pod, or the interior root in a ring
+                posW = frame.TransformPoint(_free.Pos);
+                rotW = frame.rotation * _free.Rot;
                 return true;
             }
             if (!_session.TryGetPose(_seatIndex, _viewIndex, EyeOffset(), out pos, out rot)) return false;
@@ -773,6 +804,8 @@ namespace IVA
             SaveFlightCamera();
             ResetView();
             _session = session;
+            _ringLink = null;
+            if (_session.Root != null && FreeMove.HasRingMarkers(_session.Root)) PrepareRing();   // ring: hang it on the Spinner now, not at unbuckle
             _interact = null;
             if (_session.Root != null)
             {
@@ -804,7 +837,92 @@ namespace IVA
             SetUpHatches(pod);
             SWLogger.LogInfo($"Entered IVA ({design.Name} interior), seat 1 of {session.SeatCount}" +
                              (session.UsesGameEyes ? ", at the game's kerbal eye point." : ", at the interior's seat point."));
-            if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod) Arrive();
+            if (!string.IsNullOrEmpty(design.HubAddress) && _session.Root != null && FreeMove.HasRingMarkers(_session.Root)) StartHubLoad(pod, design);
+            if (_arrival != null && _arrival.To != null && _arrival.To.Pod == pod.Pod)
+            {
+                if (_hubLoading) _hubArriveBy = Time.unscaledTime + 5f;   // the hub room is still loading: arrive when it is, or after 5 s
+                else Arrive();
+            }
+        }
+
+        // ---- Hub room (ring interiors whose iva.json has HubAddress): a second interior on the pod frame, with its own FreeMove ----
+
+        private void StartHubLoad(PodInfo pod, InteriorDesign design)
+        {
+            CustomInteriorSession session = _session;
+            string address = design.HubAddress;
+            if (_prefabCache.TryGetValue(address, out GameObject cached) && cached != null)
+            {
+                OnHubLoaded(session, pod, address, cached);
+                return;
+            }
+            _hubLoading = true;
+            SWLogger.LogInfo($"IVA: loading hub room '{address}'...");
+            try { Assets.Load<GameObject>(address, prefab => OnHubLoaded(session, pod, address, prefab), false); }
+            catch (Exception e)
+            {
+                _hubLoading = false;
+                SWLogger.LogWarning($"IVA: couldn't start loading hub room '{address}': {e.Message}; ladders still work, no hub crossing.");
+            }
+        }
+
+        private void OnHubLoaded(CustomInteriorSession session, PodInfo pod, string address, GameObject prefab)
+        {
+            if (session == null || _session != session) return;   // left IVA or changed part while it loaded
+            _hubLoading = false;
+            if (prefab == null) SWLogger.LogWarning($"IVA: couldn't load hub room '{address}'; ladders still work, no hub crossing.");
+            else
+            {
+                _prefabCache[address] = prefab;
+                try
+                {
+                    session.AttachHub(prefab, Placement(), session.Layer, SWLogger);
+                    AddHubHatches(pod);
+                    if (_free != null && _freeRing != null) BuildHubMove();   // already unbuckled
+                }
+                catch (Exception e) { SWLogger.LogWarning("IVA: couldn't place the hub room: " + e.Message); }
+            }
+            if (_arrival != null && _hubArriveBy > 0f) { _hubArriveBy = 0f; Arrive(); }   // an arrival was waiting for it
+        }
+
+        // The hub's docking-port hatches (IVA_Hatch_dock_*) work like any hatch, on the hub instance. Its IVA_Hatch_tunnel_* are the
+        // ladder tops, paired with the ring's spoke hatches by ladder number, so they are not hatches here.
+        private void AddHubHatches(PodInfo pod)
+        {
+            _hubHatches.Clear();
+            if (_session?.Hub == null || _interact == null) return;
+            List<Hatches.Hatch> found;
+            try { found = Hatches.Find(_session.Hub, pod, Game, _anyPod.Value); }
+            catch (Exception e) { SWLogger.LogWarning("IVA: couldn't work out the hub room's hatches: " + e.Message); return; }
+            foreach (Hatches.Hatch hatch in found)
+            {
+                if (!hatch.Name.StartsWith("dock_", StringComparison.Ordinal)) continue;
+                Hatches.Hatch h = hatch;
+                _hatches.Add(h);
+                _hubHatches.Add(h);
+                _interact.Targets.Add(new Interact.Target
+                {
+                    Kind = "Hatch", Name = h.Name, Pod = h.Pod,
+                    Prompt = () => !h.Outside ? (Hatches.FreeSeat(Game, h.Beyond.Pod) < 0 && Me() != null ? $"{h.Beyond.Name} is full" : $"go through to the {h.Beyond.Name}")
+                                 : "nothing on the other side of this hatch",
+                    Use = () => UseHatch(h, false),
+                });
+            }
+            SWLogger.LogInfo("IVA: hub hatches: " + (_hubHatches.Count == 0 ? "none" : string.Join(", ", _hubHatches.Select(h => h.Name + (h.Outside ? " (nothing beyond)" : " -> " + h.Beyond.Name)))));
+        }
+
+        // The hub room has no ring markers, so FreeMove.Build reads its IVA_ColAxis / IVA_ColHull_k into a floating cylinder along the
+        // hub axis, in pod space (Frame is the pod: the hub holder never moves in the pod).
+        private void BuildHubMove()
+        {
+            if (_session?.Hub == null || _session.PodTransform == null) return;
+            try
+            {
+                FreeMove h = FreeMove.Build(_session.Hub, _session.PodTransform, SWLogger);
+                _freeHub = h.Valid ? h : null;
+                if (_freeHub == null) SWLogger.LogWarning("IVA: the hub room has no usable collision markers; no hub crossing.");
+            }
+            catch (Exception e) { _freeHub = null; SWLogger.LogWarning("IVA: couldn't set up movement in the hub room: " + e.Message); }
         }
 
         // Pods without an interior of ours: hand over to Redux's own first-person camera. The old portrait-camera view
@@ -1026,6 +1144,11 @@ namespace IVA
         {
             CabinAo.End();
             _free = null;
+            _freeRing = null;
+            _freeHub = null;
+            _hubLoading = false;
+            _hubArriveBy = 0f;
+            _hubHatches.Clear();
             _interact?.Reset();
             _interact = null;
             _doorBoxes.Clear();
@@ -1083,9 +1206,12 @@ namespace IVA
         private void Unbuckle()
         {
             if (_session == null || _session.Root == null || _session.PodTransform == null) return;
+            if (FreeMove.HasRingMarkers(_session.Root)) PrepareRing();
             FreeMove f = FreeMove.Build(_session.Root, _session.PodTransform, SWLogger);
             if (!f.Valid) return;
-            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why);
+            if (f.RingMode && ComputeIvaPose(out Vector3 ringW, out Quaternion ringR, out float _))
+                f.Begin(f.Frame.InverseTransformPoint(ringW), Quaternion.Inverse(f.Frame.rotation) * ringR);   // gravity below needs the position
+            bool heavy = FeltGravityFor(f, out Vector3 upPod, out float g, out string why);
             int floor = heavy ? f.FloorFor(upPod) : -1;
             SWLogger.LogInfo($"IVA: gravity {why}; {(heavy ? floor >= 0 ? $"walking on floor {floor}" : "no floor faces up" : "floating")}.");
             if (heavy && floor < 0)
@@ -1094,7 +1220,7 @@ namespace IVA
                 return;
             }
             if (!ComputeIvaPose(out Vector3 posW, out Quaternion rotW, out float _)) return;
-            Transform pod = _session.PodTransform;
+            Transform pod = f.Frame;   // the pod, or the interior root in a ring
             f.Begin(pod.InverseTransformPoint(posW), Quaternion.Inverse(pod.rotation) * rotW);
             if (_viewIndex >= 0) _fov = _seatFov;
             _viewIndex = -1;
@@ -1102,9 +1228,12 @@ namespace IVA
             _yawLook = 0f;
             _pitch = 0f;
             _free = f;
+            _freeRing = f.RingMode ? f : null;
+            _freeHub = null;
+            if (_freeRing != null && _session.Hub != null) BuildHubMove();
             if (heavy) f.SetWalking(true, upPod, g);
             _doorBoxes.Clear();
-            if (_interact?.Doors != null)
+            if (_interact?.Doors != null && !f.RingMode)
                 foreach (Doors.Door d in _interact.Doors.All)
                     if (d.IsRoomDoor && !d.Name.StartsWith("DoorHatch", StringComparison.Ordinal))
                     {
@@ -1121,14 +1250,18 @@ namespace IVA
             if (_free == null || _session == null) return;
             int best = _seatIndex;
             float bestD = float.MaxValue;
+            Vector3 me = _free.Pos;   // pod space; in a ring Pos is in the interior root's space
+            if (_free.RingMode && _free.Frame != null) me = _session.PodTransform.InverseTransformPoint(_free.Frame.TransformPoint(_free.Pos));
             for (int i = 0; i < _session.SeatCount; i++)
             {
                 if (!_session.TryGetPose(i, -1, EyeOffset(), out Vector3 eye, out Quaternion _)) continue;
-                float d = (eye - _free.Pos).sqrMagnitude;
+                float d = (eye - me).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = i; }
             }
             BeginGlide();   // from where you are now
             _free = null;
+            _freeRing = null;
+            _freeHub = null;
             _sounds?.SetThrust(false);
             _sounds?.Play(Sounds.Buckle);
             _seatIndex = best;
@@ -1140,7 +1273,7 @@ namespace IVA
 
         // Gravity you'd feel standing in the pod: only when landed, splashed or on the pad (in flight you float, thrust or
         // not). up: pod space, opposite to the pull. why: for the log.
-        private bool FeltGravity(out Vector3 up, out float g, out string why)
+        private bool FeltGravity(out Vector3 up, out float g, out string why, Transform frame = null)
         {
             up = Vector3.up;
             g = 0f;
@@ -1153,11 +1286,66 @@ namespace IVA
                 bool landed = v.LandedOrSplashed || v.Situation == VesselSituations.PreLaunch;
                 Vector3 gW = (Vector3)space.VectorToPhysics(v.gravityForPos);
                 g = gW.magnitude;
-                if (g > 1e-4f) up = _session.PodTransform.InverseTransformDirection(-gW).normalized;
+                if (g > 1e-4f) up = (frame != null ? frame : _session.PodTransform).InverseTransformDirection(-gW).normalized;
                 why = $"{g:F2} m/s2 ({g / 9.81f:F3} g), up (pod) {up.ToString("F2")}, {v.Situation}{(landed ? ", landed" : "")}";
                 return landed && g > 0.3f;
             }
             catch (Exception e) { why = "error: " + e.Message; return false; }
+        }
+
+        // Ring interiors that are spinning: gravity is the spin, g = omega^2 * r at the feet, up points at the axis (in the interior
+        // root's space), in orbit as well as landed. Otherwise (and for every other interior) the real gravity above, in the frame's space.
+        private bool FeltGravityFor(FreeMove f, out Vector3 up, out float g, out string why)
+        {
+            if (f != null && f.RingMode && _ringLink != null)
+            {
+                float w = Mathf.Abs(_ringLink.Omega(SWLogger));   // direction of spin doesn't matter
+                if (w > 1e-3f)
+                {
+                    up = f.RingUpAt(f.Pos);
+                    float r = f.RingRadiusAt(f.Pos - up * FreeMove.EyeStand);
+                    g = RingSpinLink.GravityAt(w, r);
+                    why = $"ring spin {w:F3} rad/s ({w * 9.5493f:F2} rpm), r {r:F2} m, {g:F2} m/s2 ({g / 9.81f:F3} g), up (ring) {up.ToString("F2")}";
+                    return g > 0.3f;
+                }
+            }
+            return FeltGravity(out up, out g, out why, f != null ? f.Frame : null);
+        }
+
+        // A ring interior: find the spin source on the part and, if it offers its turning node, hang the interior on it so the
+        // corridor turns with the ring. Fails soft (the interior then stays fixed to the part and gets no spin gravity).
+        private void PrepareRing()
+        {
+            try
+            {
+                if (_ringLink == null) _ringLink = RingSpinLink.Find(_session.PodTransform, SWLogger);
+                Transform spin = _ringLink?.SpinFrame(SWLogger);
+                if (spin == null || _session.Root.parent == spin) return;
+                Transform pod = _session.PodTransform, root = _session.Root;
+                _session.HoldPlacement = true;
+                if (_ringLink.TryAngleDeg(SWLogger, out float angle))
+                {
+                    // The interior is laid out in the part frame with the ring at home (angle 0). Spinner's rest pose (base) is its
+                    // pose now minus the spin: Module_RingSpin sets localRotation = base * AngleAxis(angle, Z). Put the root where
+                    // it would be if the ring were at home, expressed in Spinner's space, so it is neither tipped over nor offset
+                    // and then turns with the Spinner from the current angle.
+                    Vector3 sPos = pod.InverseTransformPoint(spin.position);
+                    Quaternion sBase = Quaternion.Inverse(pod.rotation) * spin.rotation * Quaternion.AngleAxis(-angle, Vector3.forward);
+                    Vector3 rPos = pod.InverseTransformPoint(root.position);
+                    Quaternion rRot = Quaternion.Inverse(pod.rotation) * root.rotation;
+                    // world placement, so a scaled Spinner (FBX import) doesn't rescale or offset the interior
+                    Quaternion fromHome = spin.rotation * Quaternion.Inverse(sBase);
+                    root.SetParent(spin, true);
+                    root.SetPositionAndRotation(spin.position + fromHome * (rPos - sPos), fromHome * rRot);
+                    SWLogger.LogInfo($"IVA: ring interior now turns with '{spin.name}' (ring at {angle:F1} deg, home pose kept).");
+                }
+                else
+                {
+                    root.SetParent(spin, true);   // world pose kept: only right while the ring is at home
+                    SWLogger.LogWarning($"IVA: ring interior hung on '{spin.name}' keeping its world pose; no IvaSpinAngleDeg, so it is offset if the ring is mid-spin.");
+                }
+            }
+            catch (Exception e) { SWLogger.LogWarning("IVA: ring set-up failed: " + e.Message); }
         }
 
         private void Toast(string text, float secs = 3f)
@@ -1171,7 +1359,11 @@ namespace IVA
         {
             float dt = Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f;   // hold still while paused
             float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
-            bool heavy = FeltGravity(out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
+            TrackSpin();
+            if (_free.Climbing) { MoveClimb(dt); return; }
+            bool heavy = FeltGravityFor(_free, out Vector3 upPod, out float g, out string why) && _free.FloorFor(upPod) >= 0;
+            if (_free == _freeHub) heavy = false;   // the hub room is zero g, even landed
+            else if (heavy && _free.LadderCount > 0 && _free.InTube(_free.Pos, out int _)) heavy = false;   // in a ladder tube: float, with the pull below
             if (heavy != _free.Walking)
             {
                 _free.SetWalking(heavy, upPod, g);
@@ -1191,8 +1383,164 @@ namespace IVA
             float roll = K(KeyCode.Q) - K(KeyCode.E);
             _free.Turn(0f, 0f, roll * 70f * dt);
             float top = _floatSpeed.Value;
-            _free.Step(move, dt, top * 2.5f, top, 2.5f);
+            Vector3 pull = Vector3.zero;
+            if (_free.LadderCount > 0 && _free.InTube(_free.Pos, out int _))
+            {
+                // a player who lets go in the tube drifts down to the cabin while the spin gravity is at or above the release value
+                LadderG(out float _, out float floatBelow);
+                float gTube = SpinGAt(_free, _free.Pos);
+                if (gTube >= floatBelow) pull = -_free.RingUpAt(_free.Pos) * (gTube * 9.81f);
+            }
+            _free.Step(move, dt, top * 2.5f, top, 2.5f, pull);
+            // drifting up the tube into the hub room: hand over to the hub instance
+            if (_freeHub != null && _free == _freeRing && _free.LadderCount > 0 &&
+                _freeHub.Contains(_freeHub.Frame.InverseTransformPoint(_free.Frame.TransformPoint(_free.Pos)), 0.02f))
+                Cross(_freeHub, "floating");
             _sounds?.SetThrust(_thrusterSound.Value && dt > 0f && (move.sqrMagnitude > 0f || roll != 0f));
+        }
+
+        // ---- Ladders (ring interiors with IVA_Ladder_ markers; with none, every path here ends at once) ----
+
+        private float SpinOmega() => _ringLink != null ? Mathf.Abs(_ringLink.Omega(SWLogger)) : 0f;
+
+        // Spin gravity in g at p (Frame space of f); 0 at 0 rpm.
+        private float SpinGAt(FreeMove f, Vector3 p) => RingSpinLink.GravityAt(SpinOmega(), f.RingRadiusAt(p)) / 9.81f;
+
+        // The ladder the view points at, within reach, and the FreeMove that owns it.
+        private bool FindGrab(out FreeMove owner, out int n)
+        {
+            owner = null;
+            n = -1;
+            if (_free == null || _free.Climbing) return false;
+            if (_free.RingMode && _free.LadderCount > 0)
+            {
+                n = _free.LadderAt(_free.Pos, _free.Rot * Vector3.forward, Interact.Reach);
+                if (n >= 0) owner = _free;
+            }
+            else if (_freeHub != null && _free == _freeHub && _freeRing != null && _freeRing.LadderCount > 0)
+            {
+                // in the hub room: a ladder top within reach, judged in the ring frame
+                FreeMove ring = _freeRing;
+                Vector3 eyeW = _free.Frame.TransformPoint(_free.Pos);
+                Vector3 fwdW = _free.Frame.rotation * (_free.Rot * Vector3.forward);
+                n = ring.LadderAt(ring.Frame.InverseTransformPoint(eyeW), ring.Frame.InverseTransformDirection(fwdW), Interact.Reach);
+                if (n >= 0) owner = ring;
+            }
+            return owner != null;
+        }
+
+        // The ring frame's angular velocity relative to the pod, measured from its rotation over 0.1 s or more (the spin moves in
+        // physics steps, so a per-frame difference would flicker). Only while both instances exist.
+        private void TrackSpin()
+        {
+            if (_freeRing == null || _freeHub == null || _freeRing.Frame == null || _session?.PodTransform == null)
+            {
+                _spinPrevT = -1f;
+                _spinW = Vector3.zero;
+                return;
+            }
+            Quaternion rel = Quaternion.Inverse(_session.PodTransform.rotation) * _freeRing.Frame.rotation;
+            if (_spinPrevT < 0f) { _spinPrev = rel; _spinPrevT = Time.time; _spinW = Vector3.zero; return; }
+            float el = Time.time - _spinPrevT;
+            if (el < 0.1f) return;
+            (rel * Quaternion.Inverse(_spinPrev)).ToAngleAxis(out float ang, out Vector3 axis);
+            if (ang > 180f) ang -= 360f;
+            _spinW = Mathf.Abs(ang) < 0.001f || float.IsNaN(axis.x) || float.IsInfinity(axis.x) ? Vector3.zero : axis * (ang * Mathf.Deg2Rad / el);
+            _spinPrev = rel;
+            _spinPrevT = Time.time;
+        }
+
+        // The only place _free changes between the ring and hub instances. The camera must not move: take the world pose and the
+        // world velocity (the frame's own motion included), re-express both in the new frame, and begin there.
+        private void Cross(FreeMove to, string why)
+        {
+            FreeMove from = _free;
+            if (to == null || from == null || to == from || _session?.PodTransform == null) return;
+            if (!ComputeIvaPose(out Vector3 p0, out Quaternion q0, out float _)) return;
+            FreeMove ring = _freeRing;
+            Vector3 c = ring != null ? ring.Frame.TransformPoint(ring.AxisPoint) : p0;                // a point on the spin axis
+            Vector3 wRel = _session.PodTransform.TransformDirection(_spinW);                          // ring relative to pod, world axes
+            Vector3 vW = from.Frame.TransformDirection(from.Velocity);
+            if (from == ring) vW += Vector3.Cross(wRel, p0 - c);
+            int collar = 0;
+            if (ring != null && ring.LadderCount > 0) collar = ring.GetLadder(Mathf.Max(0, ring.NearestLadder(ring.Frame.InverseTransformPoint(p0)))).N;
+            to.Begin(to.Frame.InverseTransformPoint(p0), Quaternion.Inverse(to.Frame.rotation) * q0);
+            Vector3 vTo = vW;
+            if (to == ring) vTo -= Vector3.Cross(wRel, p0 - c);
+            to.Velocity = to.Frame.InverseTransformDirection(vTo);
+            _free = to;
+            float moved = ComputeIvaPose(out Vector3 p1, out Quaternion _, out float _) ? (p1 - p0).magnitude : -1f;
+            SWLogger.LogInfo($"IVA: frame crossing {(to == ring ? "hub -> ring" : "ring -> hub")} at collar {collar}, speed {vW.magnitude:F2} m/s, camera moved {moved:F3} m ({why}).");
+        }
+
+        // The interact key on a ladder in reach: grab it. False when there is none, so the key does what it did before.
+        private bool TryGrabLadder()
+        {
+            if (!FindGrab(out FreeMove owner, out int n)) return false;
+            if (owner != _free) Cross(owner, "ladder grab");   // from the hub room into the ring frame first
+            if (_free != owner) return false;
+            owner.EnterLadder(n);
+            _sounds?.SetThrust(false);
+            SWLogger.LogInfo($"IVA: climbing ladder {owner.GetLadder(n).N} at {owner.S:F1} m (g {SpinGAt(owner, owner.Pos):F2}).");
+            return true;
+        }
+
+        private void MoveClimb(float dt)
+        {
+            FreeMove f = _free;
+            float K(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
+            int ln = f.GetLadder(f.LadderIndex).N;
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.LeftControl))
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: let go of ladder {ln}.");
+                return;
+            }
+            f.Turn(0f, 0f, (K(KeyCode.Q) - K(KeyCode.E)) * 70f * dt);
+            float input = K(KeyCode.W) - K(KeyCode.S);
+            LadderG(out float walkAbove, out float floatBelow);
+            int end = f.StepClimb(input, dt);
+            float g = SpinGAt(f, f.Pos);
+            // Towards the hub with the ring turning and the spin gravity below the release value: let go into floating. At 0 rpm the
+            // ladder stays a zero-g handhold. The values are checked every frame, so spin starting or stopping keeps the hold.
+            if (input > 0f && SpinOmega() > 1e-3f && g < floatBelow)
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: left ladder {ln} to floating at g {g:F2}.");
+                return;
+            }
+            if (end < 0 && g >= walkAbove)
+            {
+                // the ring end: step onto the floor when the spin gravity is enough and a floor faces up
+                Vector3 up = f.RingUpAt(f.Pos);
+                if (f.FloorFor(up) >= 0)
+                {
+                    f.LeaveLadder();
+                    f.Velocity = Vector3.zero;
+                    f.SetWalking(true, up, g * 9.81f);
+                    SWLogger.LogInfo($"IVA: stepped off ladder {ln} at the ring end (g {g:F2}).");
+                }
+                return;
+            }
+            if (_freeHub != null && f == _freeRing)
+            {
+                // the hub end: climb on past the end of the ladder until the eye is inside the hub's hull, then hand over; if 0.5 m
+                // pass without that, hand over anyway (the log shows the small camera move)
+                if (f.S > f.LadderLength - 0.1f)
+                {
+                    Vector3 eyeW = f.Frame.TransformPoint(f.Pos);
+                    if (_freeHub.Contains(_freeHub.Frame.InverseTransformPoint(eyeW), 0.02f) || f.AtLadderTop)
+                    {
+                        f.LeaveLadder();
+                        Cross(_freeHub, "ladder top");
+                    }
+                }
+            }
+            else if (end > 0)
+            {
+                f.LeaveLadder();
+                SWLogger.LogInfo($"IVA: left ladder {ln} at the hub end to floating (g {g:F2}).");
+            }
         }
 
         private void LockFlightInput(bool on)
@@ -1206,7 +1554,7 @@ namespace IVA
             catch (Exception e) { SWLogger.LogWarning($"IVA: couldn't {(on ? "lock" : "unlock")} the flight controls: {e.Message}"); }
         }
 
-        private Interact.Target Aimed() => _free != null && _interact != null ? _interact.Pick(_free.Pos, _free.Rot * Vector3.forward) : null;
+        private Interact.Target Aimed() => _free != null && !_free.RingMode && _interact != null ? _interact.Pick(_free.Pos, _free.Rot * Vector3.forward) : null;
 
         private void UseTarget()
         {
@@ -1232,6 +1580,8 @@ namespace IVA
             string text = null;
             Interact.Target t = Aimed();
             if (t != null) text = $"{_doorKey.Value}: {t.Prompt()}";
+            else if (_free.Climbing) text = "W/S climb, Space let go";
+            else if (FindGrab(out FreeMove _, out int _)) text = $"{_doorKey.Value}: climb the ladder";
             if (text != null) GUI.Label(new Rect(0f, Screen.height * 0.62f, Screen.width, 30f), text, _promptStyle);
         }
 
@@ -1457,7 +1807,8 @@ namespace IVA
             for (int i = 0; i < _session.EyeKerbals.Count; i++)
                 if (a.Kerbal != null && _session.EyeKerbals[i]?.ThisKerbalInfo == a.Kerbal) { _seatIndex = i; _session.ShowSeat(i, _hideOwnKerbal.Value, SWLogger); break; }
             Unbuckle();
-            if (_free == null || _hatches.Count == 0) return;
+            if (_free != null && _free.RingMode && _freeHub != null && _hubHatches.Count > 0) { ArriveAtHubHatch(a); return; }
+            if (_free == null || _free.RingMode || _hatches.Count == 0) return;   // ring: spoke hatches aren't wired up yet
             Transform pod = _session.PodTransform;
             // the hatch that faces the part you came from (side hatches only if there's nothing else). The part's position
             // is read now: a world position saved before the move is stale by the time the next interior has loaded (in
@@ -1471,6 +1822,23 @@ namespace IVA
             _free.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
             _sounds?.Play(Sounds.HatchClose);
             SWLogger.LogInfo($"IVA: came through the {h.Name} hatch (from {(a.From != null ? PodLocator.PartName(a.From) : "?")}).");
+        }
+
+        // A ring with a hub room: you come in through the docking-port hatch of the hub that faces the part you came from.
+        private void ArriveAtHubHatch(Arrival a)
+        {
+            Transform pod = _session.PodTransform;
+            Vector3 fromNow = a.From != null ? a.From.transform.position : a.FromWorld;
+            Vector3 toFrom = fromNow - pod.position;
+            Hatches.Hatch h = _hubHatches.OrderBy(x => Vector3.Angle(Hatches.Facing(x.Name, pod.TransformPoint(x.Pod), pod), toFrom)).First();
+            Vector3 dir = (_freeHub.Middle - h.Pod).normalized;
+            Vector3 up = Vector3.ProjectOnPlane(Vector3.forward, dir);
+            if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(Vector3.up, dir);
+            if (_freeRing != null) _freeRing.SetWalking(false, Vector3.up, 0f);
+            _free = _freeHub;
+            _freeHub.Begin(h.Pod + dir * 0.35f, Quaternion.LookRotation(dir, up.normalized));
+            _sounds?.Play(Sounds.HatchClose);
+            SWLogger.LogInfo($"IVA: came through the hub's {h.Name} hatch (from {(a.From != null ? PodLocator.PartName(a.From) : "?")}).");
         }
 
         private void NextSeat()

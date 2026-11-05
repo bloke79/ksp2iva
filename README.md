@@ -119,6 +119,8 @@ All in the mod's config file (Redux may also show them in the in-game mod settin
 | Look | Window glide time | 0.5 | Seconds to move between seat and window (0 = instant) |
 | Look | Float speed | 1.2 | Top speed when floating round the cabin (m/s) |
 | Look | Walk speed | 0.9 | Walking speed in a landed lander (m/s): WASD walk, Space jump, Ctrl crouch |
+| Movement | LadderWalkAboveG | 0.3 | Ring ladders: at or above this spin gravity (in g) you step off at the ring end and walk (0.05 to 1) |
+| Movement | LadderFloatBelowG | 0.05 | Ring ladders: below this spin gravity (in g), climbing towards the hub lets you go into floating (0 to 0.5). Must be below LadderWalkAboveG, or both fall back to the defaults |
 | Sound | Interior sounds | on | Cabin sounds (thrusters, doors, buckles) from the game's own sound events |
 | Sound | Thruster sound | on | Moving while floating plays the EVA jetpack's thruster sound |
 | Sound | Volume | 0.6 | Volume of the cabin sounds (0 to 1) |

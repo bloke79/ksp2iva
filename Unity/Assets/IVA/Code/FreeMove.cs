@@ -40,7 +40,12 @@ namespace IVA
         private Vector3 _a0, _u;
         private float _hMax;
 
-        public Vector3 Pos;                 // pod space
+        // Ring mode (only when the interior has IVA_RingAxis_0/1 and IVA_RingRadius): the frame is the interior root, not the
+        // pod, because the ring turns inside the part. Pos, Rot and every marker are in Frame space. Otherwise Frame is the pod.
+        public Transform Frame { get; private set; }
+        public bool RingMode { get; private set; }
+
+        public Vector3 Pos;                 // pod space (ring mode: interior root space)
         public Quaternion Rot = Quaternion.identity;
         private Vector3 _vel;
         private bool _ghost;                // ignore equipment until clear of it (you start inside your couch)
@@ -58,20 +63,70 @@ namespace IVA
         private float _eyeH = EyeStand;
         public int FloorCount => _floors.Count;
 
+        // Ladders (ring mode only): IVA_Ladder_<n>_0 (ring end), _1 (hub end) and optional _Radius, all in Frame space. The list stays
+        // empty for every interior without those markers, so nothing that uses it runs for them.
+        public struct Ladder
+        {
+            public int N;            // the number in the marker names
+            public Vector3 A, B, U;  // ring end, hub end, unit direction A to B
+            public float Len;        // |B - A|
+            public float GrabR;      // capsule radius to grab it, and the tube radius round it
+            public float SMin;       // lowest point on the climb: at or below A (0 to -3 m), so the eye can come down to standing height
+        }
+
+        private readonly List<Ladder> _ladders = new List<Ladder>();
+        private int[] _boxTube;   // per equipment box: the ladder whose tube it stands in (the ceiling slab over a spoke hatch), or -1; null without ladders
+        public int LadderCount => _ladders.Count;
+        public Ladder GetLadder(int i) => _ladders[i];
+
         public bool Valid => _hull.Count >= 2 && _hMax > 0.1f;
         public int BoxCount => _boxes.Count;
         public Vector3 Axis => _u;
         public Vector3 Middle => _a0 + _u * (_hMax * 0.5f);   // halfway up the axis, pod space
 
+        // True for a spinning-ring interior: the three optional ring markers are all there. Existing interiors have none.
+        public static bool HasRingMarkers(Transform interior)
+        {
+            if (interior == null) return false;
+            bool a0 = false, a1 = false, rad = false;
+            foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "IVA_RingAxis_0") a0 = true;
+                else if (t.name == "IVA_RingAxis_1") a1 = true;
+                else if (t.name == "IVA_RingRadius") rad = true;
+            }
+            return a0 && a1 && rad;
+        }
+
         public static FreeMove Build(Transform interior, Transform pod, ILogger log)
         {
             var f = new FreeMove();
+            bool ring = HasRingMarkers(interior);
+            Transform frame = ring ? interior : pod;
+            f.Frame = frame;
             var pts = new Dictionary<string, Vector3>(StringComparer.Ordinal);
             foreach (Transform t in interior.GetComponentsInChildren<Transform>(true))
                 if (t.name.StartsWith("IVA_Col", StringComparison.Ordinal) || t.name.StartsWith("IVA_Hatch_", StringComparison.Ordinal)
-                    || t.name.StartsWith("IVA_Floor_", StringComparison.Ordinal))
-                    pts[t.name] = pod.InverseTransformPoint(t.position);
-            if (!pts.TryGetValue("IVA_ColAxis_0", out Vector3 a0) || !pts.TryGetValue("IVA_ColAxis_1", out Vector3 a1))
+                    || t.name.StartsWith("IVA_Floor_", StringComparison.Ordinal)
+                    || t.name.StartsWith("IVA_Ring", StringComparison.Ordinal) || t.name.StartsWith("IVA_Ladder_", StringComparison.Ordinal))
+                    pts[t.name] = frame.InverseTransformPoint(t.position);
+            Vector3 a0 = Vector3.zero, a1 = Vector3.zero;
+            float ringR = 0f;
+            if (ring)
+            {
+                // No IVA_ColAxis in a ring: the spin axis is the movement axis, and the hull wall is a cylinder round it.
+                a0 = pts["IVA_RingAxis_0"];
+                a1 = pts["IVA_RingAxis_1"];
+                Vector3 axis = (a1 - a0).normalized;
+                Vector3 d = pts["IVA_RingRadius"] - a0;
+                ringR = (d - axis * Vector3.Dot(d, axis)).magnitude;
+                if ((a1 - a0).magnitude < 0.1f || ringR < 0.5f)
+                {
+                    log?.LogWarning("IVA: ring markers are degenerate (axis shorter than 0.1 m or radius under 0.5 m); can't move around inside.");
+                    return f;
+                }
+            }
+            else if (!pts.TryGetValue("IVA_ColAxis_0", out a0) || !pts.TryGetValue("IVA_ColAxis_1", out a1))
             {
                 log?.LogWarning("IVA: this interior has no collision markers (re-export it); can't move around inside.");
                 return f;
@@ -85,6 +140,12 @@ namespace IVA
                 float h = Vector3.Dot(d, f._u);
                 f._hull.Add(new Vector2(h, (d - f._u * h).magnitude));
             }
+            if (ring)
+            {
+                f.RingMode = true;
+                f._hull.Add(new Vector2(0f, ringR + 0.3f));          // wall just outside the floor ring; the underfloor slabs do the rest
+                f._hull.Add(new Vector2(f._hMax, ringR + 0.3f));
+            }
             f._hull.Sort((p, q) => p.x.CompareTo(q.x));
             foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_ColDeck_", StringComparison.Ordinal)))
                 f._decks.Add(Vector3.Dot(kv.Value - a0, f._u));
@@ -95,9 +156,106 @@ namespace IVA
             foreach (var kv in pts.Where(p => p.Key.StartsWith("IVA_Floor_", StringComparison.Ordinal) && p.Key.EndsWith("_p", StringComparison.Ordinal)))
                 if (pts.TryGetValue(kv.Key.Substring(0, kv.Key.Length - 2) + "_n", out Vector3 n))
                     f._floors.Add(new KeyValuePair<Vector3, Vector3>(kv.Value, (n - kv.Value).normalized));
+            if (ring) ReadLadders(pts, f, log);
             log?.LogInfo($"IVA: free movement ready: hull {f._hull.Count} rings over {f._hMax:F2} m, {f._decks.Count} deck(s), " +
-                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s).");
+                         $"{f._holes.Count} opening(s), {f._boxes.Count} equipment box(es), {f.Hatches.Count} hatch(es), {f._floors.Count} floor(s)." +
+                         (ring ? $" Ring mode: radius {ringR:F2} m, frame is the interior root." : ""));
             return f;
+        }
+
+        // Ring mode: the up direction at p (towards the spin axis, so "down" is outward) and the distance from the axis.
+        public Vector3 RingUpAt(Vector3 p)
+        {
+            Vector3 d = p - _a0;
+            Vector3 radial = d - _u * Vector3.Dot(d, _u);
+            return radial.sqrMagnitude < 1e-6f ? _up : -radial.normalized;
+        }
+
+        public float RingRadiusAt(Vector3 p)
+        {
+            Vector3 d = p - _a0;
+            return (d - _u * Vector3.Dot(d, _u)).magnitude;
+        }
+
+        // Reads IVA_Ladder_<n>_0 / _1 / _Radius (n a 0-based integer). A ladder missing an end, or shorter than 0.3 m, is skipped.
+        private static void ReadLadders(Dictionary<string, Vector3> pts, FreeMove f, ILogger log)
+        {
+            const string prefix = "IVA_Ladder_";
+            var byId = new SortedDictionary<int, Dictionary<string, Vector3>>();
+            foreach (var kv in pts)
+            {
+                if (!kv.Key.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                string rest = kv.Key.Substring(prefix.Length);   // "<n>_0", "<n>_1" or "<n>_Radius"
+                int us = rest.IndexOf('_');
+                if (us <= 0 || !int.TryParse(rest.Substring(0, us), out int id) || id < 0) continue;
+                if (!byId.TryGetValue(id, out var m)) byId[id] = m = new Dictionary<string, Vector3>(StringComparer.Ordinal);
+                m[rest.Substring(us + 1)] = kv.Value;
+            }
+            foreach (var entry in byId)
+            {
+                Dictionary<string, Vector3> m = entry.Value;
+                if (!m.TryGetValue("0", out Vector3 a) || !m.TryGetValue("1", out Vector3 b) || (b - a).magnitude < 0.3f)
+                {
+                    log?.LogWarning($"IVA: ladder {entry.Key}: markers missing, ladder ignored.");
+                    continue;
+                }
+                var l = new Ladder { N = entry.Key, A = a, B = b, Len = (b - a).magnitude };
+                l.U = (b - a) / l.Len;
+                l.GrabR = 0.45f;
+                if (m.TryGetValue("Radius", out Vector3 rp))
+                {
+                    Vector3 d = rp - a;
+                    l.GrabR = Mathf.Max(0.05f, (d - l.U * Vector3.Dot(d, l.U)).magnitude);
+                }
+                // The climb may go below A until the eye is at standing height over the nearest floor plane, measured outward
+                // from A (A sits on the ceiling hatch), so stepping off at the ring end needs no jump.
+                Vector3 outward = -f.RingUpAt(a);
+                float nearest = float.MaxValue;
+                foreach (var fl in f._floors)
+                {
+                    float dn = Vector3.Dot(outward, fl.Value);
+                    if (dn > -0.5f) continue;
+                    float t = Vector3.Dot(fl.Key - a, fl.Value) / dn;
+                    if (t > 0.01f && t < nearest) nearest = t;
+                }
+                l.SMin = nearest < float.MaxValue ? Mathf.Clamp(-(nearest - EyeStand), -3f, 0f) : 0f;
+                f._ladders.Add(l);
+                log?.LogInfo($"IVA: ladder {l.N} found: {l.Len:F1} m, bottom ({a.x:F2},{a.y:F2},{a.z:F2}) top ({b.x:F2},{b.y:F2},{b.z:F2}).");
+                log?.LogInfo($"IVA: ladder {l.N}: grab radius {l.GrabR:F2} m, climb reaches {-l.SMin:F2} m below the ring end" +
+                             (nearest < float.MaxValue ? $" (floor {nearest:F2} m below it)." : " (no floor found below it)."));
+            }
+            if (f._ladders.Count > 0) f.MarkTubeBoxes();
+        }
+
+        // Boxes the ladder passes through (the ceiling slab over a spoke hatch): inside the tube they are let through.
+        private void MarkTubeBoxes()
+        {
+            _boxTube = new int[_boxes.Count];
+            for (int i = 0; i < _boxes.Count; i++)
+            {
+                _boxTube[i] = -1;
+                for (int li = 0; li < _ladders.Count && _boxTube[i] < 0; li++)
+                {
+                    Ladder l = _ladders[li];
+                    for (float s = l.SMin; s <= l.Len; s += 0.1f)
+                        if (Inside(_boxes[i], l.A + l.U * s, 0.1f)) { _boxTube[i] = li; break; }
+                }
+            }
+        }
+
+        // Is p in the tube round ladder n: within GrabR + 0.25 m of its axis and from 0.3 m below the ring end to 0.5 m past the hub end?
+        public bool InTube(Vector3 p, out int n)
+        {
+            n = -1;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                Vector3 v = p - l.A;
+                float s = Vector3.Dot(v, l.U);
+                if (s < -0.3f || s > l.Len + ClimbOver) continue;
+                if ((v - l.U * s).magnitude < l.GrabR + 0.25f) { n = i; return true; }
+            }
+            return false;
         }
 
         private static void ReadBoxes(Dictionary<string, Vector3> pts, string prefix, List<Box> into)
@@ -276,11 +434,12 @@ namespace IVA
         }
 
         // move: thrust direction in view space (x right, y up, z forward), each -1..1.
-        public void Step(Vector3 move, float dt, float accel, float maxSpeed, float damping)
+        public void Step(Vector3 move, float dt, float accel, float maxSpeed, float damping, Vector3 pull = default(Vector3))
         {
             if (dt <= 0f) return;
             dt = Mathf.Min(dt, 0.05f);
             _vel += Rot * move * (accel * dt);
+            _vel += pull * dt;   // frame space, m/s^2: spin gravity in a ladder tube
             _vel *= Mathf.Exp(-damping * dt);
             if (_vel.magnitude > maxSpeed) _vel = _vel.normalized * maxSpeed;
             Vector3 old = Pos;
@@ -357,11 +516,27 @@ namespace IVA
                     Stop(n);
                 }
             }
+            // the tube round a ladder has no walls marked: keep the player inside it (not at its mouth, where they come in)
+            if (_ladders.Count > 0 && InTube(p, out int tubeN))
+            {
+                Ladder tl = _ladders[tubeN];
+                Vector3 tv = p - tl.A;
+                float ts = Vector3.Dot(tv, tl.U);
+                Vector3 trad = tv - tl.U * ts;
+                float tr = trad.magnitude, tMax = tl.GrabR + 0.25f - Radius;
+                if (ts > 0.3f && tr > tMax && tr > 1e-5f)
+                {
+                    Vector3 tn = -trad / tr;
+                    p += tn * (tr - tMax);
+                    Stop(tn);
+                }
+            }
             if (_ghost) return;
             // equipment boxes, then closed doors
             for (int i = 0; i < _boxes.Count + _doors.Count; i++)
             {
                 if (i >= _boxes.Count && !_doorSolid[i - _boxes.Count]) continue;
+                if (_boxTube != null && i < _boxes.Count && _boxTube[i] >= 0 && InTube(p, out int passN) && passN == _boxTube[i]) continue;   // the slab over the hatch
                 Box b = i < _boxes.Count ? _boxes[i] : _doors[i - _boxes.Count];
                 Vector3 d = p - b.C;
                 if (d.sqrMagnitude > (b.Reach + Radius) * (b.Reach + Radius)) continue;
@@ -401,6 +576,119 @@ namespace IVA
         public void SetDoorSolid(int i, bool solid)
         {
             if (i >= 0 && i < _doorSolid.Count) _doorSolid[i] = solid;
+        }
+
+        // ---- Climbing: only EnterLadder starts it, and it needs a ladder (ring mode with IVA_Ladder_ markers) ----
+        public const float ClimbSpeed = 0.8f;
+        private const float ClimbGlide = 0.3f;   // seconds to glide onto the rung line
+        private const float ClimbOver = 0.5f;    // how far past the hub end the climb may go (the eye clears the hub wall)
+        public bool Climbing { get; private set; }
+        public int LadderIndex { get; private set; } = -1;   // index into the ladder list; kept after LeaveLadder for the log
+        public float S => _s;                                 // distance along the ladder from its ring end
+        public float LadderLength => LadderIndex >= 0 && LadderIndex < _ladders.Count ? _ladders[LadderIndex].Len : 0f;
+        private float _s, _snap;
+        private Vector3 _enterFrom, _side, _climbVel;
+
+        public Vector3 Velocity { get => _vel; set => _vel = value; }   // Frame space
+
+        public Vector3 LadderPoint(int n, float s) => _ladders[n].A + _ladders[n].U * s;
+
+        // The nearest ladder whose climbable stretch [SMin, Len] is within GrabR + reach of the eye, with its closest point in
+        // front of the view (45 degrees). -1 when none.
+        public int LadderAt(Vector3 eye, Vector3 fwd, float reach)
+        {
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                float s = Mathf.Clamp(Vector3.Dot(eye - l.A, l.U), l.SMin, l.Len);
+                Vector3 d = l.A + l.U * s - eye;
+                float dist = d.magnitude;
+                if (dist > l.GrabR + reach) continue;
+                if (dist > 0.05f && Vector3.Angle(fwd, d) >= 45f) continue;
+                if (dist < bestD) { bestD = dist; best = i; }
+            }
+            return best;
+        }
+
+        // The ladder closest to p (whole stretch), or -1 when there are none.
+        public int NearestLadder(Vector3 p)
+        {
+            int best = -1;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _ladders.Count; i++)
+            {
+                Ladder l = _ladders[i];
+                float s = Mathf.Clamp(Vector3.Dot(p - l.A, l.U), l.SMin, l.Len);
+                float dist = (l.A + l.U * s - p).magnitude;
+                if (dist < bestD) { bestD = dist; best = i; }
+            }
+            return best;
+        }
+
+        // Grab ladder n: the eye glides onto the hold point beside the rungs over ClimbGlide seconds (no jump). Rot is kept.
+        public void EnterLadder(int n)
+        {
+            if (n < 0 || n >= _ladders.Count) return;
+            Ladder l = _ladders[n];
+            Walking = false;
+            Grounded = false;
+            Climbing = true;
+            LadderIndex = n;
+            _vel = Vector3.zero;
+            _climbVel = Vector3.zero;
+            _s = Mathf.Clamp(Vector3.Dot(Pos - l.A, l.U), l.SMin, l.Len);
+            Vector3 off = Vector3.ProjectOnPlane(Pos - (l.A + l.U * _s), l.U);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.ProjectOnPlane(Rot * Vector3.right, l.U);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.Cross(l.U, Vector3.up);
+            if (off.sqrMagnitude < 1e-4f) off = Vector3.Cross(l.U, Vector3.right);
+            _side = off.normalized;
+            _enterFrom = Pos;
+            _snap = 0f;
+        }
+
+        // input -1..1 (towards the ring end .. towards the hub). Sets Pos and ignores boxes, hull and doors: the hold is the
+        // collision. Returns 0 on the ladder, -1 at the ring end pushing down, +1 at or past the hub end pushing up.
+        public int StepClimb(float input, float dt)
+        {
+            if (!Climbing || LadderIndex < 0 || LadderIndex >= _ladders.Count) return 0;
+            Ladder l = _ladders[LadderIndex];
+            if (dt > 0f)
+            {
+                dt = Mathf.Min(dt, 0.05f);
+                _s = Mathf.Clamp(_s + input * ClimbSpeed * dt, l.SMin, l.Len + ClimbOver);
+                _snap = Mathf.Min(1f, _snap + dt / ClimbGlide);
+            }
+            Vector3 hold = l.A + l.U * _s + _side * (l.GrabR * 0.5f);
+            Pos = _snap >= 1f ? hold : Vector3.Lerp(_enterFrom, hold, Mathf.SmoothStep(0f, 1f, _snap));
+            _climbVel = l.U * (input * ClimbSpeed);
+            if (input < 0f && _s <= l.SMin + 1e-3f) return -1;
+            if (input > 0f && _s >= l.Len - 1e-3f) return 1;
+            return 0;
+        }
+
+        public Vector3 AxisPoint => _a0;   // Frame space: where the movement axis starts (ring mode: the spin axis)
+
+        // True once the climb has gone the whole way past the hub end (ClimbOver), where a hub crossing must happen anyway.
+        public bool AtLadderTop => Climbing && LadderIndex >= 0 && LadderIndex < _ladders.Count && _s >= _ladders[LadderIndex].Len + ClimbOver - 1e-3f;
+
+        // Is p (Frame space) inside the hull cylinder, with margin to spare? Used on the hub instance for the spin-joint crossing.
+        public bool Contains(Vector3 p, float margin)
+        {
+            if (!Valid) return false;
+            float h = Height(p);
+            if (h < Radius + margin || h > _hMax - Radius - margin) return false;
+            Vector3 radial = (p - _a0) - _u * h;
+            return radial.magnitude <= HullRadius(h) - Radius - margin;
+        }
+
+        // Let go: back to floating, keeping Pos, Rot and the velocity of the last climb step.
+        public void LeaveLadder()
+        {
+            if (!Climbing) return;
+            Climbing = false;
+            _vel = _climbVel;
         }
 
         // Nearest hatch within reach, for the prompt.
