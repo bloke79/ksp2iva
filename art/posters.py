@@ -157,7 +157,7 @@ def boosters(rng):
         d.polygon([(cx + dx - 10, by + 60), (cx + dx + 10, by + 60), (cx + dx, by + 120)], fill=(250, 170, 50))
     rocket(d, cx, cy - 40, 2.0)
     kerbal(d, cx, cy - 92, 11, "grin", helmet=False)
-    title(d, "MORE", 30, 96, (60, 40, 30))
+    title(d, "MOAR", 30, 96, (60, 40, 30))
     title(d, "BOOSTERS", 120, 96, (200, 70, 50))
     title(d, "IT WORKED LAST TIME*", H - 112, 34, (60, 40, 30))
     title(d, "*IT DID NOT WORK LAST TIME", H - 66, 22, (120, 80, 60))
