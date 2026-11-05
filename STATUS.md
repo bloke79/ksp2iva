@@ -5,7 +5,7 @@
 **Health:** 🟢 Three pods built (1v, Mk1-3, 3v); the 3v has had a stock-style detail pass and playtest fixes. Camera-rig crash mitigated, to be confirmed over a longer session.
 
 ## Latest run
-2026-11-05: committed Matt's pending interior fixes (35d5a24, not pushed by me). No chunk built: the new top-priority ring-orientation fix needs ring code that exists only on iva-ring (held for Matt), and a main build would drop it from the installed DLL. Runner idle; brief updated. Nothing compiled or flown. Usage not read this run.
+2026-11-05: merged iva-ring-playtest into main (12531d4: ring interior, hub, ladders, spin gravity; two conflicts resolved) with Matt's approval, and skipped CorrectOrientation for ring interiors (HasRingMarkers). unity-check clean; not built in Unity, not flown. Matt: fly the Gravity Wheel, expect no 'tipped over' warning and the floor aligned. Iva-ring worktree (C:/Work/worktrees/iva-ring) still has another session's uncommitted edits.
 
 ## Next steps
 1. Matt playtests walking under gravity (`PLAN.md` → Walking under gravity, step 6): a lander on the pad and on the Mun.

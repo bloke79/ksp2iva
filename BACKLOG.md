@@ -3,7 +3,7 @@
 _Last updated 2026-10-11. Ordered by priority within each section. Detailed designs live in `PLAN.md`; current state in `STATUS.md`._
 
 ## 0. TOP PRIORITY (2026-11-05): ring interiors load rotated 90 degrees
-- [ ] **Skip `CorrectOrientation` for ring interiors** (interiors with `IVA_RingAxis_0` markers). Playtest 1 log: "the interior model came in tipped over (seats along (0,0,-1)); rotated it upright", so The Gravity Wheel's floor faces north/south while the interior faces east/west. Cause: the ring seat markers are not symmetric, so the mean seat position is radial, not along the ring axis. Full write-up, evidence and patch sketch: `projects/ksp2-spaceparts/docs/iva-patch/ring-orientation-fix.md`. Also check the logged `Fit scale (1.60, 1.60)` is not applied when `OnHull` is true.
+- [x] (landed 2026-11-05, 12531d4, compile checked, not flown; fit scale is only printed, OnHull applies scale 1) **Skip `CorrectOrientation` for ring interiors** (interiors with `IVA_RingAxis_0` markers). Playtest 1 log: "the interior model came in tipped over (seats along (0,0,-1)); rotated it upright", so The Gravity Wheel's floor faces north/south while the interior faces east/west. Cause: the ring seat markers are not symmetric, so the mean seat position is radial, not along the ring axis. Full write-up, evidence and patch sketch: `projects/ksp2-spaceparts/docs/iva-patch/ring-orientation-fix.md`. Also check the logged `Fit scale (1.60, 1.60)` is not applied when `OnHull` is true.
 
 ## 1. 3v (Mk3-5, 5 seats): v1 done 2026-10-11; in-game checks left
 - [ ] **In-game check of the latest build**: upstairs fixes (glovebox, freezer, bike, table, cables into
